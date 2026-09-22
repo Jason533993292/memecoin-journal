@@ -1,0 +1,11 @@
+{
+  "projectId": "memecoin-journal",
+  "appId": "1:748290550330:web:04a33a9a36541e0f062303",
+  "storageBucket": "memecoin-journal.firebasestorage.app",
+  "apiKey": "AIzaSyDS2Rj1M0Jekub0uiUq_gjY0vylYvlmTa4",
+  "authDomain": "memecoin-journal.firebaseapp.com",
+  "messagingSenderId": "748290550330",
+  "measurementId": "G-H01LY0XBPG",
+  "projectNumber": "748290550330",
+  "version": "2"
+}

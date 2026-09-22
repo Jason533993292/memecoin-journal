@@ -1,0 +1,69 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-page: #ffffff;
+    --bg-notion-gray: #f7f6f3;
+    --bg-notion-card: #ffffff;
+    --border-notion: #e9e9e7;
+    --text-main: #37352f;
+    --text-muted: #787774;
+    --notion-blue: #2383e2;
+  }
+
+  body {
+    background-color: #ffffff;
+    color: #37352f;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* Custom scrollbar for tables */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f1ef;
+}
+::-webkit-scrollbar-thumb {
+  background: #d3d3d0;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #b0b0ad;
+}
+
+.notion-card {
+  background-color: #ffffff;
+  border: 1px solid #e9e9e7;
+  border-radius: 12px;
+  transition: all 0.15s ease-in-out;
+}
+
+.notion-card:hover {
+  border-color: #d3d1cb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.notion-table-th {
+  background-color: #fcfbf9;
+  color: #787774;
+  font-size: 12px;
+  font-weight: 500;
+  border-bottom: 1px solid #e9e9e7;
+  border-right: 1px solid #f1f1ef;
+  padding: 8px 12px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.notion-table-td {
+  border-bottom: 1px solid #f1f1ef;
+  border-right: 1px solid #f7f6f5;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #37352f;
+  white-space: nowrap;
+}
