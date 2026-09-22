@@ -23,7 +23,7 @@ export default function EquityCurveCard({ trades, solPrice = 150 }: EquityCurveC
   const [timeframe, setTimeframe] = useState<"all" | "30d" | "7d">("all");
   const [currency, setCurrency] = useState<"SOL" | "USD">("SOL");
 
-  const { chartData, netPnl, peakPnl, troughPnl, winRate } = useMemo(() => {
+  const { chartData, netPnl, peakPnl, maxDrawdown, winRate } = useMemo(() => {
     const now = Date.now();
     const sorted = [...trades].sort((a, b) => {
       const timeA = a.date?.seconds ? a.date.seconds * 1000 : a.createdAt || 0;
