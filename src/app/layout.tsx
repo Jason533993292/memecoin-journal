@@ -2,8 +2,14 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "MemeCoins Dashboard & Trade Journal",
-  description: "Track, analyze, and dominate the Solana memecoin trenches.",
+  title: "Memecoin Journal",
+  description: "Track your degenerate crypto plays.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Journal",
+  },
 };
 
 export default function RootLayout({

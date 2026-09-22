@@ -1,0 +1,16 @@
+{
+  "name": "Memecoin Journal",
+  "short_name": "Journal",
+  "description": "Your ultimate degenerate trading journal.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#12122a",
+  "theme_color": "#12122a",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    }
+  ]
+}
