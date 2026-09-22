@@ -140,7 +140,7 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
   // Color for a cell
   const getCellColor = useCallback(
     (cell: CellData) => {
-      if (cell.tradeCount === 0) return "rgba(255,255,255,0.03)";
+      if (cell.tradeCount === 0) return "rgba(0,0,0,0.03)";
 
       const pnl = cell.totalPnlUsd;
       if (pnl > 0) {
@@ -152,7 +152,7 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
         const alpha = 0.15 + intensity * 0.7;
         return `rgba(239, 68, 68, ${alpha})`;
       }
-      return "rgba(255,255,255,0.08)";
+      return "rgba(0,0,0,0.08)";
     },
     [globalMin, globalMax]
   );
@@ -216,15 +216,15 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
   const hoveredData = hoveredCell ? gridData[hoveredCell.day][hoveredCell.hour] : null;
 
   return (
-    <div className="bg-[#1a1a2e] border border-[#2a2a4a] rounded-xl overflow-hidden shadow-lg">
+    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
       {/* Header */}
-      <div className="px-5 pt-4 pb-3 border-b border-[#2a2a4a]">
+      <div className="px-5 pt-4 pb-3 border-b border-gray-100">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Clock size={16} className="text-emerald-400" />
+            <Clock size={16} className="text-emerald-500" />
             <div>
-              <h3 className="text-sm font-bold text-white">Performance by Hour & Day</h3>
-              <p className="text-[11px] text-gray-400">
+              <h3 className="text-sm font-bold text-gray-900">Performance by Hour & Day</h3>
+              <p className="text-[11px] text-gray-500">
                 Each square is an average P&L per trade in that hourly slot.
               </p>
             </div>
@@ -259,8 +259,8 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
                 onClick={() => handleDayClick(dayIdx)}
                 className={`w-6 shrink-0 text-[10px] font-bold text-center cursor-pointer transition-colors ${
                   expandedDay === dayIdx && expandedHour === null
-                    ? "text-emerald-400"
-                    : "text-gray-400 hover:text-white"
+                    ? "text-emerald-600"
+                    : "text-gray-500 hover:text-gray-900"
                 }`}
               >
                 {DAY_LABELS[dayIdx]}
@@ -283,7 +283,7 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
                   {cell.tradeCount > 0 && (
                     <span
                       className={`text-[8px] font-mono font-bold leading-none ${
-                        cell.totalPnlUsd >= 0 ? "text-emerald-100" : "text-rose-100"
+                        cell.totalPnlUsd >= 0 ? "text-emerald-900" : "text-rose-900"
                       }`}
                     >
                       {formatUsdSigned(cell.totalPnlUsd)}
@@ -304,8 +304,8 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
                 <div key={i} className="flex-1 flex justify-center">
                   {isCurrentHour && (
                     <div className="flex flex-col items-center">
-                      <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-b-[4px] border-l-transparent border-r-transparent border-b-purple-400" />
-                      <span className="text-[8px] text-purple-400 font-mono font-bold">
+                      <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-b-[4px] border-l-transparent border-r-transparent border-b-purple-500" />
+                      <span className="text-[8px] text-purple-600 font-mono font-bold">
                         {now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
                       </span>
                     </div>
@@ -327,21 +327,21 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
             transform: "translate(-50%, -100%)",
           }}
         >
-          <div className="bg-[#0f0f1e] border border-[#3a3a5a] rounded-lg px-3 py-2 shadow-xl min-w-[180px]">
+          <div className="bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-xl min-w-[180px]">
             <div className="flex items-center gap-1.5 mb-1">
-              <Clock size={11} className="text-gray-400" />
+              <Clock size={11} className="text-gray-500" />
               <span
                 className={`text-sm font-bold font-mono ${
-                  hoveredData.totalPnlUsd >= 0 ? "text-emerald-400" : "text-rose-400"
+                  hoveredData.totalPnlUsd >= 0 ? "text-emerald-600" : "text-rose-600"
                 }`}
               >
                 {formatUsdSigned(hoveredData.totalPnlUsd)}
               </span>
-              <span className="text-[10px] text-gray-400">
+              <span className="text-[10px] text-gray-500">
                 over {hoveredData.tradeCount} trade{hoveredData.tradeCount !== 1 ? "s" : ""}
               </span>
             </div>
-            <div className="text-[10px] text-gray-400">
+            <div className="text-[10px] text-gray-500">
               {DAY_FULL[hoveredCell.day]} {formatHourRange(hoveredCell.hour)} ·{" "}
               {hoveredData.tradeCount > 0
                 ? `${Math.round((hoveredData.wins / hoveredData.tradeCount) * 100)}% win rate`
@@ -353,11 +353,11 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
 
       {/* Bottom Stats Bar */}
       {summaryStats.totalTrades > 0 && (
-        <div className="px-4 py-2.5 border-t border-[#2a2a4a] flex flex-wrap items-center gap-3 text-[11px]">
+        <div className="px-4 py-2.5 border-t border-gray-100 flex flex-wrap items-center gap-3 text-[11px]">
           {summaryStats.worstCell && (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-rose-500/10 border border-rose-500/20 rounded-md">
-              <TrendingDown size={12} className="text-rose-400" />
-              <span className="text-rose-300 font-medium">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-rose-50 border border-rose-100 rounded-md">
+              <TrendingDown size={12} className="text-rose-500" />
+              <span className="text-rose-700 font-medium">
                 Worst hour · {DAY_FULL[summaryStats.worstCell.dayIndex].slice(0, 3)}{" "}
                 {summaryStats.worstCell.hour === 0
                   ? "12 AM"
@@ -371,9 +371,9 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
             </div>
           )}
           {summaryStats.bestCell && (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-md">
-              <TrendingUp size={12} className="text-emerald-400" />
-              <span className="text-emerald-300 font-medium">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-100 rounded-md">
+              <TrendingUp size={12} className="text-emerald-500" />
+              <span className="text-emerald-700 font-medium">
                 Best hour · {DAY_FULL[summaryStats.bestCell.dayIndex].slice(0, 3)}{" "}
                 {summaryStats.bestCell.hour === 0
                   ? "12 AM"
@@ -386,9 +386,9 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
               </span>
             </div>
           )}
-          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/5 border border-white/10 rounded-md">
-            <Activity size={12} className="text-gray-400" />
-            <span className="text-gray-300 font-medium">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 border border-gray-200 rounded-md">
+            <Activity size={12} className="text-gray-500" />
+            <span className="text-gray-700 font-medium">
               Avg · {formatUsdSigned(summaryStats.avgPerTrade)} / trade
             </span>
           </div>
@@ -397,20 +397,20 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
 
       {/* Expanded Trade Logs Panel */}
       {expandedDay !== null && expandedTrades.length > 0 && (
-        <div className="border-t border-[#2a2a4a] bg-[#12122a]">
+        <div className="border-t border-gray-100 bg-gray-50">
           <div className="px-4 py-3">
             {/* Panel Header */}
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-white">
+                <span className="text-sm font-bold text-gray-900">
                   {DAY_FULL[expandedDay]}
                   {expandedHour !== null && (
-                    <span className="text-gray-400 font-normal">
+                    <span className="text-gray-500 font-normal">
                       {" "}· {formatHourRange(expandedHour)}
                     </span>
                   )}
                 </span>
-                <span className="text-[10px] px-2 py-0.5 bg-white/10 text-gray-300 rounded-full">
+                <span className="text-[10px] px-2 py-0.5 bg-gray-200 text-gray-700 rounded-full">
                   {expandedTrades.length} trade{expandedTrades.length !== 1 ? "s" : ""}
                 </span>
               </div>
@@ -419,7 +419,7 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
                   setExpandedDay(null);
                   setExpandedHour(null);
                 }}
-                className="text-gray-500 hover:text-white transition-colors p-1"
+                className="text-gray-400 hover:text-gray-900 transition-colors p-1"
               >
                 <X size={14} />
               </button>
@@ -442,24 +442,24 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
                     key={trade.id}
                     className={`p-3 rounded-lg border transition-all ${
                       trade.result === "Win"
-                        ? "bg-emerald-500/5 border-emerald-500/20"
+                        ? "bg-emerald-50 border-emerald-200"
                         : trade.result === "Loss"
-                        ? "bg-rose-500/5 border-rose-500/20"
-                        : "bg-white/5 border-white/10"
+                        ? "bg-rose-50 border-rose-200"
+                        : "bg-white border-gray-200"
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1.5">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-white">
+                        <span className="text-xs font-bold text-gray-900">
                           {trade.symbol || trade.name || "Unknown"}
                         </span>
                         <span
                           className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${
                             trade.result === "Win"
-                              ? "bg-emerald-500/20 text-emerald-400"
+                              ? "bg-emerald-100 text-emerald-700"
                               : trade.result === "Loss"
-                              ? "bg-rose-500/20 text-rose-400"
-                              : "bg-white/10 text-gray-400"
+                              ? "bg-rose-100 text-rose-700"
+                              : "bg-gray-100 text-gray-600"
                           }`}
                         >
                           {trade.result}
@@ -469,12 +469,12 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
                     </div>
 
                     <div className="flex items-center justify-between">
-                      <div className="text-[10px] text-gray-400">
+                      <div className="text-[10px] text-gray-500">
                         {trade.setupType || "—"}
                       </div>
                       <span
                         className={`text-xs font-mono font-bold ${
-                          pnlUsd >= 0 ? "text-emerald-400" : "text-rose-400"
+                          pnlUsd >= 0 ? "text-emerald-600" : "text-rose-600"
                         }`}
                       >
                         {formatUsdSigned(pnlUsd)}
