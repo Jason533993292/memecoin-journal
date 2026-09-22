@@ -212,12 +212,16 @@ export default function EquityCurveCard({ trades, solPrice = 150 }: EquityCurveC
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0efe9" vertical={false} />
               <XAxis
-                dataKey="date"
+                dataKey="index"
                 stroke="#9b9a97"
                 fontSize={10}
                 tickLine={false}
                 axisLine={{ stroke: "#e9e9e7" }}
                 minTickGap={30}
+                tickFormatter={(val) => {
+                  const item = chartData.find((d) => d.index === val);
+                  return item ? item.date : "";
+                }}
               />
               <YAxis
                 stroke="#9b9a97"
