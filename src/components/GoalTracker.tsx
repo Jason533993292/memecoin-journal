@@ -18,10 +18,31 @@ export default function GoalTracker({
   solPrice = 150,
 }: GoalTrackerProps) {
   const stats = useMemo(() => {
-    const now = Date.now();
+    const nowObj = new Date();
+    const now = nowObj.getTime();
+    const currentMonth = nowObj.getMonth();
+    const currentYear = nowObj.getFullYear();
+    const currentDayOfMonth = nowObj.getDate();
+    
+    // Days left in month
+    const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const daysLeftInMonth = lastDayOfMonth - currentDayOfMonth;
+
+    // Days left in week (Sunday is end of week)
+    const dayOfWeek = nowObj.getDay();
+    const daysLeftInWeek = dayOfWeek === 0 ? 0 : 7 - dayOfWeek;
+
+    // Start of week (Monday)
+    const startOfWeek = new Date(nowObj);
+    const diff = startOfWeek.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+    startOfWeek.setDate(diff);
+    startOfWeek.setHours(0, 0, 0, 0);
+    const startOfWeekTime = startOfWeek.getTime();
+
+    // Start of month
+    const startOfMonth = new Date(currentYear, currentMonth, 1).getTime();
+
     const oneDay = 24 * 60 * 60 * 1000;
-    const sevenDays = 7 * oneDay;
-    const thirtyDays = 30 * oneDay;
 
     let weeklyPnl = 0;
     let monthlyPnl = 0;
@@ -32,10 +53,10 @@ export default function GoalTracker({
       const time = t.date?.seconds ? t.date.seconds * 1000 : t.createdAt || now;
       const pnl = t.pnlSol || 0;
 
-      if (now - time <= sevenDays) {
+      if (time >= startOfWeekTime) {
         weeklyPnl += pnl;
       }
-      if (now - time <= thirtyDays) {
+      if (time >= startOfMonth) {
         monthlyPnl += pnl;
       }
       if (now - time <= oneDay) {
@@ -69,6 +90,8 @@ export default function GoalTracker({
       winRatePct: Math.round(winRatePct),
       lossGuardrailTriggered,
       tradesGuardrailTriggered,
+      daysLeftInWeek,
+      daysLeftInMonth,
     };
   }, [trades, goals]);
 
@@ -132,7 +155,7 @@ export default function GoalTracker({
 
           <div className="flex items-center justify-between text-[10px] text-[#9b9a97]">
             <span>{stats.weeklyPct}% Achieved</span>
-            <span>7-Day Rolling</span>
+            <span>{stats.daysLeftInWeek} day{stats.daysLeftInWeek !== 1 ? 's' : ''} left</span>
           </div>
         </div>
 
@@ -163,7 +186,7 @@ export default function GoalTracker({
 
           <div className="flex items-center justify-between text-[10px] text-[#9b9a97]">
             <span>{stats.monthlyPct}% Achieved</span>
-            <span>30-Day Rolling</span>
+            <span>{stats.daysLeftInMonth} day{stats.daysLeftInMonth !== 1 ? 's' : ''} left</span>
           </div>
         </div>
 
