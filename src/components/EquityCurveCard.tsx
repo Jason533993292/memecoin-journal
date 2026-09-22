@@ -11,6 +11,7 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
+  ReferenceLine,
 } from "recharts";
 
 interface EquityCurveCardProps {
@@ -38,8 +39,8 @@ export default function EquityCurveCard({ trades, solPrice = 150 }: EquityCurveC
     });
 
     let runningPnl = 0;
-    let max = 0;
-    let min = 0;
+    let peak = 0;
+    let maxDrawdown = 0;
 
     const data: Array<{
       index: number;
@@ -64,8 +65,10 @@ export default function EquityCurveCard({ trades, solPrice = 150 }: EquityCurveC
     filtered.forEach((t, i) => {
       const pnl = currency === "SOL" ? (t.pnlSol || 0) : (t.pnlUsd || (t.pnlSol || 0) * solPrice);
       runningPnl += pnl;
-      if (runningPnl > max) max = runningPnl;
-      if (runningPnl < min) min = runningPnl;
+      
+      if (runningPnl > peak) peak = runningPnl;
+      const drawdown = peak - runningPnl;
+      if (drawdown > maxDrawdown) maxDrawdown = drawdown;
 
       const dateObj = t.date?.seconds ? new Date(t.date.seconds * 1000) : new Date(t.createdAt || now);
       const label = dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -88,8 +91,8 @@ export default function EquityCurveCard({ trades, solPrice = 150 }: EquityCurveC
     return {
       chartData: data,
       netPnl: parseFloat(runningPnl.toFixed(2)),
-      peakPnl: parseFloat(max.toFixed(2)),
-      troughPnl: parseFloat(min.toFixed(2)),
+      peakPnl: parseFloat(peak.toFixed(2)),
+      maxDrawdown: parseFloat(maxDrawdown.toFixed(2)),
       winRate: wr,
     };
   }, [trades, timeframe, currency, solPrice]);
@@ -178,7 +181,7 @@ export default function EquityCurveCard({ trades, solPrice = 150 }: EquityCurveC
         <div className="p-2.5 bg-white border border-[#e9e9e7] rounded-lg">
           <span className="text-[10px] text-[#787774] block">Max Drawdown</span>
           <div className="text-sm font-mono font-semibold text-rose-600 mt-0.5">
-            {troughPnl} {currency}
+            -{maxDrawdown} {currency}
           </div>
         </div>
 
@@ -200,7 +203,7 @@ export default function EquityCurveCard({ trades, solPrice = 150 }: EquityCurveC
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+            <AreaChart data={chartData} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor={strokeColor} stopOpacity={0.25} />
@@ -214,6 +217,7 @@ export default function EquityCurveCard({ trades, solPrice = 150 }: EquityCurveC
                 fontSize={10}
                 tickLine={false}
                 axisLine={{ stroke: "#e9e9e7" }}
+                minTickGap={30}
               />
               <YAxis
                 stroke="#9b9a97"
@@ -221,6 +225,7 @@ export default function EquityCurveCard({ trades, solPrice = 150 }: EquityCurveC
                 tickLine={false}
                 axisLine={{ stroke: "#e9e9e7" }}
                 tickFormatter={(val) => `${val}`}
+                domain={["auto", "auto"]}
               />
               <Tooltip
                 content={({ active, payload }) => {
@@ -255,6 +260,7 @@ export default function EquityCurveCard({ trades, solPrice = 150 }: EquityCurveC
                   return null;
                 }}
               />
+              <ReferenceLine y={0} stroke="#9b9a97" strokeDasharray="3 3" opacity={0.5} />
               <Area
                 type="monotone"
                 dataKey="equity"
@@ -262,6 +268,8 @@ export default function EquityCurveCard({ trades, solPrice = 150 }: EquityCurveC
                 strokeWidth={2.5}
                 fillOpacity={1}
                 fill={`url(#${gradientId})`}
+                dot={{ r: 3.5, fill: strokeColor, strokeWidth: 2, stroke: "#fff" }}
+                activeDot={{ r: 6, fill: strokeColor, stroke: "#fff", strokeWidth: 2 }}
               />
             </AreaChart>
           </ResponsiveContainer>
