@@ -241,7 +241,7 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
 
       {/* Grid */}
       <div className="px-4 py-3 overflow-x-auto">
-        <div className="min-w-[700px]">
+        <div className="min-w-[700px] relative overflow-hidden pb-1">
           {/* Hour labels row */}
           <div className="flex items-center mb-1">
             <div className="w-6 shrink-0" />
@@ -278,7 +278,7 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
                     expandedDay === dayIdx && (expandedHour === null || expandedHour === hour)
                       ? "ring-1 ring-emerald-400/50"
                       : dayIdx === currentDayIdx && hour === currentHour
-                      ? "ring-2 ring-purple-400 z-10"
+                      ? "ring-1 ring-purple-400 z-10 before:absolute before:left-1/2 before:-top-[1000px] before:-bottom-[1000px] before:w-[1px] before:bg-purple-400/40 before:-z-10 after:absolute after:top-1/2 after:-left-[1000px] after:-right-[1000px] after:h-[1px] after:bg-purple-400/40 after:-z-10"
                       : ""
                   }`}
                   style={{ backgroundColor: getCellColor(cell) }}

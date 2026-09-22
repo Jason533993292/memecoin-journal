@@ -76,30 +76,30 @@ export default function TiltStreakHeatmap({ trades, solPrice = 150 }: TiltStreak
     return days;
   }, [trades, solPrice]);
 
-  // 2. Calculate Current Streak
-  const streakInfo = useMemo(() => {
-    if (trades.length === 0) return { count: 0, type: "none" };
+  // 2. Calculate Monthly Profit
+  const monthlyProfitInfo = useMemo(() => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
 
-    const sorted = [...trades].sort((a, b) => {
-      const timeA = a.date?.seconds ? a.date.seconds * 1000 : a.createdAt || 0;
-      const timeB = b.date?.seconds ? b.date.seconds * 1000 : b.createdAt || 0;
-      return timeB - timeA;
-    });
+    let pnlSol = 0;
+    let pnlUsd = 0;
+    let pnlEur = 0;
 
-    const firstResult = sorted[0].result;
-    if (firstResult === "BE") return { count: 1, type: "BE" };
-
-    let count = 0;
-    for (const t of sorted) {
-      if (t.result === firstResult) {
-        count++;
-      } else {
-        break;
+    trades.forEach((t) => {
+      const tradeDate = t.date?.seconds
+        ? new Date(t.date.seconds * 1000)
+        : new Date(t.createdAt || Date.now());
+      
+      if (tradeDate.getMonth() === currentMonth && tradeDate.getFullYear() === currentYear) {
+        pnlSol += t.pnlSol || 0;
+        pnlUsd += t.pnlUsd || (t.pnlSol || 0) * solPrice;
       }
-    }
+    });
+    pnlEur = pnlUsd * USD_TO_EUR;
 
-    return { count, type: firstResult };
-  }, [trades]);
+    return { pnlSol, pnlUsd, pnlEur };
+  }, [trades, solPrice]);
 
   // 3. Check for Today's Tilt Warning (>= 3 losses today)
   const todayKey = getLocalDayKey(new Date());
@@ -183,21 +183,25 @@ export default function TiltStreakHeatmap({ trades, solPrice = 150 }: TiltStreak
             </button>
           </div>
 
-          {streakInfo.type === "Win" && (
-            <span className="flex items-center gap-1.5 px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full font-bold shadow-xs">
-              <Flame size={14} />
-              <span>{streakInfo.count}-Trade Win Streak 🔥</span>
+          {/* Monthly Profit */}
+          <div className="flex items-center gap-1.5 px-3 py-1 bg-white border border-[#e9e9e7] rounded-full font-bold shadow-xs">
+            <span className="text-[10px] text-[#787774] font-medium mr-1 uppercase">Month P&L</span>
+            <span
+              className={
+                currency === "SOL"
+                  ? monthlyProfitInfo.pnlSol >= 0 ? "text-emerald-600" : "text-rose-600"
+                  : currency === "USD"
+                  ? monthlyProfitInfo.pnlUsd >= 0 ? "text-emerald-600" : "text-rose-600"
+                  : monthlyProfitInfo.pnlEur >= 0 ? "text-emerald-600" : "text-rose-600"
+              }
+            >
+              {currency === "SOL"
+                ? `${monthlyProfitInfo.pnlSol >= 0 ? "+" : ""}${monthlyProfitInfo.pnlSol.toFixed(2)} SOL`
+                : currency === "USD"
+                ? `${monthlyProfitInfo.pnlUsd >= 0 ? "+$" : "-$"}${Math.abs(monthlyProfitInfo.pnlUsd).toFixed(2)}`
+                : `${monthlyProfitInfo.pnlEur >= 0 ? "+€" : "-€"}${Math.abs(monthlyProfitInfo.pnlEur).toFixed(2)}`}
             </span>
-          )}
-          {streakInfo.type === "Loss" && (
-            <span className="flex items-center gap-1.5 px-3 py-1 bg-rose-100 text-rose-800 rounded-full font-bold shadow-xs">
-              <Snowflake size={14} />
-              <span>{streakInfo.count}-Trade Loss Streak 🥶</span>
-            </span>
-          )}
-          {streakInfo.type === "none" && (
-            <div className="text-[11px] text-[#9b9a97]">No active streak</div>
-          )}
+          </div>
         </div>
       </div>
 
