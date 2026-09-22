@@ -215,6 +215,10 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
   // Currently hovered cell data
   const hoveredData = hoveredCell ? gridData[hoveredCell.day][hoveredCell.hour] : null;
 
+  const now = new Date();
+  const currentDayIdx = now.getDay() === 0 ? 6 : now.getDay() - 1;
+  const currentHour = now.getHours();
+
   return (
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
       {/* Header */}
@@ -273,6 +277,8 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
                   className={`flex-1 h-7 mx-[1px] rounded-[3px] flex items-center justify-center cursor-pointer transition-all relative ${
                     expandedDay === dayIdx && (expandedHour === null || expandedHour === hour)
                       ? "ring-1 ring-emerald-400/50"
+                      : dayIdx === currentDayIdx && hour === currentHour
+                      ? "ring-2 ring-purple-400 z-10"
                       : ""
                   }`}
                   style={{ backgroundColor: getCellColor(cell) }}
@@ -294,26 +300,6 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
             </div>
           ))}
 
-          {/* Current time indicator */}
-          <div className="flex items-center mt-1">
-            <div className="w-6 shrink-0" />
-            {HOUR_LABELS.map((_, i) => {
-              const now = new Date();
-              const isCurrentHour = now.getHours() === i;
-              return (
-                <div key={i} className="flex-1 flex justify-center">
-                  {isCurrentHour && (
-                    <div className="flex flex-col items-center">
-                      <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-b-[4px] border-l-transparent border-r-transparent border-b-purple-500" />
-                      <span className="text-[8px] text-purple-600 font-mono font-bold">
-                        {now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
         </div>
       </div>
 
