@@ -113,6 +113,9 @@ export default function LogTradeModal({
   const [soldUsd, setSoldUsd] = useState("");
   const [pnlSol, setPnlSol] = useState("");
   const [pnlUsd, setPnlUsd] = useState("");
+  const [initialRiskSol, setInitialRiskSol] = useState("");
+  const [feesSol, setFeesSol] = useState("");
+  const [stopPrice, setStopPrice] = useState("");
   const [currencyMode, setCurrencyMode] = useState<"SOL" | "USD">("SOL");
 
   // Screenshot / Chart attachment
@@ -192,6 +195,9 @@ export default function LogTradeModal({
       setSoldUsd("");
       setPnlSol("");
       setPnlUsd("");
+      setInitialRiskSol("");
+      setFeesSol("");
+      setStopPrice("");
       setCurrencyMode("SOL");
       setScreenshotUrl("");
       setSelectedTags([]);
@@ -281,18 +287,6 @@ export default function LogTradeModal({
   };
 
   const switchCurrencyMode = (newMode: "SOL" | "USD") => {
-    if (newMode === currencyMode) return;
-    
-    // User wants the visual number to STAY the same, just change its unit.
-    if (newMode === "USD") {
-      if (boughtSol) handleBoughtChange(boughtSol, false);
-      if (soldSol) handleSoldChange(soldSol, false);
-      if (pnlSol) handlePnlChange(pnlSol, false);
-    } else {
-      if (boughtUsd) handleBoughtChange(boughtUsd, true);
-      if (soldUsd) handleSoldChange(soldUsd, true);
-      if (pnlUsd) handlePnlChange(pnlUsd, true);
-    }
     setCurrencyMode(newMode);
   };
 
@@ -347,14 +341,15 @@ export default function LogTradeModal({
       if (!isNaN(num)) {
         const solVal = (num / solPrice).toFixed(3);
         setPnlSol(solVal);
-        const nSol = parseFloat(solVal);
-        if (nSol > 0.005) setResult("Win");
-        else if (nSol < -0.005) setResult("Loss");
+        const sNum = parseFloat(solVal);
+        if (sNum > 0.005) setResult("Win");
+        else if (sNum < -0.005) setResult("Loss");
         else setResult("BE");
       } else setPnlSol("");
     }
   };
 
+  // Image Upload / Drag & Drop Handler
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -402,7 +397,7 @@ export default function LogTradeModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tokenData && !ca) {
-      alert("Please enter a valid Contract Address or Token Name.");
+      showToast("Please enter a valid Contract Address or Token Name.", "error");
       return;
     }
 
@@ -414,6 +409,9 @@ export default function LogTradeModal({
       const parsedBoughtUsd = parseFloat(boughtUsd) || parsedBoughtSol * solPrice;
       const parsedSoldSol = parseFloat(soldSol) || parsedBoughtSol + parsedPnlSol;
       const parsedSoldUsd = parseFloat(soldUsd) || parsedSoldSol * solPrice;
+      const parsedInitialRiskSol = parseFloat(initialRiskSol) || null;
+      const parsedFeesSol = parseFloat(feesSol) || null;
+      const parsedStopPrice = parseFloat(stopPrice) || null;
 
       const finalSetup = customSetup.trim() || setupType;
 
@@ -435,6 +433,10 @@ export default function LogTradeModal({
         soldUsd: parsedSoldUsd,
         pnlSol: parsedPnlSol,
         pnlUsd: parsedPnlUsd,
+        initialRiskSol: parsedInitialRiskSol,
+        feesSol: parsedFeesSol,
+        stopPrice: parsedStopPrice,
+        entryTimezoneOffset: new Date().getTimezoneOffset(),
         mistakes: selectedTags,
         notes: notes.trim(),
         date: serverTimestamp(),
@@ -840,6 +842,60 @@ export default function LogTradeModal({
                   }`}
                 />
                 <span className="text-[10px] text-[#9b9a97] block mt-0.5">Realized USD</span>
+              </div>
+            </div>
+
+            {/* Quant Risk & Execution Drag (Fees) */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-2 border-t border-[#f1f1ef]">
+              <div>
+                <label className="block font-medium text-[#787774] mb-1">
+                  Planned Risk (SOL)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={initialRiskSol}
+                  onChange={(e) => setInitialRiskSol(e.target.value)}
+                  placeholder="e.g. 0.5 (For R-Multiple)"
+                  className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]"
+                />
+                <span className="text-[10px] text-[#9b9a97] block mt-0.5">
+                  Stop distance (R)
+                </span>
+              </div>
+
+              <div>
+                <label className="block font-medium text-[#787774] mb-1">
+                  Network Fees & Bribes
+                </label>
+                <input
+                  type="number"
+                  step="0.001"
+                  value={feesSol}
+                  onChange={(e) => setFeesSol(e.target.value)}
+                  placeholder="e.g. 0.008 SOL"
+                  className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]"
+                />
+                <span className="text-[10px] text-[#9b9a97] block mt-0.5">
+                  Jito tip / priority
+                </span>
+              </div>
+
+              <div className="col-span-2 sm:col-span-1">
+                <label className="block font-medium text-[#787774] mb-1">
+                  Stop Loss Price ($)
+                </label>
+                <input
+                  type="number"
+                  step="0.0000001"
+                  value={stopPrice}
+                  onChange={(e) => setStopPrice(e.target.value)}
+                  placeholder="e.g. 0.0042"
+                  className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]"
+                />
+                <span className="text-[10px] text-[#9b9a97] block mt-0.5">
+                  Target invalidation
+                </span>
               </div>
             </div>
           </div>

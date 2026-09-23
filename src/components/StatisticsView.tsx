@@ -2,8 +2,9 @@
 
 import { useMemo } from "react";
 import { Trade } from "../lib/types";
+import { getTradeDate, getTradeTimestamp } from "../lib/utils";
 import { DEFAULT_GOOD_TAGS } from "./LogTradeModal";
-import { Lock, BarChart3, TrendingUp, Calendar, AlertTriangle, Layers, Target, ArrowUpRight, Clock, ShieldCheck } from "lucide-react";
+import { Lock, BarChart3, TrendingUp, Calendar, AlertTriangle, Layers, Target, ArrowUpRight, Clock, ShieldCheck, Zap } from "lucide-react";
 import {
   ResponsiveContainer,
   LineChart,
@@ -24,22 +25,65 @@ interface StatisticsViewProps {
 }
 
 export default function StatisticsView({ trades, solPrice = 150 }: StatisticsViewProps) {
+  // Quant & Strategy Expectancy Metrics
+  const quantMetrics = useMemo(() => {
+    const total = trades.length;
+    const wins = trades.filter((t) => t.result === "Win");
+    const losses = trades.filter((t) => t.result === "Loss");
+    const winRate = total > 0 ? wins.length / total : 0;
+    const lossRate = total > 0 ? losses.length / total : 0;
+
+    const grossProfitSol = wins.reduce((sum, t) => sum + (t.pnlSol || 0), 0);
+    const grossLossSol = losses.reduce((sum, t) => sum + Math.abs(t.pnlSol || 0), 0);
+
+    const avgWinSol = wins.length > 0 ? grossProfitSol / wins.length : 0;
+    const avgLossSol = losses.length > 0 ? grossLossSol / losses.length : 0;
+
+    const profitFactor = grossLossSol > 0 ? grossProfitSol / grossLossSol : grossProfitSol > 0 ? 99.9 : 0;
+    const payoffRatio = avgLossSol > 0 ? avgWinSol / avgLossSol : 0;
+    const expectancySol = (winRate * avgWinSol) - (lossRate * avgLossSol);
+
+    // R-multiples for trades with initialRiskSol > 0
+    const rTrades = trades.filter((t) => t.initialRiskSol && t.initialRiskSol > 0);
+    const avgR = rTrades.length > 0
+      ? rTrades.reduce((sum, t) => sum + ((t.pnlSol || 0) / (t.initialRiskSol || 1)), 0) / rTrades.length
+      : null;
+
+    const totalFeesSol = trades.reduce((sum, t) => sum + (t.feesSol || 0), 0);
+
+    return {
+      total,
+      winRate: (winRate * 100).toFixed(1),
+      grossProfitSol: grossProfitSol.toFixed(2),
+      grossLossSol: grossLossSol.toFixed(2),
+      avgWinSol: avgWinSol.toFixed(3),
+      avgLossSol: avgLossSol.toFixed(3),
+      profitFactor: profitFactor.toFixed(2),
+      payoffRatio: payoffRatio.toFixed(2),
+      expectancySol: expectancySol.toFixed(3),
+      expectancyUsd: (expectancySol * solPrice).toFixed(2),
+      avgR: avgR !== null ? (avgR >= 0 ? `+${avgR.toFixed(2)}R` : `${avgR.toFixed(2)}R`) : null,
+      totalFeesSol: totalFeesSol.toFixed(3),
+      hasRData: rTrades.length > 0,
+    };
+  }, [trades, solPrice]);
+
   // 1. Results Breakdown
   const results = useMemo(() => {
     const wins = trades.filter((t) => t.result === "Win");
     const be = trades.filter((t) => t.result === "BE");
     const losses = trades.filter((t) => t.result === "Loss");
 
-    const winPnlUsd = wins.reduce((acc, t) => acc + (t.pnlUsd || (t.pnlSol || 0) * 150), 0);
-    const bePnlUsd = be.reduce((acc, t) => acc + (t.pnlUsd || (t.pnlSol || 0) * 150), 0);
-    const lossPnlUsd = losses.reduce((acc, t) => acc + (t.pnlUsd || (t.pnlSol || 0) * 150), 0);
+    const winPnlUsd = wins.reduce((acc, t) => acc + (t.pnlUsd !== undefined ? t.pnlUsd : (t.pnlSol || 0) * solPrice), 0);
+    const bePnlUsd = be.reduce((acc, t) => acc + (t.pnlUsd !== undefined ? t.pnlUsd : (t.pnlSol || 0) * solPrice), 0);
+    const lossPnlUsd = losses.reduce((acc, t) => acc + (t.pnlUsd !== undefined ? t.pnlUsd : (t.pnlSol || 0) * solPrice), 0);
 
     return {
       win: { count: wins.length, pnl: winPnlUsd },
       be: { count: be.length, pnl: bePnlUsd },
       loss: { count: losses.length, pnl: lossPnlUsd },
     };
-  }, [trades]);
+  }, [trades, solPrice]);
 
   // 2. Setup Type Breakdown
   const setupStats = useMemo(() => {
@@ -53,7 +97,7 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
       map[setup].count += 1;
       if (t.result === "Win") map[setup].wins += 1;
       map[setup].pnlSol += t.pnlSol || 0;
-      map[setup].pnlUsd += t.pnlUsd || (t.pnlSol || 0) * 150;
+      map[setup].pnlUsd += t.pnlUsd !== undefined ? t.pnlUsd : (t.pnlSol || 0) * solPrice;
     });
 
     return Object.entries(map)
@@ -66,7 +110,7 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
         pnlUsd: parseFloat(data.pnlUsd.toFixed(2)),
       }))
       .sort((a, b) => b.pnlSol - a.pnlSol);
-  }, [trades]);
+  }, [trades, solPrice]);
 
   // 3. Trade Duration Analytics (Winners vs Losers)
   const durationStats = useMemo(() => {
@@ -109,16 +153,16 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
     ordered.forEach((d) => (map[d] = { count: 0, pnl: 0 }));
 
     trades.forEach((t) => {
-      const date = t.date?.seconds ? new Date(t.date.seconds * 1000) : new Date(t.createdAt || Date.now());
+      const date = getTradeDate(t);
       const dayName = days[date.getDay()];
       if (map[dayName]) {
         map[dayName].count += 1;
-        map[dayName].pnl += t.pnlUsd || (t.pnlSol || 0) * 150;
+        map[dayName].pnl += t.pnlUsd !== undefined ? t.pnlUsd : (t.pnlSol || 0) * solPrice;
       }
     });
 
     return ordered.map((name) => ({ name, ...map[name] }));
-  }, [trades]);
+  }, [trades, solPrice]);
 
   // 5. Monthly Breakdown
   const monthlyStats = useMemo(() => {
@@ -131,16 +175,16 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
     months.forEach((m) => (map[m] = { count: 0, pnl: 0 }));
 
     trades.forEach((t) => {
-      const date = t.date?.seconds ? new Date(t.date.seconds * 1000) : new Date(t.createdAt || Date.now());
+      const date = getTradeDate(t);
       const monthName = months[date.getMonth()];
       if (map[monthName]) {
         map[monthName].count += 1;
-        map[monthName].pnl += t.pnlUsd || (t.pnlSol || 0) * 150;
+        map[monthName].pnl += t.pnlUsd !== undefined ? t.pnlUsd : (t.pnlSol || 0) * solPrice;
       }
     });
 
     return months.map((name) => ({ name, ...map[name] }));
-  }, [trades]);
+  }, [trades, solPrice]);
 
   // 6. Yearly Breakdown
   const yearlyStats = useMemo(() => {
@@ -152,22 +196,22 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
     };
 
     trades.forEach((t) => {
-      const date = t.date?.seconds ? new Date(t.date.seconds * 1000) : new Date(t.createdAt || Date.now());
+      const date = getTradeDate(t);
       const yearStr = String(date.getFullYear());
       if (map[yearStr]) {
         map[yearStr].count += 1;
-        map[yearStr].pnl += t.pnlUsd || (t.pnlSol || 0) * 150;
+        map[yearStr].pnl += t.pnlUsd !== undefined ? t.pnlUsd : (t.pnlSol || 0) * solPrice;
       }
     });
 
     return years.map((name) => ({ name, ...map[name] }));
-  }, [trades]);
+  }, [trades, solPrice]);
 
   // 7. Equity Curve
   const equityCurve = useMemo(() => {
     const sorted = [...trades].sort((a, b) => {
-      const timeA = a.date?.seconds ? a.date.seconds * 1000 : a.createdAt || 0;
-      const timeB = b.date?.seconds ? b.date.seconds * 1000 : b.createdAt || 0;
+      const timeA = getTradeTimestamp(a);
+      const timeB = getTradeTimestamp(b);
       return timeA - timeB;
     });
 
@@ -176,10 +220,12 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
 
     sorted.forEach((t, i) => {
       runningPnl += t.pnlSol || 0;
-      const label = t.date?.seconds
-        ? new Date(t.date.seconds * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric" })
-        : `T${i + 1}`;
-      curve.push({ index: i + 1, date: label, pnl: parseFloat(runningPnl.toFixed(2)) });
+      const label = getTradeDate(t).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      curve.push({
+        index: i + 1,
+        date: label,
+        pnl: parseFloat(runningPnl.toFixed(2)),
+      });
     });
 
     return curve;
@@ -238,6 +284,80 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
 
       {/* Time-of-Day Performance Heatmap (Axiom-style) */}
       <TimeOfDayHeatmap trades={trades} solPrice={solPrice} />
+
+      {/* Quant Performance & Strategy Expectancy Card */}
+      <div className="bg-white border border-[#e9e9e7] rounded-xl p-5 shadow-xs space-y-4">
+        <div className="flex items-center justify-between pb-2 border-b border-[#f1f1ef]">
+          <div className="flex items-center gap-2">
+            <Zap size={16} className="text-[#2383e2]" />
+            <div>
+              <h2 className="text-sm font-semibold text-[#37352f]">Quant Expectancy & Performance Ratios</h2>
+              <p className="text-xs text-[#787774]">
+                Mathematical system expectancy, profit factor, win/loss payoffs, and execution drag.
+              </p>
+            </div>
+          </div>
+          <span className="text-[11px] font-semibold text-[#2383e2] bg-blue-50 px-2.5 py-0.5 rounded border border-blue-200">
+            Strategy Edge
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+          {/* Mathematical Expectancy */}
+          <div className="p-3.5 bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl">
+            <div className="text-[11px] uppercase tracking-wider text-[#787774] font-semibold">
+              Expectancy / Trade
+            </div>
+            <div className={`text-xl font-mono font-bold tabular-nums mt-1 ${
+              parseFloat(quantMetrics.expectancySol) > 0 ? "text-emerald-600" : parseFloat(quantMetrics.expectancySol) < 0 ? "text-rose-600" : "text-[#37352f]"
+            }`}>
+              {parseFloat(quantMetrics.expectancySol) >= 0 ? `+${quantMetrics.expectancySol}` : quantMetrics.expectancySol} SOL
+            </div>
+            <div className="text-[10px] text-[#9b9a97] mt-0.5">
+              ≈ ${quantMetrics.expectancyUsd} / execution
+            </div>
+          </div>
+
+          {/* Profit Factor */}
+          <div className="p-3.5 bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl">
+            <div className="text-[11px] uppercase tracking-wider text-[#787774] font-semibold">
+              Profit Factor
+            </div>
+            <div className="text-xl font-mono font-bold tabular-nums mt-1 text-[#37352f]">
+              {quantMetrics.profitFactor}
+            </div>
+            <div className="text-[10px] text-[#9b9a97] mt-0.5">
+              Gross Win: {quantMetrics.grossProfitSol} / Loss: {quantMetrics.grossLossSol}
+            </div>
+          </div>
+
+          {/* Payoff Ratio */}
+          <div className="p-3.5 bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl">
+            <div className="text-[11px] uppercase tracking-wider text-[#787774] font-semibold">
+              Payoff (Win / Loss)
+            </div>
+            <div className="text-xl font-mono font-bold tabular-nums mt-1 text-[#37352f]">
+              {quantMetrics.payoffRatio} : 1
+            </div>
+            <div className="text-[10px] text-[#9b9a97] mt-0.5">
+              Avg +{quantMetrics.avgWinSol} / -{quantMetrics.avgLossSol} SOL
+            </div>
+          </div>
+
+          {/* Execution Fees / R-Multiple */}
+          <div className="p-3.5 bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl">
+            <div className="text-[11px] uppercase tracking-wider text-[#787774] font-semibold">
+              {quantMetrics.hasRData ? "Average R-Multiple" : "Solana Fees Drag"}
+            </div>
+            <div className="text-xl font-mono font-bold tabular-nums mt-1 text-amber-600">
+              {quantMetrics.hasRData ? quantMetrics.avgR : `${quantMetrics.totalFeesSol} SOL`}
+            </div>
+            <div className="text-[10px] text-[#9b9a97] mt-0.5">
+              {quantMetrics.hasRData ? `Fees: ${quantMetrics.totalFeesSol} SOL` : "Jito tips + priority fees"}
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Duration Tracking Analytics Card */}
       <div className="bg-white border border-[#e9e9e7] rounded-xl p-5 shadow-xs space-y-4">

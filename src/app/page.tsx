@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { db } from "../lib/firebase";
-import { collection, getDocs, query, orderBy, limit, doc, deleteDoc } from "firebase/firestore";
+import { collection, onSnapshot, query, orderBy, doc, deleteDoc } from "firebase/firestore";
 import { Trade, JournalRules, AiCoachBrief, GoalSettings } from "../lib/types";
 import TopBanner from "../components/TopBanner";
 import DashboardView from "../components/DashboardView";
@@ -123,42 +123,42 @@ function MainApp() {
     } catch (e) {}
   };
 
-  // Fetch trades from Firestore
-  const fetchTrades = useCallback(async () => {
+  // Real-time Firestore subscription (no limit(100) truncation)
+  useEffect(() => {
     setLoading(true);
-    try {
-      const q = query(collection(db, "trades"), orderBy("date", "desc"), limit(100));
-      const snapshot = await getDocs(q);
-      if (!snapshot.empty) {
+    const q = query(collection(db, "trades"), orderBy("date", "desc"));
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
         const fetchedTrades = snapshot.docs.map((d) => ({
           id: d.id,
           ...d.data(),
         })) as Trade[];
         setTrades(fetchedTrades);
-      } else {
-        setTrades([]);
+        setPermissionError(false);
+        setLoading(false);
+      },
+      (error: any) => {
+        console.error("Firestore real-time listener error:", error);
+        if (error?.code === "permission-denied" || error?.message?.includes("permissions")) {
+          setPermissionError(true);
+        }
+        setLoading(false);
       }
-      setPermissionError(false);
-    } catch (error: any) {
-      console.error("Firestore read error:", error);
-      if (error?.code === "permission-denied" || error?.message?.includes("permissions")) {
-        setPermissionError(true);
-      }
-      setTrades([]);
-    }
-    setLoading(false);
+    );
+    return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    fetchTrades();
-  }, [fetchTrades]);
+  // Backwards-compatible trigger for modals
+  const fetchTrades = useCallback(() => {
+    // onSnapshot automatically updates state, this is a smooth no-op
+  }, []);
 
   // Delete trade
   const handleDeleteTradeDirectly = async (id: string) => {
     if (!confirm("Are you sure you want to delete this trade?")) return;
     try {
       await deleteDoc(doc(db, "trades", id));
-      fetchTrades();
     } catch (e) {
       console.error("Error deleting trade:", e);
     }

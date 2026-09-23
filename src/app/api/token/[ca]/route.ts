@@ -8,8 +8,8 @@ export async function GET(
     const { ca } = await params;
     const cleanCa = ca?.trim();
 
-    if (!cleanCa) {
-      return NextResponse.json({ error: 'Contract address is required' }, { status: 400 });
+    if (!cleanCa || cleanCa.length < 30 || cleanCa.length > 50) {
+      return NextResponse.json({ error: 'Valid Solana contract address is required (32-44 characters)' }, { status: 400 });
     }
 
     // 1. Try DexScreener token endpoint

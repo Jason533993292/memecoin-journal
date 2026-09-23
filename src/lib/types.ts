@@ -1,3 +1,7 @@
+import { Timestamp } from "firebase/firestore";
+
+export type TradeDate = any;
+
 export interface Trade {
   id: string;
   ca: string;
@@ -21,7 +25,11 @@ export interface Trade {
   durationMinutes?: number;
   entryTime?: string;
   exitTime?: string;
-  date: any;
+  initialRiskSol?: number;
+  stopPrice?: number;
+  feesSol?: number;
+  entryTimezoneOffset?: number;
+  date?: TradeDate;
   createdAt?: number;
 }
 
@@ -41,7 +49,7 @@ export interface WalletTransaction {
   amountSol: number;
   amountUsd?: number;
   notes?: string;
-  date: any;
+  date?: TradeDate;
   createdAt?: number;
 }
 
@@ -71,4 +79,3 @@ export interface ToastMessage {
   message: string;
   description?: string;
 }
-

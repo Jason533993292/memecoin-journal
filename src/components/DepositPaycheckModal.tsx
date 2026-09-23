@@ -1,24 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import { X, ArrowDownToLine, ArrowUpFromLine, Loader2, DollarSign } from "lucide-react";
 import { Wallet } from "../lib/types";
+import { X, ArrowDownToLine, ArrowUpFromLine, Loader2, AlertTriangle } from "lucide-react";
 import { useToast } from "./Toast";
 
 interface DepositPaycheckModalProps {
-  wallet: Wallet | null;
-  type: "deposit" | "paycheck";
   isOpen: boolean;
   onClose: () => void;
+  wallet: Wallet | null;
+  type: "deposit" | "paycheck";
   onConfirm: (walletId: string, deltaSol: number, notes: string) => Promise<void>;
   solPrice?: number;
 }
 
 export default function DepositPaycheckModal({
-  wallet,
-  type,
   isOpen,
   onClose,
+  wallet,
+  type,
   onConfirm,
   solPrice = 150,
 }: DepositPaycheckModalProps) {
@@ -26,24 +26,25 @@ export default function DepositPaycheckModal({
   const [amountSol, setAmountSol] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [confirmOverdraft, setConfirmOverdraft] = useState(false);
 
   if (!isOpen || !wallet) return null;
 
   const isDeposit = type === "deposit";
   const numAmount = parseFloat(amountSol) || 0;
   const numUsd = numAmount * solPrice;
+  const isOverdraft = !isDeposit && numAmount > wallet.balanceSol;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (numAmount <= 0) {
-      alert("Please enter a valid amount greater than 0.");
+      showToast("Please enter a valid amount greater than 0.", "error");
       return;
     }
 
-    if (!isDeposit && numAmount > wallet.balanceSol) {
-      if (!confirm(`Warning: Withdrawing ${numAmount} SOL is higher than the recorded balance of ${wallet.balanceSol} SOL. Proceed anyway?`)) {
-        return;
-      }
+    if (isOverdraft && !confirmOverdraft) {
+      setConfirmOverdraft(true);
+      return;
     }
 
     setSaving(true);
@@ -58,6 +59,7 @@ export default function DepositPaycheckModal({
       onClose();
       setAmountSol("");
       setNotes("");
+      setConfirmOverdraft(false);
     } catch (err) {
       console.error(err);
       showToast("Transaction failed", "error");
@@ -69,7 +71,10 @@ export default function DepositPaycheckModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
       <div className="bg-white border border-[#e9e9e7] rounded-xl p-6 w-full max-w-md shadow-xl relative text-[#37352f]">
         <button
-          onClick={onClose}
+          onClick={() => {
+            setConfirmOverdraft(false);
+            onClose();
+          }}
           className="absolute top-4 right-4 text-[#9b9a97] hover:text-[#37352f] transition-colors p-1 rounded-md hover:bg-[#f1f1ef]"
         >
           <X size={18} />
@@ -101,11 +106,14 @@ export default function DepositPaycheckModal({
                 min="0.001"
                 required
                 value={amountSol}
-                onChange={(e) => setAmountSol(e.target.value)}
+                onChange={(e) => {
+                  setAmountSol(e.target.value);
+                  setConfirmOverdraft(false);
+                }}
                 placeholder="e.g. 5.0"
-                className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-3 py-2 text-sm font-semibold text-[#37352f] focus:outline-none focus:border-[#2383e2]"
+                className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-3 py-2 text-sm font-semibold text-[#37352f] focus:outline-none focus:border-[#2383e2] tabular-nums"
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-xs text-[#787774]">
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-xs text-[#787774] tabular-nums">
                 ~${numUsd.toFixed(2)}
               </span>
             </div>
@@ -122,10 +130,27 @@ export default function DepositPaycheckModal({
             />
           </div>
 
+          {/* Overdraft Warning Banner */}
+          {isOverdraft && (
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-900 flex items-start gap-2">
+              <AlertTriangle size={15} className="text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <strong className="block font-semibold">Overdraft Warning</strong>
+                <span>
+                  Withdrawing {numAmount} SOL exceeds the recorded balance of {wallet.balanceSol.toFixed(2)} SOL. 
+                  {confirmOverdraft ? " Click Confirm again to proceed." : " Click Confirm to acknowledge."}
+                </span>
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#f1f1ef]">
             <button
               type="button"
-              onClick={onClose}
+              onClick={() => {
+                setConfirmOverdraft(false);
+                onClose();
+              }}
               className="px-4 py-2 rounded-lg text-xs font-medium text-[#787774] hover:bg-[#f1f1ef] transition-colors"
             >
               Cancel
@@ -134,10 +159,22 @@ export default function DepositPaycheckModal({
               type="submit"
               disabled={saving}
               className={`px-5 py-2 text-white font-medium rounded-lg text-xs shadow-xs transition-colors flex items-center gap-1.5 disabled:opacity-50 ${
-                isDeposit ? "bg-[#2383e2] hover:bg-[#1a73ca]" : "bg-emerald-600 hover:bg-emerald-700"
+                isOverdraft && confirmOverdraft
+                  ? "bg-amber-600 hover:bg-amber-700"
+                  : isDeposit
+                  ? "bg-[#2383e2] hover:bg-[#1a73ca]"
+                  : "bg-emerald-600 hover:bg-emerald-700"
               }`}
             >
-              {saving ? <Loader2 size={13} className="animate-spin" /> : <span>Confirm {isDeposit ? "Deposit" : "Paycheck"}</span>}
+              {saving ? (
+                <Loader2 size={13} className="animate-spin" />
+              ) : (
+                <span>
+                  {isOverdraft && confirmOverdraft
+                    ? "Proceed With Overdraft"
+                    : `Confirm ${isDeposit ? "Deposit" : "Paycheck"}`}
+                </span>
+              )}
             </button>
           </div>
         </form>

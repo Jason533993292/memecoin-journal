@@ -65,6 +65,9 @@ export default function EditTradeModal({
   const [soldUsd, setSoldUsd] = useState("");
   const [pnlSol, setPnlSol] = useState("");
   const [pnlUsd, setPnlUsd] = useState("");
+  const [initialRiskSol, setInitialRiskSol] = useState("");
+  const [feesSol, setFeesSol] = useState("");
+  const [stopPrice, setStopPrice] = useState("");
   const [currencyMode, setCurrencyMode] = useState<"SOL" | "USD">("SOL");
 
   const [selectedMistakes, setSelectedMistakes] = useState<string[]>([]);
@@ -92,6 +95,9 @@ export default function EditTradeModal({
       setSoldUsd(trade.soldUsd ? String(trade.soldUsd) : sSol ? (parseFloat(sSol) * solPrice).toFixed(2) : "");
       setPnlSol(pSol);
       setPnlUsd(trade.pnlUsd ? String(trade.pnlUsd) : pSol ? (parseFloat(pSol) * solPrice).toFixed(2) : "");
+      setInitialRiskSol(trade.initialRiskSol !== undefined && trade.initialRiskSol !== null ? String(trade.initialRiskSol) : "");
+      setFeesSol(trade.feesSol !== undefined && trade.feesSol !== null ? String(trade.feesSol) : "");
+      setStopPrice(trade.stopPrice !== undefined && trade.stopPrice !== null ? String(trade.stopPrice) : "");
 
       setSelectedMistakes(trade.mistakes || []);
       setNotes(trade.notes || "");
@@ -264,6 +270,9 @@ export default function EditTradeModal({
       const parsedBoughtUsd = parseFloat(boughtUsd) || parsedBoughtSol * solPrice;
       const parsedSoldSol = parseFloat(soldSol) || parsedBoughtSol + parsedPnlSol;
       const parsedSoldUsd = parseFloat(soldUsd) || parsedSoldSol * solPrice;
+      const parsedInitialRiskSol = parseFloat(initialRiskSol) || null;
+      const parsedFeesSol = parseFloat(feesSol) || null;
+      const parsedStopPrice = parseFloat(stopPrice) || null;
 
       const finalSetup = customSetup.trim() || setupType;
 
@@ -286,6 +295,9 @@ export default function EditTradeModal({
         soldUsd: parsedSoldUsd,
         pnlSol: parsedPnlSol,
         pnlUsd: parsedPnlUsd,
+        initialRiskSol: parsedInitialRiskSol,
+        feesSol: parsedFeesSol,
+        stopPrice: parsedStopPrice,
         mistakes: selectedMistakes,
         notes: notes.trim(),
       });
@@ -625,6 +637,60 @@ export default function EditTradeModal({
                     parseFloat(pnlUsd) > 0 ? "text-emerald-600" : parseFloat(pnlUsd) < 0 ? "text-rose-600" : "text-[#37352f]"
                   }`}
                 />
+              </div>
+            </div>
+
+            {/* Quant Risk & Execution Drag (Fees) */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-2 border-t border-[#f1f1ef]">
+              <div>
+                <label className="block font-medium text-[#787774] mb-1">
+                  Planned Risk (SOL)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={initialRiskSol}
+                  onChange={(e) => setInitialRiskSol(e.target.value)}
+                  placeholder="e.g. 0.5 (For R-Multiple)"
+                  className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]"
+                />
+                <span className="text-[10px] text-[#9b9a97] block mt-0.5">
+                  Stop distance (R)
+                </span>
+              </div>
+
+              <div>
+                <label className="block font-medium text-[#787774] mb-1">
+                  Network Fees & Bribes
+                </label>
+                <input
+                  type="number"
+                  step="0.001"
+                  value={feesSol}
+                  onChange={(e) => setFeesSol(e.target.value)}
+                  placeholder="e.g. 0.008 SOL"
+                  className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]"
+                />
+                <span className="text-[10px] text-[#9b9a97] block mt-0.5">
+                  Jito tip / priority
+                </span>
+              </div>
+
+              <div className="col-span-2 sm:col-span-1">
+                <label className="block font-medium text-[#787774] mb-1">
+                  Stop Loss Price ($)
+                </label>
+                <input
+                  type="number"
+                  step="0.0000001"
+                  value={stopPrice}
+                  onChange={(e) => setStopPrice(e.target.value)}
+                  placeholder="e.g. 0.0042"
+                  className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]"
+                />
+                <span className="text-[10px] text-[#9b9a97] block mt-0.5">
+                  Target invalidation
+                </span>
               </div>
             </div>
           </div>

@@ -141,7 +141,10 @@ export default function TopBanner({
       </div>
 
       {/* Mobile Bottom Dock for fast 1-thumb navigation */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#e9e9e7] px-2 py-1.5 flex items-center justify-around shadow-lg">
+      <div
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#e9e9e7] px-2 pt-1.5 flex items-center justify-around shadow-lg"
+        style={{ paddingBottom: "max(8px, env(safe-area-inset-bottom))" }}
+      >
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = currentTab === tab.id;

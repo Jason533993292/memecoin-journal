@@ -31,7 +31,8 @@ import {
   Clock,
   Layers,
 } from "lucide-react";
-import { exportTradesToCSV, exportTradesToJSON } from "../lib/exportImport";
+import { exportTradesToCSV, exportTradesToJSON, parseCSV } from "../lib/exportImport";
+import { getTradeTimestamp, getTradeDate } from "../lib/utils";
 import { useToast } from "./Toast";
 import ImageLightboxModal from "./ImageLightboxModal";
 
@@ -133,10 +134,10 @@ export default function TradeJournalView({
       if (file.name.endsWith(".json")) {
         imported = JSON.parse(text);
       } else if (file.name.endsWith(".csv")) {
-        const lines = text.split("\n").filter((l) => l.trim().length > 0);
-        if (lines.length <= 1) throw new Error("Empty CSV file");
-        for (let i = 1; i < lines.length; i++) {
-          const cols = lines[i].split(",").map((c) => c.trim().replace(/^"|"$/g, ""));
+        const rows = parseCSV(text);
+        if (rows.length <= 1) throw new Error("Empty CSV file");
+        for (let i = 1; i < rows.length; i++) {
+          const cols = rows[i];
           if (cols.length >= 6) {
             imported.push({
               name: cols[1] || "Imported Token",
@@ -148,10 +149,15 @@ export default function TradeJournalView({
               soldSol: parseFloat(cols[7]) || 0,
               pnlSol: parseFloat(cols[8]) || 0,
               pnlUsd: parseFloat(cols[9]) || 0,
-              setupType: cols[10] || "General / Discretionary",
+              setupType: cols[10] || "General",
               durationMinutes: parseFloat(cols[11]) || null,
-              mistakes: cols[13] ? cols[13].split(";").map((s) => s.trim()) : [],
-              notes: cols[14] || "Imported from CSV",
+              mcap: parseFloat(cols[12]) || 0,
+              liquidity: parseFloat(cols[13]) || 0,
+              price: parseFloat(cols[14]) || 0,
+              mistakes: cols[15] ? cols[15].split(";").map((s) => s.trim()) : [],
+              notes: cols[16] || "Imported from CSV",
+              initialRiskSol: parseFloat(cols[17]) || null,
+              feesSol: parseFloat(cols[18]) || null,
               createdAt: Date.now(),
             });
           }
@@ -179,6 +185,8 @@ export default function TradeJournalView({
             soldUsd: item.soldUsd || 0,
             pnlSol: item.pnlSol || 0,
             pnlUsd: item.pnlUsd || 0,
+            initialRiskSol: item.initialRiskSol || null,
+            feesSol: item.feesSol || null,
             mistakes: item.mistakes || [],
             notes: item.notes || "",
             date: serverTimestamp(),
@@ -192,16 +200,18 @@ export default function TradeJournalView({
         showToast("No valid trades found in file", "error");
       }
     } catch (err) {
-      console.error("Import error:", err);
-      showToast("Failed to parse file. Please upload valid JSON or CSV.", "error");
+      console.error(err);
+      showToast("Failed to parse and import file", "error");
     }
 
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  // Filter & Sort trades
+  // Filter & Sort Trades
   const filteredTrades = useMemo(() => {
     const now = Date.now();
+    const todayStart = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).getTime();
+
     return trades
       .filter((trade) => !deletedIds.includes(trade.id))
       .filter((trade) => {
@@ -220,9 +230,9 @@ export default function TradeJournalView({
 
         // Date range filter
         let matchesDate = true;
-        const tradeTimestamp = trade.date?.seconds ? trade.date.seconds * 1000 : trade.createdAt || now;
+        const tradeTimestamp = getTradeTimestamp(trade);
         if (dateRange === "today") {
-          matchesDate = now - tradeTimestamp <= 24 * 60 * 60 * 1000;
+          matchesDate = tradeTimestamp >= todayStart;
         } else if (dateRange === "7d") {
           matchesDate = now - tradeTimestamp <= 7 * 24 * 60 * 60 * 1000;
         } else if (dateRange === "30d") {
@@ -232,8 +242,8 @@ export default function TradeJournalView({
         return matchesSearch && matchesResult && matchesWallet && matchesSetup && matchesMistake && matchesDate;
       })
       .sort((a, b) => {
-        const timeA = a.date?.seconds ? a.date.seconds * 1000 : a.createdAt || 0;
-        const timeB = b.date?.seconds ? b.date.seconds * 1000 : b.createdAt || 0;
+        const timeA = getTradeTimestamp(a);
+        const timeB = getTradeTimestamp(b);
 
         if (sortBy === "date-desc") return timeB - timeA;
         if (sortBy === "date-asc") return timeA - timeB;

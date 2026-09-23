@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Trade, JournalRules, AiCoachBrief, GoalSettings } from "../lib/types";
+import { getTradeTimestamp } from "../lib/utils";
 import {
   Banknote,
   Star,
@@ -25,6 +26,8 @@ import {
   Flame,
   Target,
   Calendar,
+  Zap,
+  AlertOctagon,
 } from "lucide-react";
 import TiltStreakHeatmap from "./TiltStreakHeatmap";
 import EquityCurveCard from "./EquityCurveCard";
@@ -59,36 +62,83 @@ export default function DashboardView({
   loadingAi,
   solPrice = 150,
 }: DashboardViewProps) {
-  // Calculations
-  const totalTrades = trades.length;
-  const wins = trades.filter((t) => t.result === "Win");
-  const losses = trades.filter((t) => t.result === "Loss");
-  const beTrades = trades.filter((t) => t.result === "BE");
+  // Memoized Calculations
+  const {
+    totalTrades,
+    wins,
+    losses,
+    winRate,
+    solGained,
+    solLost,
+    netPnlSol,
+    netPnlUsd,
+    tradesToday,
+    pnlTodaySol,
+    todayLossSol,
+    isDailyLossExceeded,
+    expectancySol,
+    profitFactor,
+    totalFeesSol,
+  } = useMemo(() => {
+    const totalTrades = trades.length;
+    const wins = trades.filter((t) => t.result === "Win");
+    const losses = trades.filter((t) => t.result === "Loss");
+    const winRate = totalTrades > 0 ? ((wins.length / totalTrades) * 100).toFixed(0) : "0";
 
-  const winRate = totalTrades > 0 ? ((wins.length / totalTrades) * 100).toFixed(0) : "0";
+    const solGained = trades
+      .filter((t) => (t.pnlSol || 0) > 0)
+      .reduce((acc, t) => acc + (t.pnlSol || 0), 0);
 
-  // SOL Gained (sum of positive P&L trades)
-  const solGained = trades
-    .filter((t) => (t.pnlSol || 0) > 0)
-    .reduce((acc, t) => acc + t.pnlSol, 0);
+    const solLost = trades
+      .filter((t) => (t.pnlSol || 0) < 0)
+      .reduce((acc, t) => acc + Math.abs(t.pnlSol || 0), 0);
 
-  // SOL Lost (sum of negative P&L trades, positive magnitude)
-  const solLost = trades
-    .filter((t) => (t.pnlSol || 0) < 0)
-    .reduce((acc, t) => acc + Math.abs(t.pnlSol), 0);
+    const netPnlSol = trades.reduce((acc, t) => acc + (t.pnlSol || 0), 0);
+    const netPnlUsd = trades.reduce(
+      (acc, t) => acc + (t.pnlUsd !== undefined ? t.pnlUsd : (t.pnlSol || 0) * solPrice),
+      0
+    );
 
-  // Net P&L in SOL and USD
-  const netPnlSol = trades.reduce((acc, t) => acc + (t.pnlSol || 0), 0);
-  const netPnlUsd = trades.reduce((acc, t) => acc + (t.pnlUsd || (t.pnlSol || 0) * solPrice), 0);
+    // Quant Expectancy & Profit Factor
+    const grossProfitSol = solGained;
+    const grossLossSol = solLost;
+    const wRate = totalTrades > 0 ? wins.length / totalTrades : 0;
+    const lRate = totalTrades > 0 ? losses.length / totalTrades : 0;
+    const avgWinSol = wins.length > 0 ? grossProfitSol / wins.length : 0;
+    const avgLossSol = losses.length > 0 ? grossLossSol / losses.length : 0;
+    const expectancySol = (wRate * avgWinSol) - (lRate * avgLossSol);
+    const profitFactor = grossLossSol > 0 ? (grossProfitSol / grossLossSol).toFixed(2) : grossProfitSol > 0 ? "99.9" : "0.00";
+    const totalFeesSol = trades.reduce((acc, t) => acc + (t.feesSol || 0), 0);
 
-  // Calculate Today's quick count
-  const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const tradesToday = trades.filter((t) => {
-    const time = t.date?.seconds ? t.date.seconds * 1000 : t.createdAt || 0;
-    return time >= startOfToday;
-  });
-  const pnlTodaySol = tradesToday.reduce((acc, t) => acc + (t.pnlSol || 0), 0);
+    // Calculate Today's calendar bounds
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const tradesToday = trades.filter((t) => getTradeTimestamp(t) >= startOfToday);
+    const pnlTodaySol = tradesToday.reduce((acc, t) => acc + (t.pnlSol || 0), 0);
+    const todayLossSol = tradesToday
+      .filter((t) => (t.pnlSol || 0) < 0)
+      .reduce((acc, t) => acc + Math.abs(t.pnlSol || 0), 0);
+
+    const isDailyLossExceeded = goals.maxDailyLossSol > 0 && todayLossSol >= goals.maxDailyLossSol;
+
+    return {
+      totalTrades,
+      wins,
+      losses,
+      winRate,
+      solGained,
+      solLost,
+      netPnlSol,
+      netPnlUsd,
+      tradesToday,
+      pnlTodaySol,
+      todayLossSol,
+      isDailyLossExceeded,
+      expectancySol: expectancySol.toFixed(3),
+      profitFactor,
+      totalFeesSol: totalFeesSol.toFixed(3),
+    };
+  }, [trades, solPrice, goals.maxDailyLossSol]);
 
   return (
     <div className="space-y-6 sm:space-y-8 pb-16">
@@ -123,6 +173,21 @@ export default function DashboardView({
         </div>
       </div>
 
+      {/* Daily Loss Limit Enforcement Banner */}
+      {isDailyLossExceeded && (
+        <div className="p-4 bg-rose-50 border-2 border-rose-400 rounded-xl text-xs text-rose-900 flex items-start gap-3 shadow-md animate-pulse">
+          <AlertOctagon size={20} className="text-rose-600 shrink-0 mt-0.5" />
+          <div className="space-y-0.5">
+            <strong className="text-sm font-bold text-rose-950 block">
+              🛑 Daily Max Loss Cap Exceeded (-{todayLossSol.toFixed(2)} SOL / Max {goals.maxDailyLossSol} SOL)
+            </strong>
+            <p className="text-rose-800">
+              Discipline Rule Triggered: You have reached your maximum daily loss threshold for today. Do not revenge trade. Step away from BullX / Photon to protect your capital.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Row of 6 Notion Metric Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-3.5">
         {/* Card 1: Net P&L (USD) */}
@@ -135,7 +200,7 @@ export default function DashboardView({
           </div>
           <div>
             <span className="text-[11px] sm:text-xs text-[#787774] font-medium block">Net P&L (USD)</span>
-            <div className={`text-sm sm:text-base font-semibold tracking-tight mt-1 ${netPnlUsd >= 0 ? "text-[#37352f]" : "text-rose-600"}`}>
+            <div className={`text-sm sm:text-base font-semibold font-mono tabular-nums tracking-tight mt-1 ${netPnlUsd >= 0 ? "text-[#37352f]" : "text-rose-600"}`}>
               {netPnlUsd >= 0
                 ? `$${netPnlUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                 : `-$${Math.abs(netPnlUsd).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
@@ -153,7 +218,7 @@ export default function DashboardView({
           </div>
           <div>
             <span className="text-[11px] sm:text-xs text-[#787774] font-medium block">Net P&L (SOL)</span>
-            <div className={`text-sm sm:text-base font-semibold tracking-tight mt-1 ${netPnlSol >= 0 ? "text-[#37352f]" : "text-rose-600"}`}>
+            <div className={`text-sm sm:text-base font-semibold font-mono tabular-nums tracking-tight mt-1 ${netPnlSol >= 0 ? "text-[#37352f]" : "text-rose-600"}`}>
               {netPnlSol >= 0 ? `+${netPnlSol.toFixed(2)}` : `${netPnlSol.toFixed(2)}`}
             </div>
           </div>
@@ -170,7 +235,7 @@ export default function DashboardView({
           <div>
             <span className="text-[11px] sm:text-xs text-[#787774] font-medium block">Win Rate</span>
             <div className="mt-1">
-              <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#f1f1ef] text-[#37352f]">
+              <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold font-mono tabular-nums bg-[#f1f1ef] text-[#37352f]">
                 {winRate}%
               </span>
             </div>
@@ -187,7 +252,7 @@ export default function DashboardView({
           </div>
           <div>
             <span className="text-[11px] sm:text-xs text-[#787774] font-medium block">Total Trades</span>
-            <div className="text-sm sm:text-base font-semibold tracking-tight mt-1 text-[#37352f]">
+            <div className="text-sm sm:text-base font-semibold font-mono tabular-nums tracking-tight mt-1 text-[#37352f]">
               {totalTrades}
             </div>
             <div className="w-full bg-[#f1f1ef] h-1.5 rounded-full mt-2 overflow-hidden">
@@ -209,8 +274,8 @@ export default function DashboardView({
           </div>
           <div>
             <span className="text-[11px] sm:text-xs text-[#787774] font-medium block">SOL Gained</span>
-            <div className="text-sm sm:text-base font-semibold tracking-tight mt-1 text-emerald-600 flex items-center gap-1">
-              <span>{solGained.toFixed(2)}</span>
+            <div className="text-sm sm:text-base font-semibold font-mono tabular-nums tracking-tight mt-1 text-emerald-600 flex items-center gap-1">
+              <span>+{solGained.toFixed(2)}</span>
             </div>
           </div>
         </div>
@@ -225,9 +290,34 @@ export default function DashboardView({
           </div>
           <div>
             <span className="text-[11px] sm:text-xs text-[#787774] font-medium block">SOL Lost</span>
-            <div className="text-sm sm:text-base font-semibold tracking-tight mt-1 text-rose-600 flex items-center gap-1">
-              <span>{solLost.toFixed(2)}</span>
+            <div className="text-sm sm:text-base font-semibold font-mono tabular-nums tracking-tight mt-1 text-rose-600 flex items-center gap-1">
+              <span>-{solLost.toFixed(2)}</span>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Quant Strategy Edge Bar */}
+      <div className="bg-[#fcfbf9] border border-[#e9e9e7] rounded-xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-2">
+          <Zap size={14} className="text-[#2383e2]" />
+          <span className="font-semibold text-[#37352f]">Quant Expectancy:</span>
+          <span className={`font-mono font-bold tabular-nums ${parseFloat(expectancySol) >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+            {parseFloat(expectancySol) >= 0 ? `+${expectancySol}` : expectancySol} SOL / trade
+          </span>
+        </div>
+
+        <div className="flex items-center gap-4 text-[#787774]">
+          <div>
+            Profit Factor: <span className="font-mono font-semibold text-[#37352f] tabular-nums">{profitFactor}</span>
+          </div>
+          <div>
+            Fees Drag: <span className="font-mono font-semibold text-amber-600 tabular-nums">{totalFeesSol} SOL</span>
+          </div>
+          <div>
+            Today P&L: <span className={`font-mono font-semibold tabular-nums ${pnlTodaySol >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+              {pnlTodaySol >= 0 ? `+${pnlTodaySol.toFixed(2)}` : pnlTodaySol.toFixed(2)} SOL
+            </span>
           </div>
         </div>
       </div>

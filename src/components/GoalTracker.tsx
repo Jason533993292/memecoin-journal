@@ -2,7 +2,8 @@
 
 import { useMemo } from "react";
 import { Trade, GoalSettings } from "../lib/types";
-import { Target, Trophy, Flame, AlertCircle, Edit2, CheckCircle2 } from "lucide-react";
+import { getTradeTimestamp } from "../lib/utils";
+import { Target, Trophy, Flame, AlertCircle, Edit2, CheckCircle2, TrendingUp, AlertTriangle, ShieldCheck, Award, AlertOctagon } from "lucide-react";
 
 interface GoalTrackerProps {
   trades: Trade[];
@@ -24,25 +25,26 @@ export default function GoalTracker({
     const currentYear = nowObj.getFullYear();
     const currentDayOfMonth = nowObj.getDate();
     
-    // Days left in month
+    // Days left in month (inclusive of today)
     const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-    const daysLeftInMonth = lastDayOfMonth - currentDayOfMonth;
+    const daysLeftInMonth = Math.max(1, lastDayOfMonth - currentDayOfMonth + 1);
 
-    // Days left in week (Sunday is end of week)
+    // Days left in week (Sunday is end of week, inclusive of today)
     const dayOfWeek = nowObj.getDay();
-    const daysLeftInWeek = dayOfWeek === 0 ? 0 : 7 - dayOfWeek;
+    const daysLeftInWeek = dayOfWeek === 0 ? 1 : 8 - dayOfWeek;
 
-    // Start of week (Monday)
+    // Start of week (Monday 00:00:00)
     const startOfWeek = new Date(nowObj);
     const diff = startOfWeek.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
     startOfWeek.setDate(diff);
     startOfWeek.setHours(0, 0, 0, 0);
     const startOfWeekTime = startOfWeek.getTime();
 
-    // Start of month
+    // Start of month (1st of month 00:00:00)
     const startOfMonth = new Date(currentYear, currentMonth, 1).getTime();
 
-    const oneDay = 24 * 60 * 60 * 1000;
+    // Start of calendar today (00:00:00)
+    const startOfToday = new Date(currentYear, currentMonth, currentDayOfMonth).getTime();
 
     let weeklyPnl = 0;
     let monthlyPnl = 0;
@@ -50,7 +52,7 @@ export default function GoalTracker({
     let todayTradesCount = 0;
 
     trades.forEach((t) => {
-      const time = t.date?.seconds ? t.date.seconds * 1000 : t.createdAt || now;
+      const time = getTradeTimestamp(t);
       const pnl = t.pnlSol || 0;
 
       if (time >= startOfWeekTime) {
@@ -59,7 +61,7 @@ export default function GoalTracker({
       if (time >= startOfMonth) {
         monthlyPnl += pnl;
       }
-      if (now - time <= oneDay) {
+      if (time >= startOfToday) {
         todayPnl += pnl;
         todayTradesCount += 1;
       }

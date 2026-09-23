@@ -28,26 +28,7 @@ interface WalletsViewProps {
   solPrice?: number;
 }
 
-const DEFAULT_WALLETS: Wallet[] = [
-  {
-    id: "w-main",
-    name: "Main (Phantom)",
-    balanceSol: 24.5,
-    address: "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
-  },
-  {
-    id: "w-sniper",
-    name: "Sniper (BullX / Axiom)",
-    balanceSol: 8.2,
-    address: "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM",
-  },
-  {
-    id: "w-degen",
-    name: "Degen / Bot",
-    balanceSol: 3.1,
-    address: "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R",
-  },
-];
+const DEFAULT_WALLETS: Wallet[] = [];
 
 export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps) {
   const { showToast } = useToast();
@@ -521,7 +502,20 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
                 </tr>
               </thead>
               <tbody>
-                {wallets.map((wallet) => {
+                {wallets.length === 0 ? (
+                  <tr>
+                    <td colSpan={11} className="py-12 text-center text-xs text-[#787774]">
+                      <div className="flex flex-col items-center justify-center gap-2">
+                        <WalletIcon size={24} className="text-[#9b9a97]" />
+                        <span className="font-semibold text-[#37352f]">No Trading Wallets Added Yet</span>
+                        <p className="text-[11px] max-w-sm text-[#787774]">
+                          Click "+ New Wallet" above to track balances, deposits, and paycheck profit sweeps across Phantom, BullX, or Photon.
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  wallets.map((wallet) => {
                   const walletPrefix = wallet.name.toLowerCase().split(" ")[0];
                   const walletTrades = trades.filter((t) => (t.wallet || "Main").toLowerCase().includes(walletPrefix));
                   const walletTradesCount = walletTrades.length;
@@ -622,7 +616,7 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
                       </td>
                     </tr>
                   );
-                })}
+                }))}
               </tbody>
             </table>
           </div>
