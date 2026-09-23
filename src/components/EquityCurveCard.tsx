@@ -473,7 +473,13 @@ export default function EquityCurveCard({ trades, solPrice = 150 }: EquityCurveC
                         {/* Tags Alert in Tooltip */}
                         {item.mistakes && item.mistakes.length > 0 && (
                           <div className="border-t border-neutral-800 pt-1 mt-1 flex flex-col gap-1">
-                            {item.mistakes.map((tag: string, idx: number) => {
+                            {[...item.mistakes].sort((a, b) => {
+                              const aIsGood = DEFAULT_GOOD_TAGS.includes(a) || a.toLowerCase().includes("good") || a.toLowerCase().includes("profit") || a.toLowerCase().includes("win");
+                              const bIsGood = DEFAULT_GOOD_TAGS.includes(b) || b.toLowerCase().includes("good") || b.toLowerCase().includes("profit") || b.toLowerCase().includes("win");
+                              if (aIsGood && !bIsGood) return -1;
+                              if (!aIsGood && bIsGood) return 1;
+                              return 0;
+                            }).map((tag: string, idx: number) => {
                               const isGood = DEFAULT_GOOD_TAGS.includes(tag) || tag.toLowerCase().includes("good") || tag.toLowerCase().includes("profit") || tag.toLowerCase().includes("win");
                               return (
                                 <div key={idx} className={`${isGood ? "text-emerald-400" : "text-rose-400"} text-[10px] flex items-start gap-1`}>
