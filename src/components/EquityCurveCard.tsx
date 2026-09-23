@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { Trade } from "../lib/types";
 import { getTradeTimestamp, getTradeDate } from "../lib/utils";
+import { DEFAULT_GOOD_TAGS } from "./LogTradeModal";
 import {
   TrendingUp,
   TrendingDown,
@@ -94,38 +95,66 @@ export default function EquityCurveCard({ trades, solPrice = 150 }: EquityCurveC
       },
     ];
 
-    filtered.forEach((t, i) => {
+    const dailyDataMap = new Map<string, {
+      date: string;
+      fullDate: string;
+      tradePnl: number;
+      tags: string[];
+      hasMistake: boolean;
+    }>();
+
+    filtered.forEach((t) => {
+      const dateObj = getTradeDate(t);
+      const dayKey = dateObj.toLocaleDateString("en-US");
+      const label = dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      const fullDate = dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+      
       const pnl = currency === "SOL"
         ? (t.pnlSol || 0)
         : (t.pnlUsd !== undefined ? t.pnlUsd : (t.pnlSol || 0) * solPrice);
+      
+      const mistakesList = t.mistakes || [];
+      const badTags = mistakesList.filter((m) => !DEFAULT_GOOD_TAGS.includes(m));
+      
+      if (dailyDataMap.has(dayKey)) {
+        const existing = dailyDataMap.get(dayKey)!;
+        existing.tradePnl += pnl;
+        existing.tags.push(...mistakesList);
+        if (badTags.length > 0) existing.hasMistake = true;
+      } else {
+        dailyDataMap.set(dayKey, {
+          date: label,
+          fullDate,
+          tradePnl: pnl,
+          tags: [...mistakesList],
+          hasMistake: badTags.length > 0,
+        });
+      }
+    });
 
-      runningPnl += pnl;
-
+    let index = 1;
+    for (const dayData of dailyDataMap.values()) {
+      runningPnl += dayData.tradePnl;
       if (runningPnl > peak) peak = runningPnl;
       const currentDd = peak - runningPnl;
       if (currentDd > maxDrawdown) maxDrawdown = currentDd;
-
-      const dateObj = getTradeDate(t);
-      const label = dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-      const fullDate = dateObj.toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-      const currentEquity = baseOffset + runningPnl;
-      const currentAth = baseOffset + peak;
-      const mistakesList = t.mistakes || [];
-
+      
+      const uniqueTags = Array.from(new Set(dayData.tags));
+      
       data.push({
-        index: i + 1,
-        date: label,
-        fullDate,
-        symbol: t.symbol || "MEME",
-        name: t.name || "",
-        tradePnl: parseFloat(pnl.toFixed(2)),
-        equity: parseFloat(currentEquity.toFixed(2)),
-        ath: parseFloat(currentAth.toFixed(2)),
+        index: index++,
+        date: dayData.date,
+        fullDate: dayData.fullDate,
+        symbol: "",
+        name: "Daily Aggregation",
+        tradePnl: parseFloat(dayData.tradePnl.toFixed(2)),
+        equity: parseFloat((baseOffset + runningPnl).toFixed(2)),
+        ath: parseFloat((baseOffset + peak).toFixed(2)),
         drawdown: parseFloat((-currentDd).toFixed(2)),
-        hasMistake: mistakesList.length > 0,
-        mistakes: mistakesList,
+        hasMistake: dayData.hasMistake,
+        mistakes: uniqueTags,
       });
-    });
+    }
 
     const winsCount = filtered.filter((t) => (t.pnlSol || 0) > 0).length;
     const wr = filtered.length > 0 ? ((winsCount / filtered.length) * 100).toFixed(0) : "0";
@@ -441,11 +470,18 @@ export default function EquityCurveCard({ trades, solPrice = 150 }: EquityCurveC
                           </>
                         )}
 
-                        {/* Mistakes Alert in Tooltip */}
-                        {item.hasMistake && (
-                          <div className="text-rose-400 text-[10px] flex items-start gap-1 border-t border-neutral-800 pt-1 mt-1">
-                            <span className="shrink-0">⚠️</span>
-                            <span>{item.mistakes.join(", ")}</span>
+                        {/* Tags Alert in Tooltip */}
+                        {item.mistakes && item.mistakes.length > 0 && (
+                          <div className="border-t border-neutral-800 pt-1 mt-1 flex flex-col gap-1">
+                            {item.mistakes.map((tag: string, idx: number) => {
+                              const isGood = DEFAULT_GOOD_TAGS.includes(tag) || tag.toLowerCase().includes("good") || tag.toLowerCase().includes("profit") || tag.toLowerCase().includes("win");
+                              return (
+                                <div key={idx} className={`${isGood ? "text-emerald-400" : "text-rose-400"} text-[10px] flex items-start gap-1`}>
+                                  <span className="shrink-0">{isGood ? "✅" : "⚠️"}</span>
+                                  <span>{tag}</span>
+                                </div>
+                              );
+                            })}
                           </div>
                         )}
                       </div>

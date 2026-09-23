@@ -287,6 +287,37 @@ export default function LogTradeModal({
   };
 
   const switchCurrencyMode = (newMode: "SOL" | "USD") => {
+    if (newMode === currencyMode) return;
+    
+    if (newMode === "USD") {
+      setBoughtUsd(boughtSol);
+      setSoldUsd(soldSol);
+      setPnlUsd(pnlSol);
+      
+      const bSol = parseFloat(boughtSol);
+      if (!isNaN(bSol)) setBoughtSol((bSol / solPrice).toFixed(3));
+      
+      const sSol = parseFloat(soldSol);
+      if (!isNaN(sSol)) setSoldSol((sSol / solPrice).toFixed(3));
+      
+      const pSol = parseFloat(pnlSol);
+      if (!isNaN(pSol)) setPnlSol((pSol / solPrice).toFixed(3));
+      
+    } else {
+      setBoughtSol(boughtUsd);
+      setSoldSol(soldUsd);
+      setPnlSol(pnlUsd);
+      
+      const bUsd = parseFloat(boughtUsd);
+      if (!isNaN(bUsd)) setBoughtUsd((bUsd * solPrice).toFixed(2));
+      
+      const sUsd = parseFloat(soldUsd);
+      if (!isNaN(sUsd)) setSoldUsd((sUsd * solPrice).toFixed(2));
+      
+      const pUsd = parseFloat(pnlUsd);
+      if (!isNaN(pUsd)) setPnlUsd((pUsd * solPrice).toFixed(2));
+    }
+    
     setCurrencyMode(newMode);
   };
 
@@ -460,34 +491,36 @@ export default function LogTradeModal({
   return (
     <div
       onClick={onClose}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-3 sm:p-4"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-white border border-[#e9e9e7] rounded-2xl p-4 sm:p-6 w-full max-w-xl shadow-xl relative my-6 text-[#37352f] max-h-[92vh] overflow-y-auto"
+        className="bg-white border border-[#e9e9e7] rounded-2xl w-full max-w-xl shadow-xl relative text-[#37352f] flex flex-col max-h-[92vh] overflow-hidden"
       >
-        {/* Close Button */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-[#9b9a97] hover:text-[#37352f] transition-colors p-1.5 rounded-lg hover:bg-[#f1f1ef]"
-        >
-          <X size={18} />
-        </button>
-
-        {/* Modal Title */}
-        <div className="flex items-center gap-2 mb-5 pb-3 border-b border-[#f1f1ef]">
-          <span className="text-xl">📓</span>
-          <div>
-            <h2 className="text-base sm:text-lg font-semibold tracking-tight text-[#37352f]">
-              Log New Trade
-            </h2>
-            <p className="text-xs text-[#787774]">
-              Record entry, chart screenshot, setup strategy & discipline tags.
-            </p>
+        {/* Sticky Header */}
+        <div className="flex items-center justify-between p-4 sm:p-6 pb-4 border-b border-[#f1f1ef] shrink-0 bg-white z-10 relative">
+          <div className="flex items-center gap-2">
+            <span className="text-xl">📓</span>
+            <div>
+              <h2 className="text-base sm:text-lg font-semibold tracking-tight text-[#37352f]">
+                Log New Trade
+              </h2>
+              <p className="text-xs text-[#787774]">
+                Record entry, chart screenshot, setup strategy & discipline tags.
+              </p>
+            </div>
           </div>
+          <button
+            onClick={onClose}
+            className="text-[#9b9a97] hover:text-[#37352f] transition-colors p-1.5 rounded-lg hover:bg-[#f1f1ef]"
+          >
+            <X size={18} />
+          </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+        {/* Scrollable Form Body */}
+        <div className="p-4 sm:p-6 pt-4 overflow-y-auto custom-scrollbar">
+          <form onSubmit={handleSubmit} className="space-y-4 text-xs">
           {/* Contract Address Input */}
           <div>
             <label className="block font-medium text-[#787774] mb-1.5 flex items-center justify-between">
@@ -1041,6 +1074,7 @@ export default function LogTradeModal({
             </button>
           </div>
         </form>
+        </div>
       </div>
     </div>
   );
