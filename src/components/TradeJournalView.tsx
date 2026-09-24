@@ -472,8 +472,8 @@ export default function TradeJournalView({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search / or filter..."
-              className="bg-[#fbfbfa] border border-[#e3e2de] rounded-md pl-7 pr-3 py-1 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2] w-40 sm:w-48"
+              placeholder="Search by coin, setup, or notes..."
+              className="bg-[#fbfbfa] border border-[#e3e2de] rounded-md pl-7 pr-3 py-1 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2] w-40 sm:w-56"
             />
           </div>
         </div>

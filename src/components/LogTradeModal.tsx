@@ -128,6 +128,7 @@ export default function LogTradeModal({
   const [customTagPool, setCustomTagPool] = useState<string[]>([]);
 
   const [notes, setNotes] = useState("");
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Load user's custom tags from localStorage
   useEffect(() => {
@@ -879,58 +880,70 @@ export default function LogTradeModal({
             </div>
 
             {/* Quant Risk & Execution Drag (Fees) */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-2 border-t border-[#f1f1ef]">
-              <div>
-                <label className="block font-medium text-[#787774] mb-1">
-                  Planned Risk (SOL)
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={initialRiskSol}
-                  onChange={(e) => setInitialRiskSol(e.target.value)}
-                  placeholder="e.g. 0.5 (For R-Multiple)"
-                  className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]"
-                />
-                <span className="text-[10px] text-[#9b9a97] block mt-0.5">
-                  Stop distance (R)
-                </span>
-              </div>
-
-              <div>
-                <label className="block font-medium text-[#787774] mb-1">
-                  Network Fees & Bribes
-                </label>
-                <input
-                  type="number"
-                  step="0.001"
-                  value={feesSol}
-                  onChange={(e) => setFeesSol(e.target.value)}
-                  placeholder="e.g. 0.008 SOL"
-                  className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]"
-                />
-                <span className="text-[10px] text-[#9b9a97] block mt-0.5">
-                  Jito tip / priority
-                </span>
-              </div>
-
-              <div className="col-span-2 sm:col-span-1">
-                <label className="block font-medium text-[#787774] mb-1">
-                  Stop Loss Price ($)
-                </label>
-                <input
-                  type="number"
-                  step="0.0000001"
-                  value={stopPrice}
-                  onChange={(e) => setStopPrice(e.target.value)}
-                  placeholder="e.g. 0.0042"
-                  className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]"
-                />
-                <span className="text-[10px] text-[#9b9a97] block mt-0.5">
-                  Target invalidation
-                </span>
-              </div>
+            <div className="pt-2 border-t border-[#f1f1ef]">
+              <button
+                type="button"
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                className="text-xs font-medium text-[#787774] hover:text-[#37352f] transition-colors flex items-center gap-1"
+              >
+                <span>{showAdvanced ? "▼" : "▶"}</span>
+                Advanced Financials (Risk, Fees, Stops)
+              </button>
             </div>
+            {showAdvanced && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-2">
+                <div>
+                  <label className="block font-medium text-[#787774] mb-1">
+                    Planned Risk (SOL)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={initialRiskSol}
+                    onChange={(e) => setInitialRiskSol(e.target.value)}
+                    placeholder="e.g. 0.5 (For R-Multiple)"
+                    className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]"
+                  />
+                  <span className="text-[10px] text-[#9b9a97] block mt-0.5">
+                    Stop distance (R)
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block font-medium text-[#787774] mb-1">
+                    Network Fees & Bribes
+                  </label>
+                  <input
+                    type="number"
+                    step="0.001"
+                    value={feesSol}
+                    onChange={(e) => setFeesSol(e.target.value)}
+                    placeholder="e.g. 0.008 SOL"
+                    className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]"
+                  />
+                  <span className="text-[10px] text-[#9b9a97] block mt-0.5">
+                    Jito tip / priority
+                  </span>
+                </div>
+
+                <div className="col-span-2 sm:col-span-1">
+                  <label className="block font-medium text-[#787774] mb-1">
+                    Stop Loss Price ($)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.0000001"
+                    value={stopPrice}
+                    onChange={(e) => setStopPrice(e.target.value)}
+                    placeholder="e.g. 0.0042"
+                    className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]"
+                  />
+                  <span className="text-[10px] text-[#9b9a97] block mt-0.5">
+                    Target invalidation
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Wallet Selection */}
@@ -945,9 +958,6 @@ export default function LogTradeModal({
               className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]"
             >
               <option value="Main">Main Wallet (Phantom)</option>
-              <option value="Sniper">Sniper Bot (BullX / Axiom)</option>
-              <option value="Degen">Degen Bag (Photon / Trojan)</option>
-              <option value="Moonbag">Moonbag Long Term</option>
               <option value="Paper">Paper Trading Bag (Simulated)</option>
             </select>
           </div>

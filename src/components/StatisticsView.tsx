@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { Trade } from "../lib/types";
 import { getTradeDate, getTradeTimestamp } from "../lib/utils";
 import { DEFAULT_GOOD_TAGS } from "./LogTradeModal";
-import { Lock, BarChart3, TrendingUp, Calendar, AlertTriangle, Layers, Target, ArrowUpRight, Clock, ShieldCheck, Zap } from "lucide-react";
+import { Lock, BarChart3, TrendingUp, Calendar, AlertTriangle, Layers, Target, ArrowUpRight, Clock, ShieldCheck, Zap, Tag } from "lucide-react";
 import {
   ResponsiveContainer,
   LineChart,
@@ -231,26 +231,23 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
     return curve;
   }, [trades]);
 
-  // 8. Mistake Impact
-  const mistakeImpact = useMemo(() => {
-    const map: Record<string, { count: number; lostSol: number }> = {};
+  // 8. Tag Impact
+  const tagImpact = useMemo(() => {
+    const map: Record<string, { count: number; pnlSol: number; isGood: boolean }> = {};
     trades.forEach((t) => {
       if (t.mistakes && t.mistakes.length > 0) {
         t.mistakes.forEach((m) => {
-          if (!DEFAULT_GOOD_TAGS.includes(m)) {
-            if (!map[m]) map[m] = { count: 0, lostSol: 0 };
-            map[m].count += 1;
-            if ((t.pnlSol || 0) < 0) {
-              map[m].lostSol += Math.abs(t.pnlSol);
-            }
-          }
+          const isGood = DEFAULT_GOOD_TAGS.includes(m) || m.toLowerCase().includes("good") || m.toLowerCase().includes("profit") || m.toLowerCase().includes("win");
+          if (!map[m]) map[m] = { count: 0, pnlSol: 0, isGood };
+          map[m].count += 1;
+          map[m].pnlSol += (t.pnlSol || 0);
         });
       }
     });
 
     return Object.entries(map)
       .map(([tag, data]) => ({ tag, ...data }))
-      .sort((a, b) => b.lostSol - a.lostSol);
+      .sort((a, b) => Math.abs(b.pnlSol) - Math.abs(a.pnlSol));
   }, [trades]);
 
   return (
@@ -568,32 +565,35 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
         </div>
       </div>
 
-      {/* Mistake Frequency & Tilt Analysis Card */}
-      {mistakeImpact.length > 0 && (
+      {/* Tag Frequency & Impact Card */}
+      {tagImpact.length > 0 && (
         <div className="bg-white border border-[#e9e9e7] rounded-xl p-5 shadow-xs">
           <h2 className="text-sm font-semibold text-[#37352f] flex items-center gap-2 mb-1">
-            <AlertTriangle size={15} className="text-amber-500" />
-            <span>Mistake Cost & Psychological Analysis</span>
+            <Tag size={15} className="text-[#2383e2]" />
+            <span>Tag Frequency & Execution Impact</span>
           </h2>
           <p className="text-xs text-[#787774] mb-4">
-            Total Solana lost per mistake tag across your historical trades.
+            Total Solana won or lost per tag across your historical trades.
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-            {mistakeImpact.map((item) => (
+            {tagImpact.map((item) => (
               <div
                 key={item.tag}
                 className="p-3 bg-[#fbfbfa] border border-[#e9e9e7] rounded-lg flex items-center justify-between"
               >
                 <div>
-                  <span className="text-xs font-semibold text-[#37352f] block">{item.tag}</span>
+                  <span className="text-xs font-semibold text-[#37352f] flex items-center gap-1">
+                    <span>{item.isGood ? "✅" : "⚠️"}</span>
+                    <span>{item.tag}</span>
+                  </span>
                   <span className="text-[11px] text-[#787774]">{item.count} trade{item.count > 1 ? "s" : ""}</span>
                 </div>
                 <div className="text-right">
-                  <span className="text-xs font-mono font-semibold text-rose-600 block">
-                    -{item.lostSol.toFixed(2)} SOL
+                  <span className={`text-xs font-mono font-semibold block ${item.pnlSol >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                    {item.pnlSol >= 0 ? `+${item.pnlSol.toFixed(2)}` : item.pnlSol.toFixed(2)} SOL
                   </span>
-                  <span className="text-[10px] text-[#9b9a97]">lost</span>
+                  <span className="text-[10px] text-[#9b9a97]">net impact</span>
                 </div>
               </div>
             ))}
