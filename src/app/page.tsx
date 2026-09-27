@@ -21,7 +21,10 @@ import DailyRecapModal from "../components/DailyRecapModal";
 import { ToastProvider, useToast } from "../components/Toast";
 import { Trash2 } from "lucide-react";
 
+import { useAuth } from "../context/AuthContext";
+
 function MainApp() {
+  const { user } = useAuth();
   const [currentTab, setCurrentTab] = useState<string>("dashboard");
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,7 +45,7 @@ function MainApp() {
   const [clonedTrade, setClonedTrade] = useState<Partial<Trade> | null>(null);
   const [tradeToDeleteDirectly, setTradeToDeleteDirectly] = useState<string | null>(null);
 
-  // Rules state (stored in localStorage)
+  // Rules state (stored in localStorage + user document)
   const [rules, setRules] = useState<JournalRules>({
     riskManagement: [
       "Max risk 1 SOL per trade — never risk your rent money.",
@@ -60,7 +63,7 @@ function MainApp() {
     ],
   });
 
-  // Goals state (stored in localStorage)
+  // Goals state
   const [goals, setGoals] = useState<GoalSettings>({
     weeklyPnlSolTarget: 5,
     monthlyPnlSolTarget: 20,
@@ -94,7 +97,7 @@ function MainApp() {
     return () => clearInterval(interval);
   }, []);
 
-  // Load rules, goals & AI brief from localStorage
+  // Load rules, goals & AI brief from user document / localStorage
   useEffect(() => {
     try {
       const savedRules = localStorage.getItem("memecoin_journal_rules");
@@ -116,7 +119,8 @@ function MainApp() {
     setRules(updated);
     try {
       localStorage.setItem("memecoin_journal_rules", JSON.stringify(updated));
-      await setDoc(doc(db, "settings", "user_preferences"), { rules: updated }, { merge: true });
+      const targetDoc = user ? doc(db, "users", user.uid, "settings", "preferences") : doc(db, "settings", "user_preferences");
+      await setDoc(targetDoc, { rules: updated }, { merge: true });
     } catch (e) {}
   };
 
@@ -124,14 +128,19 @@ function MainApp() {
     setGoals(updated);
     try {
       localStorage.setItem("memecoin_journal_goals", JSON.stringify(updated));
-      await setDoc(doc(db, "settings", "user_preferences"), { goals: updated }, { merge: true });
+      const targetDoc = user ? doc(db, "users", user.uid, "settings", "preferences") : doc(db, "settings", "user_preferences");
+      await setDoc(targetDoc, { goals: updated }, { merge: true });
     } catch (e) {}
   };
 
-  // Real-time Firestore subscription (no limit(100) truncation)
+  // Real-time Firestore subscription (User-scoped if logged in, fallback to global)
   useEffect(() => {
     setLoading(true);
-    const q = query(collection(db, "trades"), orderBy("date", "desc"));
+    const tradesCollection = user
+      ? collection(db, "users", user.uid, "trades")
+      : collection(db, "trades");
+
+    const q = query(tradesCollection, orderBy("date", "desc"));
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
@@ -152,12 +161,10 @@ function MainApp() {
       }
     );
     return () => unsubscribe();
-  }, []);
+  }, [user]);
 
   // Backwards-compatible trigger for modals
-  const fetchTrades = useCallback(() => {
-    // onSnapshot automatically updates state, this is a smooth no-op
-  }, []);
+  const fetchTrades = useCallback(() => {}, []);
 
   // Delete trade
   const handleDeleteTradeDirectly = (id: string) => {
@@ -169,7 +176,10 @@ function MainApp() {
     const id = tradeToDeleteDirectly;
     setTradeToDeleteDirectly(null);
     try {
-      await deleteDoc(doc(db, "trades", id));
+      const tradeDocRef = user
+        ? doc(db, "users", user.uid, "trades", id)
+        : doc(db, "trades", id);
+      await deleteDoc(tradeDocRef);
     } catch (e) {
       console.error("Error deleting trade:", e);
     }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { db } from "../lib/firebase";
+import { db, auth } from "../lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import {
   X,
@@ -457,7 +457,12 @@ export default function LogTradeModal({
 
       const finalSetup = customSetup.trim() || setupType;
 
-      await addDoc(collection(db, "trades"), {
+      const currentUser = auth.currentUser;
+      const tradesCol = currentUser
+        ? collection(db, "users", currentUser.uid, "trades")
+        : collection(db, "trades");
+
+      await addDoc(tradesCol, {
         ca: ca.trim(),
         name: tokenData?.name || "Custom Token",
         symbol: tokenData?.symbol || "MEME",

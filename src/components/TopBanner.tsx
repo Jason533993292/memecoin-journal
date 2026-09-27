@@ -14,6 +14,9 @@ import {
   Plus,
 } from "lucide-react";
 
+import { useAuth } from "../context/AuthContext";
+import { LogIn, LogOut, User as UserIcon } from "lucide-react";
+
 interface TopBannerProps {
   currentTab: string;
   setCurrentTab: (tab: string) => void;
@@ -33,6 +36,8 @@ export default function TopBanner({
   solPrice = 150,
   solChange24h = 0,
 }: TopBannerProps) {
+  const { user, loginWithGoogle, logout } = useAuth();
+
   const tabs = [
     { id: "dashboard", label: "Dashboard", fullLabel: "MemeCoins Dashboard", icon: LayoutDashboard },
     { id: "journal", label: "Journal", fullLabel: "Trade Journal", icon: BookOpen },
@@ -117,6 +122,38 @@ export default function TopBanner({
             <Plus size={14} className="sm:hidden" />
             <span className="hidden sm:inline">+ New Trade</span>
           </button>
+
+          {/* User Auth Controls */}
+          {user ? (
+            <div className="flex items-center gap-2 pl-1 border-l border-[#e3e2de]">
+              {user.photoURL ? (
+                <img
+                  src={user.photoURL}
+                  alt={user.displayName || "User"}
+                  className="w-6 h-6 rounded-full border border-neutral-300"
+                />
+              ) : (
+                <div className="w-6 h-6 rounded-full bg-neutral-200 border border-neutral-300 flex items-center justify-center text-[10px] font-bold text-neutral-700">
+                  {user.email?.charAt(0).toUpperCase() || "U"}
+                </div>
+              )}
+              <button
+                onClick={logout}
+                title="Sign Out"
+                className="p-1 hover:bg-[#eeece8] rounded-md text-[#787774] transition-colors"
+              >
+                <LogOut size={13} />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={loginWithGoogle}
+              className="flex items-center gap-1 px-2.5 py-1.5 bg-white border border-[#e3e2de] hover:bg-[#f1f1ef] text-[#37352f] rounded-md text-xs font-medium shadow-xs transition-colors"
+            >
+              <LogIn size={13} className="text-[#2383e2]" />
+              <span className="hidden sm:inline">Sign In</span>
+            </button>
+          )}
         </div>
       </div>
 

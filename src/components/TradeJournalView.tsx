@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useRef } from "react";
 import { Trade } from "../lib/types";
-import { db } from "../lib/firebase";
+import { db, auth } from "../lib/firebase";
 import { doc, deleteDoc, addDoc, collection, serverTimestamp } from "firebase/firestore";
 import {
   Lock,
@@ -112,7 +112,11 @@ export default function TradeJournalView({
     setDeletedIds((prev) => [...prev, id]);
     
     try {
-      await deleteDoc(doc(db, "trades", id));
+      const currentUser = auth.currentUser;
+      const tradeDocRef = currentUser
+        ? doc(db, "users", currentUser.uid, "trades", id)
+        : doc(db, "trades", id);
+      await deleteDoc(tradeDocRef);
       showToast("Trade deleted from Firestore", "info");
       onTradeDeleted();
     } catch (err) {
@@ -166,8 +170,13 @@ export default function TradeJournalView({
 
       if (Array.isArray(imported) && imported.length > 0) {
         let count = 0;
+        const currentUser = auth.currentUser;
+        const tradesCol = currentUser
+          ? collection(db, "users", currentUser.uid, "trades")
+          : collection(db, "trades");
+
         for (const item of imported) {
-          await addDoc(collection(db, "trades"), {
+          await addDoc(tradesCol, {
             name: item.name || "Token",
             symbol: item.symbol || "MEME",
             ca: item.ca || "",

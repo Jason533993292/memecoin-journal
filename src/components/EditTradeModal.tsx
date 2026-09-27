@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { db } from "../lib/firebase";
+import { db, auth } from "../lib/firebase";
 import { doc, updateDoc } from "firebase/firestore";
 import {
   X,
@@ -312,7 +312,11 @@ export default function EditTradeModal({
 
       const finalSetup = customSetup.trim() || setupType;
 
-      const tradeRef = doc(db, "trades", trade.id);
+      const currentUser = auth.currentUser;
+      const tradeRef = currentUser
+        ? doc(db, "users", currentUser.uid, "trades", trade.id)
+        : doc(db, "trades", trade.id);
+
       await updateDoc(tradeRef, {
         ca: ca.trim(),
         name: name.trim(),
