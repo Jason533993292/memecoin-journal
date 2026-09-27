@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { db } from "../lib/firebase";
-import { collection, onSnapshot, query, orderBy, doc, deleteDoc, getDoc, setDoc } from "firebase/firestore";
+import { collection, onSnapshot, query, orderBy, doc, deleteDoc, getDoc, setDoc, getDocs, addDoc } from "firebase/firestore";
 import { Trade, JournalRules, AiCoachBrief, GoalSettings } from "../lib/types";
 import TopBanner from "../components/TopBanner";
 import DashboardView from "../components/DashboardView";
@@ -134,7 +134,7 @@ function MainApp() {
     } catch (e) {}
   };
 
-  // Real-time Firestore subscription (User-scoped if logged in, empty array if logged out)
+  // Real-time Firestore subscription + Auto-migration of legacy public trades
   useEffect(() => {
     if (!user) {
       setTrades([]);
@@ -143,6 +143,26 @@ function MainApp() {
     }
 
     setLoading(true);
+
+    // Auto-migrate legacy public trades to user's account if any exist
+    const migrateLegacyTrades = async () => {
+      try {
+        const legacySnap = await getDocs(collection(db, "trades"));
+        if (!legacySnap.empty) {
+          const userTradesCol = collection(db, "users", user.uid, "trades");
+          for (const legacyDoc of legacySnap.docs) {
+            const data = legacyDoc.data();
+            await addDoc(userTradesCol, data);
+            await deleteDoc(doc(db, "trades", legacyDoc.id));
+          }
+        }
+      } catch (e) {
+        // Silently skip if rules block reading public trades
+      }
+    };
+
+    migrateLegacyTrades();
+
     const tradesCollection = collection(db, "users", user.uid, "trades");
     const q = query(tradesCollection, orderBy("date", "desc"));
 
