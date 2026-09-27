@@ -1,12 +1,26 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { auth, googleProvider, signInWithPopup, signOut, onAuthStateChanged, User } from "../lib/firebase";
+import {
+  auth,
+  googleProvider,
+  appleProvider,
+  signInWithPopup,
+  signInWithRedirect,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  User,
+} from "../lib/firebase";
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   loginWithGoogle: () => Promise<void>;
+  loginWithApple: () => Promise<void>;
+  loginWithEmail: (email: string, pass: string) => Promise<void>;
+  signUpWithEmail: (email: string, pass: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -14,6 +28,9 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
   loginWithGoogle: async () => {},
+  loginWithApple: async () => {},
+  loginWithEmail: async () => {},
+  signUpWithEmail: async () => {},
   logout: async () => {},
 });
 
@@ -33,9 +50,35 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const loginWithGoogle = async () => {
     try {
       await signInWithPopup(auth, googleProvider);
-    } catch (error) {
-      console.error("Error signing in with Google:", error);
+    } catch (error: any) {
+      console.warn("Popup blocked or failed, attempting redirect:", error);
+      if (error?.code === "auth/popup-blocked" || error?.code === "auth/popup-closed-by-user") {
+        await signInWithRedirect(auth, googleProvider);
+      } else {
+        throw error;
+      }
     }
+  };
+
+  const loginWithApple = async () => {
+    try {
+      await signInWithPopup(auth, appleProvider);
+    } catch (error: any) {
+      console.warn("Apple popup blocked or failed, attempting redirect:", error);
+      if (error?.code === "auth/popup-blocked" || error?.code === "auth/popup-closed-by-user") {
+        await signInWithRedirect(auth, appleProvider);
+      } else {
+        throw error;
+      }
+    }
+  };
+
+  const loginWithEmail = async (email: string, pass: string) => {
+    await signInWithEmailAndPassword(auth, email, pass);
+  };
+
+  const signUpWithEmail = async (email: string, pass: string) => {
+    await createUserWithEmailAndPassword(auth, email, pass);
   };
 
   const logout = async () => {
@@ -47,7 +90,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, loginWithGoogle, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        loginWithGoogle,
+        loginWithApple,
+        loginWithEmail,
+        signUpWithEmail,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

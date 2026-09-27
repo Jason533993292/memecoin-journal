@@ -22,9 +22,10 @@ import { ToastProvider, useToast } from "../components/Toast";
 import { Trash2 } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
+import AuthModal from "../components/AuthModal";
 
 function MainApp() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [currentTab, setCurrentTab] = useState<string>("dashboard");
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(true);
@@ -133,14 +134,18 @@ function MainApp() {
     } catch (e) {}
   };
 
-  // Real-time Firestore subscription (User-scoped if logged in, fallback to global)
+  // Real-time Firestore subscription (User-scoped if logged in, empty array if logged out)
   useEffect(() => {
-    setLoading(true);
-    const tradesCollection = user
-      ? collection(db, "users", user.uid, "trades")
-      : collection(db, "trades");
+    if (!user) {
+      setTrades([]);
+      setLoading(false);
+      return;
+    }
 
+    setLoading(true);
+    const tradesCollection = collection(db, "users", user.uid, "trades");
     const q = query(tradesCollection, orderBy("date", "desc"));
+
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
@@ -456,6 +461,8 @@ function MainApp() {
           </div>
         </div>
       )}
+      {/* Auth Modal for Unauthenticated Users */}
+      {!user && !authLoading && <AuthModal />}
     </div>
   );
 }
