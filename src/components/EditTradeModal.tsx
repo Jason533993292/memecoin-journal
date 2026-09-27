@@ -71,8 +71,10 @@ export default function EditTradeModal({
   const [currencyMode, setCurrencyMode] = useState<"SOL" | "USD">("SOL");
 
   const [selectedMistakes, setSelectedMistakes] = useState<string[]>([]);
+  const [selectedGoodTags, setSelectedGoodTags] = useState<string[]>([]);
   const [customMistakeInput, setCustomMistakeInput] = useState("");
   const [notes, setNotes] = useState("");
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   useEffect(() => {
     if (trade) {
@@ -99,7 +101,12 @@ export default function EditTradeModal({
       setFeesSol(trade.feesSol !== undefined && trade.feesSol !== null ? String(trade.feesSol) : "");
       setStopPrice(trade.stopPrice !== undefined && trade.stopPrice !== null ? String(trade.stopPrice) : "");
 
+      if (trade.initialRiskSol || trade.feesSol || trade.stopPrice) {
+        setShowAdvanced(true);
+      }
+
       setSelectedMistakes(trade.mistakes || []);
+      setSelectedGoodTags(trade.goodTags || []);
       setNotes(trade.notes || "");
       setMcap(trade.mcap);
       setLiquidity(trade.liquidity);
@@ -137,12 +144,17 @@ export default function EditTradeModal({
     return () => window.removeEventListener("paste", handlePaste);
   }, [isOpen, showToast]);
 
-  // Close on Escape key press
+  // Close on Escape & Save on Cmd+Enter
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         onClose();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault();
+        const form = document.getElementById("edit-trade-form") as HTMLFormElement;
+        if (form) form.requestSubmit();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -243,6 +255,12 @@ export default function EditTradeModal({
     }
   };
 
+  const toggleGoodTag = (tag: string) => {
+    setSelectedGoodTags((prev) =>
+      prev.includes(tag) ? prev.filter((g) => g !== tag) : [...prev, tag]
+    );
+  };
+
   const toggleMistake = (tag: string) => {
     setSelectedMistakes((prev) =>
       prev.includes(tag) ? prev.filter((m) => m !== tag) : [...prev, tag]
@@ -298,6 +316,7 @@ export default function EditTradeModal({
         initialRiskSol: parsedInitialRiskSol,
         feesSol: parsedFeesSol,
         stopPrice: parsedStopPrice,
+        goodTags: selectedGoodTags,
         mistakes: selectedMistakes,
         notes: notes.trim(),
       });
@@ -338,7 +357,7 @@ export default function EditTradeModal({
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+        <form id="edit-trade-form" onSubmit={handleSubmit} className="space-y-4 text-xs">
           {/* Token Identification */}
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -640,59 +659,72 @@ export default function EditTradeModal({
               </div>
             </div>
 
-            {/* Quant Risk & Execution Drag (Fees) */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-2 border-t border-[#f1f1ef]">
-              <div>
-                <label className="block font-medium text-[#787774] mb-1">
-                  Planned Risk (SOL)
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={initialRiskSol}
-                  onChange={(e) => setInitialRiskSol(e.target.value)}
-                  placeholder="e.g. 0.5 (For R-Multiple)"
-                  className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]"
-                />
-                <span className="text-[10px] text-[#9b9a97] block mt-0.5">
-                  Stop distance (R)
-                </span>
-              </div>
-
-              <div>
-                <label className="block font-medium text-[#787774] mb-1">
-                  Network Fees & Bribes
-                </label>
-                <input
-                  type="number"
-                  step="0.001"
-                  value={feesSol}
-                  onChange={(e) => setFeesSol(e.target.value)}
-                  placeholder="e.g. 0.008 SOL"
-                  className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]"
-                />
-                <span className="text-[10px] text-[#9b9a97] block mt-0.5">
-                  Jito tip / priority
-                </span>
-              </div>
-
-              <div className="col-span-2 sm:col-span-1">
-                <label className="block font-medium text-[#787774] mb-1">
-                  Stop Loss Price ($)
-                </label>
-                <input
-                  type="number"
-                  step="0.0000001"
-                  value={stopPrice}
-                  onChange={(e) => setStopPrice(e.target.value)}
-                  placeholder="e.g. 0.0042"
-                  className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]"
-                />
-                <span className="text-[10px] text-[#9b9a97] block mt-0.5">
-                  Target invalidation
-                </span>
-              </div>
+            {/* Advanced Toggle */}
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                className="text-[11px] text-[#2383e2] hover:underline flex items-center gap-1 font-medium"
+              >
+                <span>{showAdvanced ? "▾ Hide Advanced Parameters" : "▸ Show Advanced (Stop Loss, Risk, Fees)"}</span>
+              </button>
             </div>
+
+            {/* Quant Risk & Execution Drag (Fees) */}
+            {showAdvanced && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-2 border-t border-[#f1f1ef] animate-in fade-in duration-100">
+                <div>
+                  <label className="block font-medium text-[#787774] mb-1">
+                    Planned Risk (SOL)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={initialRiskSol}
+                    onChange={(e) => setInitialRiskSol(e.target.value)}
+                    placeholder="e.g. 0.5 (For R-Multiple)"
+                    className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]"
+                  />
+                  <span className="text-[10px] text-[#9b9a97] block mt-0.5">
+                    Stop distance (R)
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block font-medium text-[#787774] mb-1">
+                    Network Fees & Bribes
+                  </label>
+                  <input
+                    type="number"
+                    step="0.001"
+                    value={feesSol}
+                    onChange={(e) => setFeesSol(e.target.value)}
+                    placeholder="e.g. 0.008 SOL"
+                    className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]"
+                  />
+                  <span className="text-[10px] text-[#9b9a97] block mt-0.5">
+                    Jito tip / priority
+                  </span>
+                </div>
+
+                <div className="col-span-2 sm:col-span-1">
+                  <label className="block font-medium text-[#787774] mb-1">
+                    Stop Loss Price ($)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.0000001"
+                    value={stopPrice}
+                    onChange={(e) => setStopPrice(e.target.value)}
+                    placeholder="e.g. 0.0042"
+                    className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]"
+                  />
+                  <span className="text-[10px] text-[#9b9a97] block mt-0.5">
+                    Target invalidation
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Wallet */}
@@ -714,14 +746,42 @@ export default function EditTradeModal({
             </select>
           </div>
 
-          {/* Mistakes & Psychology Tags */}
-          <div className="space-y-2">
-            <label className="font-semibold text-xs text-[#37352f] flex items-center gap-1.5">
-              <Tag size={13} className="text-[#2383e2]" />
-              <span>Discipline & Emotion Tags</span>
+          {/* Good Execution Habits Tags */}
+          <div className="space-y-1.5">
+            <label className="font-semibold text-xs text-emerald-800 flex items-center gap-1.5">
+              <span>✅</span>
+              <span>Good Execution Habits</span>
             </label>
             <div className="flex flex-wrap gap-1.5">
-              {[...DEFAULT_GOOD_TAGS, ...DEFAULT_MISTAKE_TAGS].map((m) => {
+              {DEFAULT_GOOD_TAGS.map((g) => {
+                const isSelected = selectedGoodTags.includes(g);
+                return (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => toggleGoodTag(g)}
+                    className={`px-2 py-1 rounded-md text-[11px] font-medium transition-all flex items-center gap-1 border ${
+                      isSelected
+                        ? "bg-emerald-50 border-emerald-500 text-emerald-800 font-semibold shadow-xs"
+                        : "bg-[#fbfbfa] border-[#e3e2de] text-[#5a5957] hover:bg-[#f1f1ef]"
+                    }`}
+                  >
+                    {isSelected && <Check size={11} />}
+                    <span>{g}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Mistakes & Psychology Tags */}
+          <div className="space-y-1.5">
+            <label className="font-semibold text-xs text-rose-800 flex items-center gap-1.5">
+              <span>⚠️</span>
+              <span>Discipline Errors & Tilt</span>
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {DEFAULT_MISTAKE_TAGS.map((m) => {
                 const isSelected = selectedMistakes.includes(m);
                 return (
                   <button
@@ -730,7 +790,7 @@ export default function EditTradeModal({
                     onClick={() => toggleMistake(m)}
                     className={`px-2 py-1 rounded-md text-[11px] font-medium transition-all flex items-center gap-1 border ${
                       isSelected
-                        ? "bg-blue-50 border-[#2383e2] text-[#2383e2] font-semibold shadow-xs"
+                        ? "bg-rose-50 border-rose-500 text-rose-800 font-semibold shadow-xs"
                         : "bg-[#fbfbfa] border-[#e3e2de] text-[#5a5957] hover:bg-[#f1f1ef]"
                     }`}
                   >

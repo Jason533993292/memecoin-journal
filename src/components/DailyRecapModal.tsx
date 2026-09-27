@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Trade } from "../lib/types";
+import { getTradeTimestamp } from "../lib/utils";
 import { DEFAULT_GOOD_TAGS } from "./LogTradeModal";
 import { X, Calendar, Trophy, AlertTriangle, Sparkles, Copy, Check, TrendingUp, TrendingDown, Share2 } from "lucide-react";
 import { useToast } from "./Toast";
@@ -27,7 +28,7 @@ export default function DailyRecapModal({
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
 
     const todayTrades = trades.filter((t) => {
-      const time = t.date?.seconds ? t.date.seconds * 1000 : t.createdAt || 0;
+      const time = getTradeTimestamp(t);
       return time >= startOfToday;
     });
 

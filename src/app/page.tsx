@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { db } from "../lib/firebase";
-import { collection, onSnapshot, query, orderBy, doc, deleteDoc } from "firebase/firestore";
+import { collection, onSnapshot, query, orderBy, doc, deleteDoc, getDoc, setDoc } from "firebase/firestore";
 import { Trade, JournalRules, AiCoachBrief, GoalSettings } from "../lib/types";
 import TopBanner from "../components/TopBanner";
 import DashboardView from "../components/DashboardView";
@@ -19,6 +19,7 @@ import ShareablePnlCardModal from "../components/ShareablePnlCardModal";
 import GoalEditorModal from "../components/GoalEditorModal";
 import DailyRecapModal from "../components/DailyRecapModal";
 import { ToastProvider, useToast } from "../components/Toast";
+import { Trash2 } from "lucide-react";
 
 function MainApp() {
   const [currentTab, setCurrentTab] = useState<string>("dashboard");
@@ -38,6 +39,8 @@ function MainApp() {
   const [editingTrade, setEditingTrade] = useState<Trade | null>(null);
   const [inspectingTrade, setInspectingTrade] = useState<Trade | null>(null);
   const [sharingTrade, setSharingTrade] = useState<Trade | null>(null);
+  const [clonedTrade, setClonedTrade] = useState<Partial<Trade> | null>(null);
+  const [tradeToDeleteDirectly, setTradeToDeleteDirectly] = useState<string | null>(null);
 
   // Rules state (stored in localStorage)
   const [rules, setRules] = useState<JournalRules>({
@@ -109,17 +112,19 @@ function MainApp() {
     } catch (e) {}
   }, []);
 
-  const handleSaveRules = (updated: JournalRules) => {
+  const handleSaveRules = async (updated: JournalRules) => {
     setRules(updated);
     try {
       localStorage.setItem("memecoin_journal_rules", JSON.stringify(updated));
+      await setDoc(doc(db, "settings", "user_preferences"), { rules: updated }, { merge: true });
     } catch (e) {}
   };
 
-  const handleSaveGoals = (updated: GoalSettings) => {
+  const handleSaveGoals = async (updated: GoalSettings) => {
     setGoals(updated);
     try {
       localStorage.setItem("memecoin_journal_goals", JSON.stringify(updated));
+      await setDoc(doc(db, "settings", "user_preferences"), { goals: updated }, { merge: true });
     } catch (e) {}
   };
 
@@ -155,8 +160,14 @@ function MainApp() {
   }, []);
 
   // Delete trade
-  const handleDeleteTradeDirectly = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this trade?")) return;
+  const handleDeleteTradeDirectly = (id: string) => {
+    setTradeToDeleteDirectly(id);
+  };
+
+  const confirmDeleteTradeDirectly = async () => {
+    if (!tradeToDeleteDirectly) return;
+    const id = tradeToDeleteDirectly;
+    setTradeToDeleteDirectly(null);
     try {
       await deleteDoc(doc(db, "trades", id));
     } catch (e) {
@@ -220,7 +231,7 @@ function MainApp() {
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ trades: trades.slice(0, 10) }),
+        body: JSON.stringify({ trades }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -290,6 +301,7 @@ function MainApp() {
             aiBrief={aiBrief}
             onRefreshAiBrief={refreshAiBrief}
             loadingAi={loadingAi}
+            loading={loading}
             solPrice={solPrice}
           />
         )}
@@ -322,8 +334,12 @@ function MainApp() {
       {/* Log New Trade Modal */}
       <LogTradeModal
         isOpen={isNewTradeModalOpen}
-        onClose={() => setIsNewTradeModalOpen(false)}
+        onClose={() => {
+          setIsNewTradeModalOpen(false);
+          setClonedTrade(null);
+        }}
         onTradeLogged={fetchTrades}
+        initialData={clonedTrade}
         solPrice={solPrice}
       />
 
@@ -343,6 +359,10 @@ function MainApp() {
         onClose={() => setInspectingTrade(null)}
         onEdit={(trade) => setEditingTrade(trade)}
         onDelete={handleDeleteTradeDirectly}
+        onDuplicate={(trade) => {
+          setClonedTrade(trade);
+          setIsNewTradeModalOpen(true);
+        }}
         onShare={(trade) => setSharingTrade(trade)}
       />
 
@@ -387,6 +407,44 @@ function MainApp() {
         onClose={() => setSharingTrade(null)}
         solPrice={solPrice}
       />
+
+      {/* Custom Delete Trade Confirmation Modal */}
+      {tradeToDeleteDirectly && (
+        <div
+          onClick={() => setTradeToDeleteDirectly(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm bg-white rounded-xl border border-[#e9e9e7] shadow-xl p-5 space-y-4 animate-in fade-in zoom-in-95 duration-100"
+          >
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold text-[#37352f] flex items-center gap-1.5">
+                <Trash2 size={16} className="text-rose-600" />
+                <span>Delete Trade</span>
+              </h3>
+              <p className="text-xs text-[#787774]">
+                Are you sure you want to permanently delete this trade from Firestore? This action cannot be undone.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#f1f1ef]">
+              <button
+                onClick={() => setTradeToDeleteDirectly(null)}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium text-[#787774] hover:bg-[#f7f6f3] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteTradeDirectly}
+                className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white transition-colors shadow-xs"
+              >
+                Delete Permanently
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

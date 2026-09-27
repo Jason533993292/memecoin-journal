@@ -45,6 +45,7 @@ interface DashboardViewProps {
   aiBrief: AiCoachBrief | null;
   onRefreshAiBrief: () => void;
   loadingAi: boolean;
+  loading?: boolean;
   solPrice?: number;
 }
 
@@ -60,8 +61,27 @@ export default function DashboardView({
   aiBrief,
   onRefreshAiBrief,
   loadingAi,
+  loading = false,
   solPrice = 150,
 }: DashboardViewProps) {
+  // Current streak calculation
+  const currentStreak = useMemo(() => {
+    if (trades.length === 0) return { count: 0, type: "none" as const };
+    const sorted = [...trades].sort((a, b) => getTradeTimestamp(b) - getTradeTimestamp(a));
+    const firstResult = sorted[0].result;
+    if (firstResult === "BE") return { count: 1, type: "BE" as const };
+
+    let count = 0;
+    for (const t of sorted) {
+      if (t.result === firstResult) {
+        count++;
+      } else {
+        break;
+      }
+    }
+    return { count, type: firstResult };
+  }, [trades]);
+
   // Memoized Calculations
   const {
     totalTrades,
@@ -140,14 +160,54 @@ export default function DashboardView({
     };
   }, [trades, solPrice, goals.maxDailyLossSol]);
 
+  if (loading) {
+    return (
+      <div className="space-y-6 sm:space-y-8 pb-16 pt-6">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <div className="h-8 bg-[#f1f1ef] rounded-md w-56 animate-pulse"></div>
+            <div className="h-4 bg-[#f7f6f3] rounded-md w-80 animate-pulse"></div>
+          </div>
+          <div className="h-9 bg-[#f1f1ef] rounded-md w-32 animate-pulse"></div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="h-24 bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl p-4 animate-pulse flex flex-col justify-between">
+              <div className="h-3 bg-[#e9e9e7] rounded w-16"></div>
+              <div className="h-6 bg-[#deddd9] rounded w-24 mt-2"></div>
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 h-80 bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl animate-pulse"></div>
+          <div className="h-80 bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl animate-pulse"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 sm:space-y-8 pb-16">
       {/* Title & Top Action Bar */}
       <div className="flex flex-wrap items-center justify-between pt-6 gap-3">
         <div>
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight text-[#37352f]">
-            MemeCoins Dashboard
-          </h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight text-[#37352f]">
+              MemeCoins Dashboard
+            </h1>
+            {currentStreak.count > 0 && (
+              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold shadow-2xs ${
+                currentStreak.type === "Win"
+                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                  : currentStreak.type === "Loss"
+                  ? "bg-rose-50 text-rose-700 border border-rose-200"
+                  : "bg-neutral-100 text-neutral-700 border border-neutral-200"
+              }`}>
+                <span>{currentStreak.type === "Win" ? "🔥" : currentStreak.type === "Loss" ? "💀" : "⚡"}</span>
+                <span>{currentStreak.count}{currentStreak.type === "Win" ? "W" : currentStreak.type === "Loss" ? "L" : "BE"} Streak</span>
+              </span>
+            )}
+          </div>
           <p className="text-xs text-[#787774] mt-1">
             Solana trading discipline cockpit, risk checklists, equity curve & AI coach.
           </p>
@@ -498,7 +558,7 @@ export default function DashboardView({
                 className="flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-[#f7f6f3] hover:text-[#2383e2] transition-colors"
               >
                 <ExternalLink size={13} className="text-[#9b9a97]" />
-                <span>dexscreener.com</span>
+                <span>DexScreener Solana</span>
               </a>
 
               <a
@@ -507,8 +567,8 @@ export default function DashboardView({
                 rel="noreferrer"
                 className="flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-[#f7f6f3] hover:text-[#2383e2] transition-colors"
               >
-                <span className="text-xs">👤</span>
-                <span>Axiom <strong className="font-semibold text-[#37352f]">Axiom</strong></span>
+                <span className="text-xs">⚡</span>
+                <span>Axiom Trade <span className="text-[10px] text-[#9b9a97]">(Solana DEX)</span></span>
               </a>
 
               <a
@@ -518,7 +578,7 @@ export default function DashboardView({
                 className="flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-[#f7f6f3] hover:text-[#2383e2] transition-colors"
               >
                 <span className="text-xs">🐂</span>
-                <span>BullX <strong className="font-semibold text-emerald-600">BullX</strong></span>
+                <span>BullX Terminal <span className="text-[10px] text-emerald-600 font-semibold">(Pro)</span></span>
               </a>
             </div>
           </div>

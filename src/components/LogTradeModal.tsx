@@ -73,6 +73,7 @@ interface LogTradeModalProps {
   isOpen: boolean;
   onClose: () => void;
   onTradeLogged: () => void;
+  initialData?: Partial<Trade> | null;
   solPrice?: number;
 }
 
@@ -80,6 +81,7 @@ export default function LogTradeModal({
   isOpen,
   onClose,
   onTradeLogged,
+  initialData = null,
   solPrice = 150,
 }: LogTradeModalProps) {
   const { showToast } = useToast();
@@ -168,45 +170,72 @@ export default function LogTradeModal({
     return () => window.removeEventListener("paste", handlePaste);
   }, [isOpen, showToast]);
 
-  // Close on Escape key press
+  // Close on Escape & Save on Cmd+Enter
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         onClose();
       }
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault();
+        const form = document.getElementById("log-trade-form") as HTMLFormElement;
+        if (form) form.requestSubmit();
+      }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Reset state when modal opens
+  // Reset or initialize state when modal opens
   useEffect(() => {
     if (isOpen) {
-      setCa("");
-      setTokenData(null);
-      setWallet("Main");
-      setResult("Win");
-      setSetupType("Breakout / ATH Push");
-      setCustomSetup("");
-      setDurationMinutes(15);
-      setBoughtSol("");
-      setBoughtUsd("");
-      setSoldSol("");
-      setSoldUsd("");
-      setPnlSol("");
-      setPnlUsd("");
-      setInitialRiskSol("");
-      setFeesSol("");
-      setStopPrice("");
-      setCurrencyMode("SOL");
-      setScreenshotUrl("");
-      setSelectedTags([]);
-      setCustomTagInput("");
-      setNotes("");
+      if (initialData) {
+        setCa(initialData.ca || "");
+        setWallet(initialData.wallet || "Main");
+        setResult(initialData.result || "Win");
+        setSetupType(initialData.setupType || "Breakout / ATH Push");
+        setCustomSetup("");
+        setDurationMinutes(initialData.durationMinutes || 15);
+        setBoughtSol(initialData.boughtSol ? String(initialData.boughtSol) : "");
+        setBoughtUsd(initialData.boughtUsd ? String(initialData.boughtUsd) : "");
+        setSoldSol(initialData.soldSol ? String(initialData.soldSol) : "");
+        setSoldUsd(initialData.soldUsd ? String(initialData.soldUsd) : "");
+        setPnlSol(initialData.pnlSol ? String(initialData.pnlSol) : "");
+        setPnlUsd(initialData.pnlUsd ? String(initialData.pnlUsd) : "");
+        setInitialRiskSol(initialData.initialRiskSol ? String(initialData.initialRiskSol) : "");
+        setFeesSol(initialData.feesSol ? String(initialData.feesSol) : "");
+        setStopPrice(initialData.stopPrice ? String(initialData.stopPrice) : "");
+        setNotes(initialData.notes ? `[Clone] ${initialData.notes}` : "");
+        setSelectedTags([...(initialData.goodTags || []), ...(initialData.mistakes || [])]);
+        if (initialData.initialRiskSol || initialData.feesSol || initialData.stopPrice) {
+          setShowAdvanced(true);
+        }
+      } else {
+        setCa("");
+        setTokenData(null);
+        setWallet("Main");
+        setResult("Win");
+        setSetupType("Breakout / ATH Push");
+        setCustomSetup("");
+        setDurationMinutes(15);
+        setBoughtSol("");
+        setBoughtUsd("");
+        setSoldSol("");
+        setSoldUsd("");
+        setPnlSol("");
+        setPnlUsd("");
+        setInitialRiskSol("");
+        setFeesSol("");
+        setStopPrice("");
+        setNotes("");
+        setScreenshotUrl("");
+        setSelectedTags([]);
+        setShowAdvanced(false);
+      }
       setFetchError("");
     }
-  }, [isOpen]);
+  }, [isOpen, initialData]);
 
   if (!isOpen) return null;
 
@@ -521,7 +550,7 @@ export default function LogTradeModal({
 
         {/* Scrollable Form Body */}
         <div className="p-4 sm:p-6 pt-4 overflow-y-auto custom-scrollbar">
-          <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+          <form id="log-trade-form" onSubmit={handleSubmit} className="space-y-4 text-xs">
           {/* Contract Address Input */}
           <div>
             <label className="block font-medium text-[#787774] mb-1.5 flex items-center justify-between">

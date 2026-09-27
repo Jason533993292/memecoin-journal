@@ -20,6 +20,8 @@ export interface Trade {
   pnlSol: number;
   pnlUsd: number;
   mistakes: string[];
+  goodTags?: string[];
+  isPaper?: boolean;
   notes?: string;
   screenshotUrl?: string;
   durationMinutes?: number;

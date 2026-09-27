@@ -49,13 +49,20 @@ export default function CommandPaletteModal({
   if (!isOpen) return null;
 
   const filteredTrades = trades
-    .filter(
-      (t) =>
-        t.name?.toLowerCase().includes(query.toLowerCase()) ||
-        t.symbol?.toLowerCase().includes(query.toLowerCase()) ||
-        t.ca?.toLowerCase().includes(query.toLowerCase())
-    )
-    .slice(0, 5);
+    .filter((t) => {
+      const q = query.toLowerCase().trim();
+      if (!q) return true;
+      return (
+        t.name?.toLowerCase().includes(q) ||
+        t.symbol?.toLowerCase().includes(q) ||
+        t.ca?.toLowerCase().includes(q) ||
+        t.notes?.toLowerCase().includes(q) ||
+        t.setupType?.toLowerCase().includes(q) ||
+        t.mistakes?.some((m) => m.toLowerCase().includes(q)) ||
+        t.goodTags?.some((g) => g.toLowerCase().includes(q))
+      );
+    })
+    .slice(0, 8);
 
   const actions = [
     {

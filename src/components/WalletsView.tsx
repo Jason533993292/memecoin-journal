@@ -59,6 +59,7 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
   const [modalType, setModalType] = useState<"deposit" | "paycheck">("deposit");
   const [isTxModalOpen, setIsTxModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"wallets" | "txLog">("wallets");
+  const [walletToDelete, setWalletToDelete] = useState<{ id: string; name: string } | null>(null);
 
   // Load from localStorage
   useEffect(() => {
@@ -178,10 +179,16 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
   };
 
   const handleDeleteWallet = (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to remove ${name}?`)) return;
+    setWalletToDelete({ id, name });
+  };
+
+  const confirmDeleteWallet = () => {
+    if (!walletToDelete) return;
+    const { id, name } = walletToDelete;
     const updated = wallets.filter((w) => w.id !== id);
     saveWalletsToStorage(updated);
     showToast("Wallet deleted", "info", name);
+    setWalletToDelete(null);
   };
 
   const handleOpenTxModal = (wallet: Wallet, type: "deposit" | "paycheck") => {
@@ -687,6 +694,44 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
         onConfirm={handleConfirmTransaction}
         solPrice={solPrice}
       />
+
+      {/* Delete Wallet Confirmation Modal */}
+      {walletToDelete && (
+        <div
+          onClick={() => setWalletToDelete(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm bg-white rounded-xl border border-[#e9e9e7] shadow-xl p-5 space-y-4 animate-in fade-in zoom-in-95 duration-100"
+          >
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold text-[#37352f] flex items-center gap-1.5">
+                <Trash2 size={16} className="text-rose-600" />
+                <span>Remove Wallet</span>
+              </h3>
+              <p className="text-xs text-[#787774]">
+                Are you sure you want to remove <strong className="text-[#37352f]">{walletToDelete.name}</strong> from your tracked wallets?
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#f1f1ef]">
+              <button
+                onClick={() => setWalletToDelete(null)}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium text-[#787774] hover:bg-[#f7f6f3] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDeleteWallet}
+                className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white transition-colors shadow-xs"
+              >
+                Delete Wallet
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

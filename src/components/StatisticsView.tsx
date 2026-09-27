@@ -250,6 +250,43 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
       .sort((a, b) => Math.abs(b.pnlSol) - Math.abs(a.pnlSol));
   }, [trades]);
 
+  if (trades.length === 0) {
+    return (
+      <div className="space-y-8 pb-16 pt-6">
+        <div className="flex items-center gap-2 text-xs text-[#787774] mb-2">
+          <span>Journal</span>
+          <span>/</span>
+          <span className="text-[#37352f] font-medium flex items-center gap-1">
+            <span>📈</span>
+            <span>Statistics</span>
+          </span>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <span className="text-3xl">📈</span>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#37352f]">
+              Statistics & Strategy Analytics
+            </h1>
+            <p className="text-xs text-[#787774] mt-0.5">
+              Deep dive into setup win-rates, holding duration patterns, streaks, and mistake costs.
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-white border border-[#e9e9e7] rounded-2xl p-12 text-center max-w-lg mx-auto shadow-xs mt-6">
+          <div className="w-14 h-14 bg-[#f7f6f3] border border-[#e3e2de] rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+            📊
+          </div>
+          <h3 className="text-base font-bold text-[#37352f] mb-1.5">No Historical Trades Yet</h3>
+          <p className="text-xs text-[#787774] max-w-sm mx-auto leading-relaxed">
+            Log your trades in the journal or dashboard to unlock win-rate analytics, setup performance, tilt & streak heatmaps, and expectancy calculations.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8 pb-16">
       {/* Title */}

@@ -121,21 +121,21 @@ export default function TopBanner({
       </div>
 
       {/* Main black banner with "TRUST THE PROCESS" */}
-      <div className="relative w-full bg-[#050505] h-36 sm:h-44 md:h-52 flex items-center justify-center overflow-hidden">
+      <div className="relative w-full bg-[#080808] h-20 sm:h-24 md:h-28 flex items-center justify-center overflow-hidden border-b border-neutral-800/40">
         {/* Subtle background glow */}
-        <div className="absolute inset-0 bg-radial from-neutral-800/20 via-transparent to-transparent opacity-60"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-neutral-800/40 via-transparent to-transparent opacity-70"></div>
 
         {/* Banner Text */}
-        <h1 className="relative z-10 text-white font-medium text-xl sm:text-2xl md:text-3xl tracking-[0.25em] select-none text-center px-4 font-sans">
+        <h1 className="relative z-10 text-white font-medium text-sm sm:text-base md:text-lg tracking-[0.3em] select-none text-center px-4 font-sans text-neutral-200">
           TRUST THE PROCESS
         </h1>
       </div>
 
       {/* Solana Logo Badge overlapping bottom-left */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-10 relative">
-        <div className="absolute -top-6 sm:-top-7 left-4 sm:left-6 md:left-10 z-20">
-          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-black border-4 border-white shadow-md flex items-center justify-center group hover:scale-105 transition-transform cursor-pointer">
-            <SolanaLogo size={24} />
+        <div className="absolute -top-5 sm:-top-6 left-4 sm:left-6 md:left-10 z-20">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-black border-[3px] border-white shadow-md flex items-center justify-center group hover:scale-105 transition-transform cursor-pointer">
+            <SolanaLogo size={20} />
           </div>
         </div>
       </div>

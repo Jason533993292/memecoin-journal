@@ -29,6 +29,7 @@ interface TradeDetailDrawerProps {
   onClose: () => void;
   onEdit: (trade: Trade) => void;
   onDelete: (id: string) => void;
+  onDuplicate?: (trade: Trade) => void;
   onShare?: (trade: Trade) => void;
 }
 
@@ -38,6 +39,7 @@ export default function TradeDetailDrawer({
   onClose,
   onEdit,
   onDelete,
+  onDuplicate,
   onShare,
 }: TradeDetailDrawerProps) {
   const { showToast } = useToast();
@@ -400,6 +402,19 @@ export default function TradeDetailDrawer({
               Delete Trade
             </button>
             <div className="flex items-center gap-2">
+              {onDuplicate && (
+                <button
+                  onClick={() => {
+                    onClose();
+                    onDuplicate(trade);
+                  }}
+                  className="bg-[#f7f6f3] hover:bg-[#eeece8] border border-[#e3e2de] text-[#37352f] px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-2xs"
+                  title="Clone setup and tags into a new trade"
+                >
+                  <Copy size={13} />
+                  <span>Clone Trade</span>
+                </button>
+              )}
               {onShare && (
                 <button
                   onClick={() => {

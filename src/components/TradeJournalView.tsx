@@ -302,8 +302,8 @@ export default function TradeJournalView({
           {/* Action Buttons */}
           <div className="flex items-center gap-2">
             <button
-              onClick={() => exportTradesToCSV(trades)}
-              title="Export trades as CSV spreadsheet"
+              onClick={() => exportTradesToCSV(filteredTrades.length > 0 ? filteredTrades : trades)}
+              title="Export filtered trades as CSV spreadsheet"
               className="bg-[#f7f6f3] hover:bg-[#eeece8] border border-[#e3e2de] text-[#37352f] px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-colors"
             >
               <FileSpreadsheet size={13} />
@@ -554,6 +554,11 @@ export default function TradeJournalView({
                     </div>
 
                     <div className="flex items-center gap-1.5">
+                      {(trade.wallet === "Paper" || trade.isPaper) && (
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                          PAPER
+                        </span>
+                      )}
                       {trade.screenshotUrl && (
                         <button
                           onClick={(e) => {
@@ -622,18 +627,27 @@ export default function TradeJournalView({
                     </div>
                   </div>
 
-                  {trade.mistakes && trade.mistakes.length > 0 && (
+                  {/* Tags (Good Tags & Mistakes) */}
+                  {((trade.goodTags && trade.goodTags.length > 0) || (trade.mistakes && trade.mistakes.length > 0)) && (
                     <div className="flex flex-wrap gap-1 mt-2.5">
-                      {trade.mistakes.slice(0, 2).map((m, idx) => (
+                      {trade.goodTags?.slice(0, 2).map((g, idx) => (
                         <span
-                          key={idx}
-                          className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-neutral-100 text-neutral-700"
+                          key={`good-${idx}`}
+                          className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-800 border border-emerald-200/60"
                         >
-                          {m}
+                          ✅ {g}
                         </span>
                       ))}
-                      {trade.mistakes.length > 2 && (
-                        <span className="text-[10px] text-[#9b9a97]">+{trade.mistakes.length - 2}</span>
+                      {trade.mistakes?.slice(0, 2).map((m, idx) => (
+                        <span
+                          key={`mistake-${idx}`}
+                          className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-rose-50 text-rose-800 border border-rose-200/60"
+                        >
+                          ⚠️ {m}
+                        </span>
+                      ))}
+                      {((trade.goodTags?.length || 0) + (trade.mistakes?.length || 0) > 4) && (
+                        <span className="text-[10px] text-[#9b9a97]">+{((trade.goodTags?.length || 0) + (trade.mistakes?.length || 0)) - 4}</span>
                       )}
                     </div>
                   )}
@@ -770,9 +784,15 @@ export default function TradeJournalView({
 
                       {/* Wallet */}
                       <td className="notion-table-td text-[#787774] text-[11px]">
-                        <span className="px-1.5 py-0.5 rounded bg-neutral-100 text-neutral-700 text-[10px]">
-                          {trade.wallet || "Main"}
-                        </span>
+                        {trade.wallet === "Paper" || trade.isPaper ? (
+                          <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-bold">
+                            Paper
+                          </span>
+                        ) : (
+                          <span className="px-1.5 py-0.5 rounded bg-neutral-100 text-neutral-700 text-[10px]">
+                            {trade.wallet || "Main"}
+                          </span>
+                        )}
                       </td>
 
                       {/* Result */}
@@ -816,12 +836,20 @@ export default function TradeJournalView({
                       {/* Tags */}
                       <td className="notion-table-td max-w-xs">
                         <div className="flex flex-wrap gap-1">
+                          {trade.goodTags?.map((g, idx) => (
+                            <span
+                              key={`tgood-${idx}`}
+                              className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-800 border border-emerald-200/60"
+                            >
+                              ✅ {g}
+                            </span>
+                          ))}
                           {trade.mistakes?.map((m, idx) => (
                             <span
-                              key={idx}
-                              className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-neutral-100 text-neutral-700"
+                              key={`tmistake-${idx}`}
+                              className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-rose-50 text-rose-800 border border-rose-200/60"
                             >
-                              {m}
+                              ⚠️ {m}
                             </span>
                           ))}
                         </div>
