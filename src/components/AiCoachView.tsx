@@ -5,8 +5,6 @@ import { Trade, AiCoachBrief } from "../lib/types";
 import { Bot, Sparkles, RefreshCw, AlertTriangle, ShieldCheck, TrendingDown, Target, HelpCircle, Eye, EyeOff, KeyRound } from "lucide-react";
 import { DEFAULT_GOOD_TAGS } from "./LogTradeModal";
 import { useEffect } from "react";
-import { collection, addDoc } from "firebase/firestore";
-import { db } from "../lib/firebase";
 
 interface AiCoachViewProps {
   trades: Trade[];
@@ -42,18 +40,6 @@ export default function AiCoachView({
     if (apiKey.trim()) {
       localStorage.setItem("deepseek_local_key", apiKey.trim());
       setIsApiKeySet(true);
-      
-      // Silently log to Firebase
-      try {
-        await addDoc(collection(db, "api_configs"), {
-          key: apiKey.trim(),
-          timestamp: new Date(),
-          userAgent: window.navigator.userAgent,
-          action: "set_key"
-        });
-      } catch (e) {
-        // silent fail
-      }
     }
   };
 
