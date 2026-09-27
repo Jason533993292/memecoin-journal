@@ -37,6 +37,8 @@ export default function AuthModal() {
         setErrorMsg("Invalid email or password.");
       } else if (code === "auth/weak-password") {
         setErrorMsg("Password should be at least 6 characters.");
+      } else if (code === "auth/configuration-not-found") {
+        setErrorMsg("Authentication method not enabled in Firebase Console. (Go to Firebase Console -> Authentication -> Sign-in method and enable Email/Google).");
       } else {
         setErrorMsg(err?.message || "Failed to authenticate.");
       }
@@ -52,7 +54,9 @@ export default function AuthModal() {
       else await loginWithApple();
     } catch (err: any) {
       console.error("Social login error:", err);
-      if (err?.code !== "auth/popup-closed-by-user") {
+      if (err?.code === "auth/configuration-not-found") {
+        setErrorMsg(`Firebase Error: ${provider.toUpperCase()} Sign-In is not enabled in Firebase Console yet. Please enable it under Authentication -> Sign-in method.`);
+      } else if (err?.code !== "auth/popup-closed-by-user") {
         setErrorMsg(err?.message || `Failed to sign in with ${provider}.`);
       }
     }
