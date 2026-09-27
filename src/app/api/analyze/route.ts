@@ -22,12 +22,12 @@ export async function POST(request: Request) {
 
     const apiKey = clientApiKey || process.env.DEEPSEEK_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ error: 'DeepSeek API key is not configured.' }, { status: 500 });
+      return NextResponse.json({ error: 'DeepSeek API key is not configured.' }, { status: 401 });
     }
 
     const tradeList = Array.isArray(trades) ? trades : [];
 
-    // Calculate quantitative performance context
+    // Quantitative calculations across all provided trades
     const totalTrades = tradeList.length;
     const wins = tradeList.filter((t) => t.result === 'Win');
     const losses = tradeList.filter((t) => t.result === 'Loss');
@@ -49,14 +49,22 @@ export async function POST(request: Request) {
       .map(([m, c]) => `${m} (${c}x)`)
       .join(', ') || 'None logged';
 
-    const recentTradesSample = tradeList.slice(0, 15).map((t: any) => ({
+    // Sort by timestamp descending so the most recent trades are guaranteed first in sample
+    const sortedTrades = [...tradeList].sort((a, b) => {
+      const timeA = a.createdAt || (a.date?.seconds ? a.date.seconds * 1000 : 0);
+      const timeB = b.createdAt || (b.date?.seconds ? b.date.seconds * 1000 : 0);
+      return timeB - timeA;
+    });
+
+    const recentTradesSample = sortedTrades.slice(0, 15).map((t: any) => ({
       symbol: t.symbol,
       result: t.result,
       pnlSol: t.pnlSol,
       pnlUsd: t.pnlUsd,
       mistakes: t.mistakes,
+      goodTags: t.goodTags,
       setup: t.setupType,
-      notes: t.notes,
+      notes: t.notes ? String(t.notes).slice(0, 200) : undefined,
     }));
 
     const quantitativeBrief = {
@@ -78,8 +86,10 @@ CRITICAL RULES:
 - DO NOT use any emojis whatsoever.
 - Write in a raw, conversational, no-bullshit tone. Do not sound like an AI.`;
 
-    const userPrompt = customPrompt
-      ? `Trader Question: "${customPrompt}"\n\nTrader Quantitative Performance & Logs:\n${tradesSummary}`
+    const sanitizedPrompt = customPrompt ? String(customPrompt).slice(0, 500) : null;
+
+    const userPrompt = sanitizedPrompt
+      ? `Trader Question: "${sanitizedPrompt}"\n\nTrader Quantitative Performance & Logs:\n${tradesSummary}`
       : `Analyze these memecoin trader statistics and recent trades, then provide:
 1. Executive Assessment (1-2 sentences on current performance & discipline)
 2. Primary Leak / Bad Habit (what is costing the most money)

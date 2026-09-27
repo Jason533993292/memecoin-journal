@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Trade, GoalSettings } from "../lib/types";
 import { getTradeTimestamp } from "../lib/utils";
-import { Target, Trophy, Flame, AlertCircle, Edit2, CheckCircle2, TrendingUp, AlertTriangle, ShieldCheck, Award, AlertOctagon } from "lucide-react";
+import { Target, Trophy, AlertCircle, Edit2, TrendingUp, AlertTriangle } from "lucide-react";
 
 interface GoalTrackerProps {
   trades: Trade[];
@@ -18,9 +18,15 @@ export default function GoalTracker({
   onOpenGoalEditor,
   solPrice = 150,
 }: GoalTrackerProps) {
+  // Periodically refresh date boundaries so tab open across midnight updates automatically
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   const stats = useMemo(() => {
     const nowObj = new Date();
-    const now = nowObj.getTime();
     const currentMonth = nowObj.getMonth();
     const currentYear = nowObj.getFullYear();
     const currentDayOfMonth = nowObj.getDate();
@@ -34,22 +40,22 @@ export default function GoalTracker({
     const daysLeftInWeek = dayOfWeek === 0 ? 1 : 8 - dayOfWeek;
 
     // Start of week (Monday 00:00:00)
-    const startOfWeek = new Date(nowObj);
-    const diff = startOfWeek.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-    startOfWeek.setDate(diff);
-    startOfWeek.setHours(0, 0, 0, 0);
+    const startOfWeek = new Date(nowObj.getFullYear(), nowObj.getMonth(), nowObj.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1), 0, 0, 0);
     const startOfWeekTime = startOfWeek.getTime();
 
     // Start of month (1st of month 00:00:00)
-    const startOfMonth = new Date(currentYear, currentMonth, 1).getTime();
+    const startOfMonth = new Date(currentYear, currentMonth, 1, 0, 0, 0).getTime();
 
     // Start of calendar today (00:00:00)
-    const startOfToday = new Date(currentYear, currentMonth, currentDayOfMonth).getTime();
+    const startOfToday = new Date(currentYear, currentMonth, currentDayOfMonth, 0, 0, 0).getTime();
 
     let weeklyPnl = 0;
     let monthlyPnl = 0;
     let todayPnl = 0;
     let todayTradesCount = 0;
+
+    let weekWins = 0;
+    let weekTotal = 0;
 
     trades.forEach((t) => {
       const time = getTradeTimestamp(t);
@@ -57,6 +63,8 @@ export default function GoalTracker({
 
       if (time >= startOfWeekTime) {
         weeklyPnl += pnl;
+        weekTotal += 1;
+        if (t.result === "Win") weekWins += 1;
       }
       if (time >= startOfMonth) {
         monthlyPnl += pnl;
@@ -69,12 +77,20 @@ export default function GoalTracker({
 
     const totalTrades = trades.length;
     const winTrades = trades.filter((t) => t.result === "Win").length;
-    const currentWinRate = totalTrades > 0 ? (winTrades / totalTrades) * 100 : 0;
+    const allTimeWinRate = totalTrades > 0 ? (winTrades / totalTrades) * 100 : 0;
+    const weeklyWinRate = weekTotal > 0 ? (weekWins / weekTotal) * 100 : allTimeWinRate;
 
-    // Progress percentages
-    const weeklyPct = Math.min(100, Math.max(0, (weeklyPnl / (goals.weeklyPnlSolTarget || 5)) * 100));
-    const monthlyPct = Math.min(100, Math.max(0, (monthlyPnl / (goals.monthlyPnlSolTarget || 20)) * 100));
-    const winRatePct = Math.min(100, (currentWinRate / (goals.targetWinRate || 60)) * 100);
+    // Progress percentages (unclamped to show negative overshoots accurately)
+    const weeklyTarget = goals.weeklyPnlSolTarget || 5;
+    const monthlyTarget = goals.monthlyPnlSolTarget || 20;
+
+    const weeklyPct = Math.round((weeklyPnl / weeklyTarget) * 100);
+    const monthlyPct = Math.round((monthlyPnl / monthlyTarget) * 100);
+    const winRatePct = Math.min(100, (weeklyWinRate / (goals.targetWinRate || 60)) * 100);
+
+    // Required daily run rate
+    const weeklyRemaining = Math.max(0, weeklyTarget - weeklyPnl);
+    const requiredDailyPace = parseFloat((weeklyRemaining / daysLeftInWeek).toFixed(2));
 
     // Today loss guardrail status
     const todayLoss = todayPnl < 0 ? Math.abs(todayPnl) : 0;
@@ -86,16 +102,19 @@ export default function GoalTracker({
       monthlyPnl: parseFloat(monthlyPnl.toFixed(2)),
       todayPnl: parseFloat(todayPnl.toFixed(2)),
       todayTradesCount,
-      currentWinRate: parseFloat(currentWinRate.toFixed(1)),
-      weeklyPct: Math.round(weeklyPct),
-      monthlyPct: Math.round(monthlyPct),
+      weeklyWinRate: parseFloat(weeklyWinRate.toFixed(1)),
+      allTimeWinRate: parseFloat(allTimeWinRate.toFixed(1)),
+      weeklyPct,
+      monthlyPct,
       winRatePct: Math.round(winRatePct),
+      requiredDailyPace,
+      weeklyRemaining: parseFloat(weeklyRemaining.toFixed(2)),
       lossGuardrailTriggered,
       tradesGuardrailTriggered,
       daysLeftInWeek,
       daysLeftInMonth,
     };
-  }, [trades, goals]);
+  }, [trades, goals, tick]);
 
   return (
     <div className="bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl p-5 shadow-xs flex flex-col space-y-4">
@@ -147,17 +166,21 @@ export default function GoalTracker({
               className={`h-full rounded-full transition-all duration-500 ${
                 stats.weeklyPct >= 100
                   ? "bg-emerald-500"
-                  : stats.weeklyPct >= 50
+                  : stats.weeklyPct > 0
                   ? "bg-indigo-500"
-                  : "bg-blue-400"
+                  : "bg-rose-400"
               }`}
-              style={{ width: `${Math.min(stats.weeklyPct, 100)}%` }}
+              style={{ width: `${Math.min(Math.max(stats.weeklyPct, 0), 100)}%` }}
             ></div>
           </div>
 
           <div className="flex items-center justify-between text-[10px] text-[#9b9a97]">
-            <span>{stats.weeklyPct}% Achieved</span>
-            <span>{stats.daysLeftInWeek} day{stats.daysLeftInWeek !== 1 ? 's' : ''} left</span>
+            <span className={stats.weeklyPct < 0 ? "text-rose-600 font-semibold" : ""}>
+              {stats.weeklyPct}% Achieved
+            </span>
+            <span>
+              {stats.weeklyRemaining > 0 ? `Need +${stats.requiredDailyPace} SOL/d` : "Target Met"}
+            </span>
           </div>
         </div>
 
@@ -178,16 +201,18 @@ export default function GoalTracker({
               className={`h-full rounded-full transition-all duration-500 ${
                 stats.monthlyPct >= 100
                   ? "bg-emerald-500"
-                  : stats.monthlyPct >= 50
+                  : stats.monthlyPct > 0
                   ? "bg-indigo-500"
-                  : "bg-purple-400"
+                  : "bg-rose-400"
               }`}
-              style={{ width: `${Math.min(stats.monthlyPct, 100)}%` }}
+              style={{ width: `${Math.min(Math.max(stats.monthlyPct, 0), 100)}%` }}
             ></div>
           </div>
 
           <div className="flex items-center justify-between text-[10px] text-[#9b9a97]">
-            <span>{stats.monthlyPct}% Achieved</span>
+            <span className={stats.monthlyPct < 0 ? "text-rose-600 font-semibold" : ""}>
+              {stats.monthlyPct}% Achieved
+            </span>
             <span>{stats.daysLeftInMonth} day{stats.daysLeftInMonth !== 1 ? 's' : ''} left</span>
           </div>
         </div>
@@ -195,10 +220,10 @@ export default function GoalTracker({
         {/* Goal 3: Win Rate Target */}
         <div className="p-3 bg-white border border-[#e9e9e7] rounded-xl space-y-2">
           <div className="flex items-center justify-between text-xs">
-            <span className="font-semibold text-[#37352f]">Target Win Rate</span>
+            <span className="font-semibold text-[#37352f]">Weekly Win Rate</span>
             <span className="font-mono text-[11px] text-[#787774]">
-              <strong className={stats.currentWinRate >= (goals.targetWinRate || 60) ? "text-emerald-600" : "text-[#37352f]"}>
-                {stats.currentWinRate}%
+              <strong className={stats.weeklyWinRate >= (goals.targetWinRate || 60) ? "text-emerald-600" : "text-[#37352f]"}>
+                {stats.weeklyWinRate}%
               </strong>{" "}
               / {goals.targetWinRate || 60}%
             </span>
@@ -207,7 +232,7 @@ export default function GoalTracker({
           <div className="w-full bg-neutral-100 h-2 rounded-full overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-500 ${
-                stats.currentWinRate >= (goals.targetWinRate || 60) ? "bg-emerald-500" : "bg-amber-400"
+                stats.weeklyWinRate >= (goals.targetWinRate || 60) ? "bg-emerald-500" : "bg-amber-400"
               }`}
               style={{ width: `${Math.min(stats.winRatePct, 100)}%` }}
             ></div>
@@ -215,9 +240,9 @@ export default function GoalTracker({
 
           <div className="flex items-center justify-between text-[10px] text-[#9b9a97]">
             <span>
-              {stats.currentWinRate >= (goals.targetWinRate || 60) ? "🎯 On Target" : "Improve setup selection"}
+              {stats.weeklyWinRate >= (goals.targetWinRate || 60) ? "🎯 On Target" : "Refine setups"}
             </span>
-            <span>All Trades</span>
+            <span>This Week</span>
           </div>
         </div>
       </div>

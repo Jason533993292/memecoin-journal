@@ -33,6 +33,16 @@ export function getTradeDate(t: Partial<Trade>): Date {
 }
 
 /**
+ * Returns local YYYY-MM-DD string key for standard calendar grouping
+ */
+export function getLocalDayKey(d: Date): string {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+/**
  * Converts SOL amount to USD given live or fallback solPrice
  */
 export function toUsd(sol: number | undefined | null, solPrice: number): number {
@@ -49,4 +59,49 @@ export function escapeCsvField(str: string | number | undefined | null): string 
   // Guard against CSV formula injection
   const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
   return `"${safe}"`;
+}
+
+/**
+ * Client-side canvas image compression to keep base64 payloads safely below Firestore limits (< 500KB)
+ */
+export async function compressImage(dataUrl: string, maxBytes = 500_000): Promise<string> {
+  if (!dataUrl || !dataUrl.startsWith("data:image")) return dataUrl;
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const maxDim = 1200;
+      let width = img.width;
+      let height = img.height;
+
+      if (width > maxDim || height > maxDim) {
+        if (width > height) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        } else {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        resolve(dataUrl);
+        return;
+      }
+      ctx.drawImage(img, 0, 0, width, height);
+
+      let quality = 0.85;
+      let result = canvas.toDataURL("image/jpeg", quality);
+      while (result.length > maxBytes && quality > 0.3) {
+        quality -= 0.1;
+        result = canvas.toDataURL("image/jpeg", quality);
+      }
+      resolve(result);
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
 }

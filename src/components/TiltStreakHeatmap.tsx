@@ -2,7 +2,8 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { Trade } from "../lib/types";
-import { Flame, Snowflake, AlertTriangle, ShieldCheck, Calendar, DollarSign, Euro } from "lucide-react";
+import { getTradeDate, getLocalDayKey } from "../lib/utils";
+import { Flame, Snowflake, AlertTriangle, ShieldCheck, Calendar } from "lucide-react";
 
 interface TiltStreakHeatmapProps {
   trades: Trade[];
@@ -11,14 +12,7 @@ interface TiltStreakHeatmapProps {
 
 export default function TiltStreakHeatmap({ trades, solPrice = 150 }: TiltStreakHeatmapProps) {
   const [currency, setCurrency] = useState<"SOL" | "USD" | "EUR">("SOL");
-  const USD_TO_EUR = 0.92; // Approx current EUR/USD rate
-
-  const getLocalDayKey = (d: Date) => {
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    return `${yyyy}-${mm}-${dd}`;
-  };
+  const USD_TO_EUR = 0.92; // Approx EUR/USD rate
 
   useEffect(() => {
     try {
@@ -36,23 +30,33 @@ export default function TiltStreakHeatmap({ trades, solPrice = 150 }: TiltStreak
     } catch (e) {}
   };
 
-  // 1. Calculate Daily Breakdown for the last 28 days (4 weeks)
-  const heatmapData = useMemo(() => {
+  // Pre-bucket all trades by local day key in O(N) single pass
+  const dailyBuckets = useMemo(() => {
+    const map = new Map<string, Trade[]>();
+    trades.forEach((t) => {
+      const dateObj = getTradeDate(t);
+      const key = getLocalDayKey(dateObj);
+      const list = map.get(key) || [];
+      list.push(t);
+      map.set(key, list);
+    });
+    return map;
+  }, [trades]);
+
+  // Calculate 28-Day Breakdown & Streaks using calendar arithmetic (DST-safe)
+  const { heatmapData, streakInfo, monthlyProfitInfo, todayLosses, isTiltAlert } = useMemo(() => {
     const days = [];
     const now = new Date();
-    now.setHours(23, 59, 59, 999);
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    let monthPnlSol = 0;
+    let monthPnlUsd = 0;
 
     for (let i = 27; i >= 0; i--) {
-      const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i, 12, 0, 0);
       const dayKey = getLocalDayKey(d);
-
-      // Find trades on this day
-      const dayTrades = trades.filter((t) => {
-        const tradeDate = t.date?.seconds
-          ? new Date(t.date.seconds * 1000)
-          : new Date(t.createdAt || Date.now());
-        return getLocalDayKey(tradeDate) === dayKey;
-      });
+      const dayTrades = dailyBuckets.get(dayKey) || [];
 
       const wins = dayTrades.filter((t) => t.result === "Win").length;
       const losses = dayTrades.filter((t) => t.result === "Loss").length;
@@ -73,45 +77,80 @@ export default function TiltStreakHeatmap({ trades, solPrice = 150 }: TiltStreak
       });
     }
 
-    return days;
-  }, [trades, solPrice]);
-
-  // 2. Calculate Monthly Profit
-  const monthlyProfitInfo = useMemo(() => {
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-
-    let pnlSol = 0;
-    let pnlUsd = 0;
-    let pnlEur = 0;
-
+    // Monthly profit from all trades
     trades.forEach((t) => {
-      const tradeDate = t.date?.seconds
-        ? new Date(t.date.seconds * 1000)
-        : new Date(t.createdAt || Date.now());
-      
-      if (tradeDate.getMonth() === currentMonth && tradeDate.getFullYear() === currentYear) {
-        pnlSol += t.pnlSol || 0;
-        pnlUsd += t.pnlUsd || (t.pnlSol || 0) * solPrice;
+      const dateObj = getTradeDate(t);
+      if (dateObj.getMonth() === currentMonth && dateObj.getFullYear() === currentYear) {
+        monthPnlSol += t.pnlSol || 0;
+        monthPnlUsd += t.pnlUsd || (t.pnlSol || 0) * solPrice;
       }
     });
-    pnlEur = pnlUsd * USD_TO_EUR;
 
-    return { pnlSol, pnlUsd, pnlEur };
-  }, [trades, solPrice]);
+    // Compute actual streak logic (consecutive active trading days)
+    let currentStreak = 0;
+    let streakType: "win" | "loss" | "none" = "none";
+    let maxWinStreak = 0;
+    let maxLossStreak = 0;
 
-  // 3. Check for Today's Tilt Warning (>= 3 losses today)
-  const todayKey = getLocalDayKey(new Date());
-  const todayTrades = trades.filter((t) => {
-    const tradeDate = t.date?.seconds
-      ? new Date(t.date.seconds * 1000)
-      : new Date(t.createdAt || Date.now());
-    return getLocalDayKey(tradeDate) === todayKey;
-  });
+    // Scan backwards from today to find current active day streak
+    for (let i = days.length - 1; i >= 0; i--) {
+      const d = days[i];
+      if (d.tradeCount === 0) continue;
+      if (d.pnlSol > 0) {
+        if (streakType === "none" || streakType === "win") {
+          streakType = "win";
+          currentStreak++;
+        } else {
+          break;
+        }
+      } else if (d.pnlSol < 0) {
+        if (streakType === "none" || streakType === "loss") {
+          streakType = "loss";
+          currentStreak++;
+        } else {
+          break;
+        }
+      } else {
+        break;
+      }
+    }
 
-  const todayLosses = todayTrades.filter((t) => t.result === "Loss").length;
-  const isTiltAlert = todayLosses >= 3;
+    // Scan forward for best streaks
+    let runningWin = 0;
+    let runningLoss = 0;
+    days.forEach((d) => {
+      if (d.tradeCount > 0) {
+        if (d.pnlSol > 0) {
+          runningWin++;
+          runningLoss = 0;
+          if (runningWin > maxWinStreak) maxWinStreak = runningWin;
+        } else if (d.pnlSol < 0) {
+          runningLoss++;
+          runningWin = 0;
+          if (runningLoss > maxLossStreak) maxLossStreak = runningLoss;
+        } else {
+          runningWin = 0;
+          runningLoss = 0;
+        }
+      }
+    });
+
+    const todayKey = getLocalDayKey(now);
+    const todayTrades = dailyBuckets.get(todayKey) || [];
+    const tLosses = todayTrades.filter((t) => t.result === "Loss").length;
+
+    return {
+      heatmapData: days,
+      streakInfo: { currentStreak, streakType, maxWinStreak, maxLossStreak },
+      monthlyProfitInfo: {
+        pnlSol: monthPnlSol,
+        pnlUsd: monthPnlUsd,
+        pnlEur: monthPnlUsd * USD_TO_EUR,
+      },
+      todayLosses: tLosses,
+      isTiltAlert: tLosses >= 3,
+    };
+  }, [trades, dailyBuckets, solPrice]);
 
   // Format value based on currency
   const formatDayPnl = (day: { pnlSol: number; pnlUsd: number; pnlEur: number; tradeCount: number }) => {
@@ -144,7 +183,7 @@ export default function TiltStreakHeatmap({ trades, solPrice = 150 }: TiltStreak
           </div>
         </div>
 
-        {/* Currency Switcher & Streak Pill */}
+        {/* Currency Switcher & Monthly Profit */}
         <div className="flex items-center gap-3">
           {/* Currency Toggle (SOL - USD - EUR) */}
           <div className="flex items-center gap-0.5 bg-[#f1f1ef] p-0.5 rounded-lg border border-[#e3e2de] text-[11px]">
@@ -179,7 +218,7 @@ export default function TiltStreakHeatmap({ trades, solPrice = 150 }: TiltStreak
                   : "text-[#787774] hover:text-[#37352f]"
               }`}
             >
-              EUR (€)
+              ≈ EUR (€)
             </button>
           </div>
 
@@ -216,9 +255,9 @@ export default function TiltStreakHeatmap({ trades, solPrice = 150 }: TiltStreak
         </div>
       )}
 
-      {/* 28-Day Grid Squares */}
+      {/* 28-Day Grid Squares using valid arbitrary Tailwind grid template */}
       <div>
-        <div className="grid grid-cols-7 sm:grid-cols-14 gap-2">
+        <div className="grid grid-cols-7 sm:grid-cols-[repeat(14,minmax(0,1fr))] gap-2">
           {heatmapData.map((day) => {
             const hasTrades = day.tradeCount > 0;
             const isGreen = day.pnlSol > 0;

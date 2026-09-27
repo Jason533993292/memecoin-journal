@@ -1,16 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Trade, AiCoachBrief } from "../lib/types";
-import { Bot, Sparkles, RefreshCw, AlertTriangle, ShieldCheck, TrendingDown, Target, HelpCircle, Eye, EyeOff, KeyRound } from "lucide-react";
-import { DEFAULT_GOOD_TAGS } from "./LogTradeModal";
-import { useEffect } from "react";
+import { Bot, Sparkles, RefreshCw, AlertTriangle, ShieldCheck, Target, HelpCircle, Eye, EyeOff, KeyRound } from "lucide-react";
+import { DEFAULT_GOOD_TAGS } from "../lib/constants";
+import { getTradeTimestamp } from "../lib/utils";
 
 interface AiCoachViewProps {
   trades: Trade[];
   aiBrief: AiCoachBrief | null;
   onRefreshAiBrief: () => void;
   loadingAi: boolean;
+}
+
+function escapeHtml(s: string) {
+  return s.replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] || c)
+  );
 }
 
 export default function AiCoachView({
@@ -55,12 +61,15 @@ export default function AiCoachView({
     setAsking(true);
     setCustomAnswer(null);
 
+    // Ensure trades are sorted descending by timestamp before sampling
+    const sortedTrades = [...trades].sort((a, b) => getTradeTimestamp(b) - getTradeTimestamp(a));
+
     try {
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          trades: trades.slice(0, 10),
+          trades: sortedTrades.slice(0, 15),
           customPrompt: customQuestion.trim(),
           clientApiKey: apiKey,
         }),
@@ -70,7 +79,8 @@ export default function AiCoachView({
         const data = await res.json();
         setCustomAnswer(data.advice || "No response received.");
       } else {
-        setCustomAnswer("Failed to connect to DeepSeek API. Please check your key.");
+        const errData = await res.json().catch(() => ({}));
+        setCustomAnswer(errData.error || "Failed to connect to DeepSeek API. Please check your key.");
       }
     } catch (err) {
       setCustomAnswer("Error querying AI coach.");
@@ -78,26 +88,30 @@ export default function AiCoachView({
     setAsking(false);
   };
 
-  const totalTrades = trades.length;
-  const wins = trades.filter((t) => t.result === "Win").length;
-  const winRate = totalTrades > 0 ? ((wins / totalTrades) * 100).toFixed(0) : "0";
+  const { totalTrades, winRate, primaryTilt, sortedMistakes } = useMemo(() => {
+    const total = trades.length;
+    const wins = trades.filter((t) => t.result === "Win").length;
+    const wr = total > 0 ? ((wins / total) * 100).toFixed(0) : "0";
 
-  // Calculate most common mistake
-  const mistakeCounts: Record<string, number> = {};
-  trades.forEach((t) => {
-    t.mistakes?.forEach((m) => {
-      if (!DEFAULT_GOOD_TAGS.includes(m)) {
-        mistakeCounts[m] = (mistakeCounts[m] || 0) + 1;
-      }
+    const mistakeCounts: Record<string, number> = {};
+    trades.forEach((t) => {
+      t.mistakes?.forEach((m) => {
+        if (!DEFAULT_GOOD_TAGS.includes(m)) {
+          mistakeCounts[m] = (mistakeCounts[m] || 0) + 1;
+        }
+      });
     });
-  });
 
-  const sortedMistakes = Object.entries(mistakeCounts).sort((a, b) => b[1] - a[1]);
-  const primaryTilt = sortedMistakes.length > 0 ? sortedMistakes[0][0] : "None detected yet";
+    const sorted = Object.entries(mistakeCounts).sort((a, b) => b[1] - a[1]);
+    const tilt = sorted.length > 0 ? sorted[0][0] : "None detected yet";
+
+    return { totalTrades: total, winRate: wr, primaryTilt: tilt, sortedMistakes: sorted };
+  }, [trades]);
 
   const renderFormattedText = (text: string) => {
     if (!text) return null;
-    const html = text
+    const escaped = escapeHtml(text);
+    const html = escaped
       .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-[#37352f]">$1</strong>')
       .replace(/### (.*?)\n/g, '<strong class="block text-sm mt-2 mb-1">$1</strong>\n')
       .replace(/## (.*?)\n/g, '<strong class="block text-base mt-3 mb-1">$1</strong>\n')
@@ -192,8 +206,7 @@ export default function AiCoachView({
             <span>Setup DeepSeek API Key</span>
           </div>
           <p className="text-xs text-rose-700 leading-relaxed">
-            Since Vercel is blocking your environment variables, you can paste your DeepSeek API key here. 
-            It will be saved securely in your browser's local storage and passed directly to the AI coach.
+            Configure your DeepSeek API key to unlock the AI coach. It is stored locally in your browser and used to analyze your trade execution.
           </p>
           <div className="flex gap-2 pt-2">
             <div className="relative flex-1">

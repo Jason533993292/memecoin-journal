@@ -20,7 +20,8 @@ import {
 } from "lucide-react";
 import { Trade } from "../lib/types";
 import { useToast } from "./Toast";
-import { COMMON_SETUPS, DURATION_PRESETS, DEFAULT_GOOD_TAGS, DEFAULT_MISTAKE_TAGS } from "./LogTradeModal";
+import { COMMON_SETUPS, DURATION_PRESETS, DEFAULT_GOOD_TAGS, DEFAULT_MISTAKE_TAGS } from "../lib/constants";
+import { compressImage } from "../lib/utils";
 
 interface EditTradeModalProps {
   trade: Trade | null;
@@ -39,13 +40,12 @@ export default function EditTradeModal({
 }: EditTradeModalProps) {
   const { showToast } = useToast();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const formRef = useRef<HTMLFormElement | null>(null);
 
   const [ca, setCa] = useState("");
   const [name, setName] = useState("");
   const [symbol, setSymbol] = useState("");
-  const [loadingToken, setLoadingToken] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [fetchError, setFetchError] = useState("");
 
   const [mcap, setMcap] = useState<number | undefined>(undefined);
   const [liquidity, setLiquidity] = useState<number | undefined>(undefined);
@@ -72,7 +72,6 @@ export default function EditTradeModal({
 
   const [selectedMistakes, setSelectedMistakes] = useState<string[]>([]);
   const [selectedGoodTags, setSelectedGoodTags] = useState<string[]>([]);
-  const [customMistakeInput, setCustomMistakeInput] = useState("");
   const [notes, setNotes] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -114,11 +113,11 @@ export default function EditTradeModal({
     }
   }, [trade, solPrice]);
 
-  // Global Clipboard Paste Listener for screenshots
+  // Global Clipboard Paste Listener for screenshots with compression
   useEffect(() => {
     if (!isOpen) return;
 
-    const handlePaste = (e: ClipboardEvent) => {
+    const handlePaste = async (e: ClipboardEvent) => {
       const items = e.clipboardData?.items;
       if (!items) return;
 
@@ -127,10 +126,12 @@ export default function EditTradeModal({
           const blob = items[i].getAsFile();
           if (blob) {
             const reader = new FileReader();
-            reader.onload = (event) => {
+            reader.onload = async (event) => {
               if (event.target?.result) {
-                setScreenshotUrl(event.target.result as string);
-                showToast("Chart screenshot attached from clipboard!", "success");
+                const rawUrl = event.target.result as string;
+                const compressed = await compressImage(rawUrl);
+                setScreenshotUrl(compressed);
+                showToast("Chart screenshot attached & optimized!", "success");
               }
             };
             reader.readAsDataURL(blob);
@@ -153,8 +154,7 @@ export default function EditTradeModal({
       }
       if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
         e.preventDefault();
-        const btn = document.getElementById("edit-trade-submit-btn") as HTMLButtonElement;
-        if (btn) btn.click();
+        formRef.current?.requestSubmit();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -163,27 +163,24 @@ export default function EditTradeModal({
 
   if (!isOpen || !trade) return null;
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      showToast("Image is too large. Please use under 2MB.", "error");
-      return;
-    }
-
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       if (event.target?.result) {
-        setScreenshotUrl(event.target.result as string);
-        showToast("Chart screenshot updated!", "success");
+        const rawUrl = event.target.result as string;
+        const compressed = await compressImage(rawUrl);
+        setScreenshotUrl(compressed);
+        showToast("Chart screenshot updated & optimized!", "success");
       }
     };
     reader.readAsDataURL(file);
   };
 
   const recalculatePnl = (inSol: number, outSol: number) => {
-    if (!isNaN(inSol) && !isNaN(outSol)) {
+    if (!isNaN(inSol) && !isNaN(outSol) && inSol > 0 && outSol >= 0) {
       const diffSol = outSol - inSol;
       const diffUsd = diffSol * solPrice;
 
@@ -196,21 +193,47 @@ export default function EditTradeModal({
     }
   };
 
+  const switchCurrencyMode = (newMode: "SOL" | "USD") => {
+    if (newMode === currencyMode) return;
+
+    if (newMode === "USD") {
+      const sBought = parseFloat(boughtSol);
+      if (!isNaN(sBought)) setBoughtUsd((sBought * solPrice).toFixed(2));
+      const sSold = parseFloat(soldSol);
+      if (!isNaN(sSold)) setSoldUsd((sSold * solPrice).toFixed(2));
+      const sPnl = parseFloat(pnlSol);
+      if (!isNaN(sPnl)) setPnlUsd((sPnl * solPrice).toFixed(2));
+    } else {
+      const uBought = parseFloat(boughtUsd);
+      if (!isNaN(uBought)) setBoughtSol((uBought / solPrice).toFixed(3));
+      const uSold = parseFloat(soldUsd);
+      if (!isNaN(uSold)) setSoldSol((uSold / solPrice).toFixed(3));
+      const uPnl = parseFloat(pnlUsd);
+      if (!isNaN(uPnl)) setPnlSol((uPnl / solPrice).toFixed(3));
+    }
+
+    setCurrencyMode(newMode);
+  };
+
   const handleBoughtChange = (val: string, isSol: boolean) => {
     const num = parseFloat(val);
     if (isSol) {
       setBoughtSol(val);
       if (!isNaN(num)) {
         setBoughtUsd((num * solPrice).toFixed(2));
-        recalculatePnl(num, parseFloat(soldSol) || 0);
-      } else setBoughtUsd("");
+        if (soldSol) recalculatePnl(num, parseFloat(soldSol) || 0);
+      } else {
+        setBoughtUsd("");
+      }
     } else {
       setBoughtUsd(val);
       if (!isNaN(num)) {
         const solVal = (num / solPrice).toFixed(3);
         setBoughtSol(solVal);
-        recalculatePnl(parseFloat(solVal), parseFloat(soldSol) || 0);
-      } else setBoughtSol("");
+        if (soldSol || soldUsd) recalculatePnl(parseFloat(solVal), parseFloat(soldSol) || 0);
+      } else {
+        setBoughtSol("");
+      }
     }
   };
 
@@ -220,15 +243,19 @@ export default function EditTradeModal({
       setSoldSol(val);
       if (!isNaN(num)) {
         setSoldUsd((num * solPrice).toFixed(2));
-        recalculatePnl(parseFloat(boughtSol) || 0, num);
-      } else setSoldUsd("");
+        if (boughtSol) recalculatePnl(parseFloat(boughtSol) || 0, num);
+      } else {
+        setSoldUsd("");
+      }
     } else {
       setSoldUsd(val);
       if (!isNaN(num)) {
         const solVal = (num / solPrice).toFixed(3);
         setSoldSol(solVal);
-        recalculatePnl(parseFloat(boughtSol) || 0, parseFloat(solVal));
-      } else setSoldSol("");
+        if (boughtSol || boughtUsd) recalculatePnl(parseFloat(boughtSol) || 0, parseFloat(solVal));
+      } else {
+        setSoldSol("");
+      }
     }
   };
 
@@ -247,9 +274,9 @@ export default function EditTradeModal({
       if (!isNaN(num)) {
         const solVal = (num / solPrice).toFixed(3);
         setPnlSol(solVal);
-        const nSol = parseFloat(solVal);
-        if (nSol > 0.005) setResult("Win");
-        else if (nSol < -0.005) setResult("Loss");
+        const sNum = parseFloat(solVal);
+        if (sNum > 0.005) setResult("Win");
+        else if (sNum < -0.005) setResult("Loss");
         else setResult("BE");
       } else setPnlSol("");
     }
@@ -265,15 +292,6 @@ export default function EditTradeModal({
     setSelectedMistakes((prev) =>
       prev.includes(tag) ? prev.filter((m) => m !== tag) : [...prev, tag]
     );
-  };
-
-  const handleAddCustomMistake = () => {
-    const clean = customMistakeInput.trim();
-    if (!clean) return;
-    if (!selectedMistakes.includes(clean)) {
-      setSelectedMistakes((prev) => [...prev, clean]);
-    }
-    setCustomMistakeInput("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -357,7 +375,7 @@ export default function EditTradeModal({
           </div>
         </div>
 
-        <form id="edit-trade-form" onSubmit={handleSubmit} className="space-y-4 text-xs">
+        <form ref={formRef} id="edit-trade-form" onSubmit={handleSubmit} className="space-y-4 text-xs">
           {/* Token Identification */}
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -483,80 +501,63 @@ export default function EditTradeModal({
             ) : (
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="p-3.5 border-2 border-dashed border-[#e3e2de] hover:border-[#2383e2] rounded-xl bg-[#fbfbfa] text-center cursor-pointer transition-colors space-y-1"
+                className="border border-dashed border-[#e3e2de] hover:border-[#2383e2] rounded-xl p-4 text-center cursor-pointer bg-[#fbfbfa] hover:bg-blue-50/20 transition-all"
               >
-                <div className="flex justify-center text-[#787774]">
-                  <Upload size={16} />
-                </div>
-                <div className="text-xs font-semibold text-[#37352f]">Upload / Paste Screenshot (Cmd+V)</div>
+                <Upload size={18} className="mx-auto text-[#787774] mb-1" />
+                <p className="text-xs font-medium text-[#37352f]">Upload Chart Image or Paste (Cmd+V)</p>
+                <p className="text-[10px] text-[#9b9a97] mt-0.5">Supports PNG, JPG, WebP (auto-compressed)</p>
               </div>
             )}
           </div>
 
-          {/* Trade Result */}
+          {/* Trade Result (Win/Loss/BE) */}
           <div>
             <label className="block font-medium text-[#787774] mb-1.5">Trade Result</label>
             <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => setResult("Win")}
-                className={`py-2 px-3 rounded-lg border text-center font-medium transition-all flex items-center justify-center gap-1.5 ${
-                  result === "Win"
-                    ? "bg-emerald-50 border-emerald-400 text-emerald-700 shadow-xs"
-                    : "bg-[#fbfbfa] border-[#e3e2de] text-[#787774] hover:bg-[#f1f1ef]"
-                }`}
-              >
-                <span>🏆</span>
-                <span>Win</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setResult("BE")}
-                className={`py-2 px-3 rounded-lg border text-center font-medium transition-all flex items-center justify-center gap-1.5 ${
-                  result === "BE"
-                    ? "bg-neutral-100 border-neutral-400 text-neutral-800 shadow-xs"
-                    : "bg-[#fbfbfa] border-[#e3e2de] text-[#787774] hover:bg-[#f1f1ef]"
-                }`}
-              >
-                <span>⚖️</span>
-                <span>Breakeven</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setResult("Loss")}
-                className={`py-2 px-3 rounded-lg border text-center font-medium transition-all flex items-center justify-center gap-1.5 ${
-                  result === "Loss"
-                    ? "bg-rose-50 border-rose-400 text-rose-700 shadow-xs"
-                    : "bg-[#fbfbfa] border-[#e3e2de] text-[#787774] hover:bg-[#f1f1ef]"
-                }`}
-              >
-                <span>💥</span>
-                <span>Loss</span>
-              </button>
+              {(["Win", "Loss", "BE"] as const).map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setResult(r)}
+                  className={`py-2 rounded-lg font-semibold text-xs transition-all border ${
+                    result === r
+                      ? r === "Win"
+                        ? "bg-emerald-50 border-emerald-500 text-emerald-700 shadow-xs"
+                        : r === "Loss"
+                        ? "bg-rose-50 border-rose-500 text-rose-700 shadow-xs"
+                        : "bg-neutral-100 border-neutral-400 text-neutral-800 shadow-xs"
+                      : "bg-[#fbfbfa] border-[#e3e2de] text-[#787774] hover:bg-[#f1f1ef]"
+                  }`}
+                >
+                  {r === "Win" ? "🏆 Win" : r === "Loss" ? "💀 Loss" : "⚖️ Break-Even"}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Financials */}
-          <div className="space-y-2">
+          {/* Financial Numbers with Currency Toggle */}
+          <div className="space-y-3 p-3.5 bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl">
             <div className="flex items-center justify-between">
-              <label className="font-medium text-[#787774]">
-                Financials (1 SOL = ${solPrice.toFixed(2)})
-              </label>
-              <div className="flex items-center gap-1 bg-[#f1f1ef] p-0.5 rounded-md text-[11px]">
+              <span className="font-semibold text-xs text-[#37352f]">Financial Metrics</span>
+              <div className="flex items-center gap-0.5 bg-[#f1f1ef] p-0.5 rounded-md text-[11px]">
                 <button
                   type="button"
-                  onClick={() => setCurrencyMode("SOL")}
+                  onClick={() => switchCurrencyMode("SOL")}
                   className={`px-2 py-0.5 rounded font-medium transition-all ${
-                    currencyMode === "SOL" ? "bg-white text-[#37352f] shadow-xs" : "text-[#787774]"
+                    currencyMode === "SOL"
+                      ? "bg-white text-[#37352f] shadow-xs font-semibold"
+                      : "text-[#787774]"
                   }`}
                 >
                   SOL
                 </button>
                 <button
                   type="button"
-                  onClick={() => setCurrencyMode("USD")}
+                  onClick={() => switchCurrencyMode("USD")}
                   className={`px-2 py-0.5 rounded font-medium transition-all ${
-                    currencyMode === "USD" ? "bg-white text-[#37352f] shadow-xs" : "text-[#787774]"
+                    currencyMode === "USD"
+                      ? "bg-white text-[#37352f] shadow-xs font-semibold"
+                      : "text-[#787774]"
                   }`}
                 >
                   USD ($)
@@ -564,139 +565,91 @@ export default function EditTradeModal({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
               <div>
                 <label className="block font-medium text-[#787774] mb-1">
-                  Bought {currencyMode === "SOL" ? "(SOL)" : "(USD $)"}
+                  Bought ({currencyMode})
                 </label>
-                {currencyMode === "SOL" ? (
-                  <div>
-                    <input
-                      type="number"
-                      step="0.001"
-                      value={boughtSol}
-                      onChange={(e) => handleBoughtChange(e.target.value, true)}
-                      className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]"
-                    />
-                    <span className="text-[10px] text-[#9b9a97] block mt-0.5">
-                      {boughtUsd ? `≈ $${boughtUsd}` : "Entry size"}
-                    </span>
-                  </div>
-                ) : (
-                  <div>
-                    <input
-                      type="number"
-                      step="1"
-                      value={boughtUsd}
-                      onChange={(e) => handleBoughtChange(e.target.value, false)}
-                      className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]"
-                    />
-                    <span className="text-[10px] text-[#9b9a97] block mt-0.5">
-                      {boughtSol ? `≈ ${boughtSol} SOL` : "Entry size"}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="block font-medium text-[#787774] mb-1">
-                  Sold {currencyMode === "SOL" ? "(SOL)" : "(USD $)"}
-                </label>
-                {currencyMode === "SOL" ? (
-                  <div>
-                    <input
-                      type="number"
-                      step="0.001"
-                      value={soldSol}
-                      onChange={(e) => handleSoldChange(e.target.value, true)}
-                      className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]"
-                    />
-                    <span className="text-[10px] text-[#9b9a97] block mt-0.5">
-                      {soldUsd ? `≈ $${soldUsd}` : "Exit value"}
-                    </span>
-                  </div>
-                ) : (
-                  <div>
-                    <input
-                      type="number"
-                      step="1"
-                      value={soldUsd}
-                      onChange={(e) => handleSoldChange(e.target.value, false)}
-                      className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]"
-                    />
-                    <span className="text-[10px] text-[#9b9a97] block mt-0.5">
-                      {soldSol ? `≈ ${soldSol} SOL` : "Exit value"}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="block font-medium text-[#787774] mb-1">Net P&L (SOL)</label>
                 <input
                   type="number"
-                  step="0.001"
-                  value={pnlSol}
-                  onChange={(e) => handlePnlChange(e.target.value, true)}
+                  step="any"
+                  value={currencyMode === "SOL" ? boughtSol : boughtUsd}
+                  onChange={(e) => handleBoughtChange(e.target.value, currencyMode === "SOL")}
+                  className="w-full bg-white border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2] font-mono"
                   required
-                  className={`w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs font-semibold focus:outline-none focus:border-[#2383e2] ${
-                    parseFloat(pnlSol) > 0 ? "text-emerald-600" : parseFloat(pnlSol) < 0 ? "text-rose-600" : "text-[#37352f]"
-                  }`}
                 />
               </div>
 
               <div>
-                <label className="block font-medium text-[#787774] mb-1">Net P&L (USD $)</label>
+                <label className="block font-medium text-[#787774] mb-1">
+                  Sold ({currencyMode})
+                </label>
                 <input
                   type="number"
-                  step="0.1"
-                  value={pnlUsd}
-                  onChange={(e) => handlePnlChange(e.target.value, false)}
-                  className={`w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs font-semibold focus:outline-none focus:border-[#2383e2] ${
-                    parseFloat(pnlUsd) > 0 ? "text-emerald-600" : parseFloat(pnlUsd) < 0 ? "text-rose-600" : "text-[#37352f]"
+                  step="any"
+                  value={currencyMode === "SOL" ? soldSol : soldUsd}
+                  onChange={(e) => handleSoldChange(e.target.value, currencyMode === "SOL")}
+                  className="w-full bg-white border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2] font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block font-medium text-[#787774] mb-1">
+                  Net P&L ({currencyMode})
+                </label>
+                <input
+                  type="number"
+                  step="any"
+                  value={currencyMode === "SOL" ? pnlSol : pnlUsd}
+                  onChange={(e) => handlePnlChange(e.target.value, currencyMode === "SOL")}
+                  className={`w-full bg-white border rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold focus:outline-none ${
+                    (parseFloat(pnlSol) || 0) >= 0
+                      ? "text-emerald-700 border-emerald-300 focus:border-emerald-500"
+                      : "text-rose-700 border-rose-300 focus:border-rose-500"
                   }`}
+                  required
                 />
               </div>
             </div>
+          </div>
 
-            {/* Advanced Toggle */}
-            <div className="pt-1">
-              <button
-                type="button"
-                onClick={() => setShowAdvanced(!showAdvanced)}
-                className="text-[11px] text-[#2383e2] hover:underline flex items-center gap-1 font-medium"
-              >
-                <span>{showAdvanced ? "▾ Hide Advanced Parameters" : "▸ Show Advanced (Stop Loss, Risk, Fees)"}</span>
-              </button>
-            </div>
+          {/* Advanced Metrics Accordion */}
+          <div className="border border-[#e9e9e7] rounded-xl p-3 bg-white">
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="w-full flex items-center justify-between text-xs font-medium text-[#787774] hover:text-[#37352f]"
+            >
+              <span>Advanced Risk & Fee Parameters</span>
+              <span>{showAdvanced ? "▲" : "▼"}</span>
+            </button>
 
-            {/* Quant Risk & Execution Drag (Fees) */}
             {showAdvanced && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 pt-2 border-t border-[#f1f1ef] animate-in fade-in duration-100">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-3 mt-2 border-t border-[#f1f1ef]">
                 <div>
                   <label className="block font-medium text-[#787774] mb-1">
-                    Planned Risk (SOL)
+                    Initial Risk (SOL)
                   </label>
                   <input
                     type="number"
-                    step="0.01"
+                    step="any"
                     value={initialRiskSol}
                     onChange={(e) => setInitialRiskSol(e.target.value)}
-                    placeholder="e.g. 0.5 (For R-Multiple)"
+                    placeholder="e.g. 0.25 SOL"
                     className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]"
                   />
                   <span className="text-[10px] text-[#9b9a97] block mt-0.5">
-                    Stop distance (R)
+                    Max loss plan (1R)
                   </span>
                 </div>
 
                 <div>
                   <label className="block font-medium text-[#787774] mb-1">
-                    Network Fees & Bribes
+                    Priority Fees (SOL)
                   </label>
                   <input
                     type="number"
-                    step="0.001"
+                    step="any"
                     value={feesSol}
                     onChange={(e) => setFeesSol(e.target.value)}
                     placeholder="e.g. 0.008 SOL"

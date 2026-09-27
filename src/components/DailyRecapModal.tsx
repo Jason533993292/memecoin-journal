@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Trade } from "../lib/types";
 import { getTradeTimestamp } from "../lib/utils";
-import { DEFAULT_GOOD_TAGS } from "./LogTradeModal";
+import { DEFAULT_GOOD_TAGS } from "../lib/constants";
 import { X, Calendar, Trophy, AlertTriangle, Sparkles, Copy, Check, TrendingUp, TrendingDown, Share2 } from "lucide-react";
 import { useToast } from "./Toast";
 
