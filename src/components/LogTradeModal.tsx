@@ -179,8 +179,8 @@ export default function LogTradeModal({
       }
       if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
         e.preventDefault();
-        const form = document.getElementById("log-trade-form") as HTMLFormElement;
-        if (form) form.requestSubmit();
+        const btn = document.getElementById("log-trade-submit-btn") as HTMLButtonElement;
+        if (btn) btn.click();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -1105,6 +1105,7 @@ export default function LogTradeModal({
               Cancel
             </button>
             <button
+              id="log-trade-submit-btn"
               type="submit"
               disabled={saving}
               className="px-5 py-2 bg-[#2383e2] hover:bg-[#1a73ca] text-white font-medium rounded-lg text-xs shadow-xs transition-colors flex items-center gap-1.5 disabled:opacity-50"
