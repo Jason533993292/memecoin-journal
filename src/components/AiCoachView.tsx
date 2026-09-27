@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Trade, AiCoachBrief } from "../lib/types";
-import { Bot, Sparkles, RefreshCw, AlertTriangle, ShieldCheck, TrendingDown, Target, HelpCircle } from "lucide-react";
+import { Bot, Sparkles, RefreshCw, AlertTriangle, ShieldCheck, TrendingDown, Target, HelpCircle, Eye, EyeOff } from "lucide-react";
 import { DEFAULT_GOOD_TAGS } from "./LogTradeModal";
 import { useEffect } from "react";
 
@@ -24,6 +24,7 @@ export default function AiCoachView({
   const [asking, setAsking] = useState(false);
   const [apiKey, setApiKey] = useState("");
   const [isApiKeySet, setIsApiKeySet] = useState(true);
+  const [showKey, setShowKey] = useState(false);
 
   // Load API key from local storage on mount
   useEffect(() => {
@@ -87,6 +88,16 @@ export default function AiCoachView({
 
   const sortedMistakes = Object.entries(mistakeCounts).sort((a, b) => b[1] - a[1]);
   const primaryTilt = sortedMistakes.length > 0 ? sortedMistakes[0][0] : "None detected yet";
+
+  const renderFormattedText = (text: string) => {
+    if (!text) return null;
+    const html = text
+      .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-[#37352f]">$1</strong>')
+      .replace(/### (.*?)\n/g, '<strong class="block text-sm mt-2 mb-1">$1</strong>\n')
+      .replace(/## (.*?)\n/g, '<strong class="block text-base mt-3 mb-1">$1</strong>\n')
+      .replace(/# (.*?)\n/g, '<strong class="block text-lg mt-4 mb-2">$1</strong>\n');
+    return <div dangerouslySetInnerHTML={{ __html: html }} className="whitespace-pre-line font-sans" />;
+  };
 
   return (
     <div className="space-y-6 pb-16">
@@ -169,13 +180,23 @@ export default function AiCoachView({
             It will be saved securely in your browser's local storage and passed directly to the AI coach.
           </p>
           <div className="flex gap-2 pt-2">
-            <input
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder="sk-..."
-              className="flex-1 bg-white border border-rose-200 rounded-lg px-3 py-2 text-xs text-[#37352f] focus:outline-none focus:border-rose-400"
-            />
+            <div className="relative flex-1">
+              <input
+                type={showKey ? "text" : "password"}
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder="sk-..."
+                className="w-full bg-white border border-rose-200 rounded-lg px-3 py-2 pr-10 text-xs text-[#37352f] focus:outline-none focus:border-rose-400"
+              />
+              <button
+                type="button"
+                onClick={() => setShowKey(!showKey)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-rose-400 hover:text-rose-600 p-1"
+                title={showKey ? "Hide key" : "Show key"}
+              >
+                {showKey ? <EyeOff size={14} /> : <Eye size={14} />}
+              </button>
+            </div>
             <button
               onClick={saveApiKey}
               disabled={!apiKey.trim()}
@@ -200,8 +221,11 @@ export default function AiCoachView({
         </div>
 
         <div className="bg-[#fbfbfa] p-4 rounded-lg border border-[#e9e9e7] leading-relaxed text-xs text-[#37352f] whitespace-pre-line font-sans">
-          {aiBrief?.advice ||
-            "Click 'Refresh AI Review' above to send your recent trades and mistake tags to DeepSeek. Your AI coach will review your entries, sizing discipline, and exit timing."}
+          {aiBrief?.advice ? (
+            renderFormattedText(aiBrief.advice)
+          ) : (
+            "Click 'Refresh AI Review' above to send your recent trades and mistake tags to DeepSeek. Your AI coach will review your entries, sizing discipline, and exit timing."
+          )}
         </div>
       </div>
 
@@ -237,7 +261,7 @@ export default function AiCoachView({
         {customAnswer && (
           <div className="mt-4 p-4 bg-blue-50/50 border border-blue-200 rounded-lg text-xs text-[#37352f] leading-relaxed">
             <strong className="block text-blue-900 font-semibold mb-1">Coach's Answer:</strong>
-            <p className="whitespace-pre-line">{customAnswer}</p>
+            {renderFormattedText(customAnswer)}
           </div>
         )}
       </div>

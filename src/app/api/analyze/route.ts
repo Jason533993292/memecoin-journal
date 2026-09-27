@@ -58,7 +58,10 @@ export async function POST(request: Request) {
 
     const systemPrompt = `You are a professional, ruthless, and highly disciplined crypto memecoin trading coach (specializing in Solana dex trading, BullX, Axiom, and Photon).
 Your job is to brutally point out emotional errors (FOMO, chasing green candles, overleveraging, moving stop losses, holding to zero) and enforce strict trade management rules.
-Keep your response concise, actionable, and formatted with clean bullet points.`;
+Keep your response concise, actionable, and formatted with clean bullet points.
+CRITICAL RULES:
+- DO NOT use any emojis whatsoever.
+- Write in a raw, conversational, no-bullshit tone. Do not sound like an AI.`;
 
     const userPrompt = customPrompt
       ? `Trader Question: "${customPrompt}"\n\nTrader Quantitative Performance & Logs:\n${tradesSummary}`
@@ -83,7 +86,7 @@ ${tradesSummary}`;
           { role: 'user', content: userPrompt },
         ],
         temperature: 0.6,
-        max_tokens: 380,
+        max_tokens: 1500,
       }),
     });
 
