@@ -195,18 +195,6 @@ export default function DashboardView({
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight text-[#37352f]">
               MemeCoins Dashboard
             </h1>
-            {currentStreak.count > 0 && (
-              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold shadow-2xs ${
-                currentStreak.type === "Win"
-                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                  : currentStreak.type === "Loss"
-                  ? "bg-rose-50 text-rose-700 border border-rose-200"
-                  : "bg-neutral-100 text-neutral-700 border border-neutral-200"
-              }`}>
-                <span>{currentStreak.type === "Win" ? "🔥" : currentStreak.type === "Loss" ? "💀" : "⚡"}</span>
-                <span>{currentStreak.count}{currentStreak.type === "Win" ? "W" : currentStreak.type === "Loss" ? "L" : "BE"} Streak</span>
-              </span>
-            )}
           </div>
           <p className="text-xs text-[#787774] mt-1">
             Solana trading discipline cockpit, risk checklists, equity curve & AI coach.
