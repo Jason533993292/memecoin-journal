@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Trade, AiCoachBrief } from "../lib/types";
 import { Bot, Sparkles, RefreshCw, AlertTriangle, ShieldCheck, TrendingDown, Target, HelpCircle } from "lucide-react";
 import { DEFAULT_GOOD_TAGS } from "./LogTradeModal";
+import { useEffect } from "react";
 
 interface AiCoachViewProps {
   trades: Trade[];
@@ -21,6 +22,25 @@ export default function AiCoachView({
   const [customQuestion, setCustomQuestion] = useState("");
   const [customAnswer, setCustomAnswer] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
+  const [apiKey, setApiKey] = useState("");
+  const [isApiKeySet, setIsApiKeySet] = useState(true);
+
+  // Load API key from local storage on mount
+  useEffect(() => {
+    const storedKey = localStorage.getItem("deepseek_local_key");
+    if (storedKey) {
+      setApiKey(storedKey);
+    } else {
+      setIsApiKeySet(false);
+    }
+  }, []);
+
+  const saveApiKey = () => {
+    if (apiKey.trim()) {
+      localStorage.setItem("deepseek_local_key", apiKey.trim());
+      setIsApiKeySet(true);
+    }
+  };
 
   const handleAskQuestion = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,6 +55,7 @@ export default function AiCoachView({
         body: JSON.stringify({
           trades: trades.slice(0, 10),
           customPrompt: customQuestion.trim(),
+          clientApiKey: apiKey,
         }),
       });
 
@@ -135,6 +156,36 @@ export default function AiCoachView({
           <span className="text-[11px] text-[#9b9a97]">Cached (Only runs when requested)</span>
         </div>
       </div>
+
+      {/* API Key Setup Box */}
+      {!isApiKeySet && (
+        <div className="bg-rose-50 border border-rose-200 rounded-xl p-6 shadow-xs space-y-3">
+          <div className="flex items-center gap-2 font-semibold text-sm text-rose-900">
+            <AlertTriangle size={18} />
+            <span>Setup DeepSeek API Key</span>
+          </div>
+          <p className="text-xs text-rose-700 leading-relaxed">
+            Since Vercel is blocking your environment variables, you can paste your DeepSeek API key here. 
+            It will be saved securely in your browser's local storage and passed directly to the AI coach.
+          </p>
+          <div className="flex gap-2 pt-2">
+            <input
+              type="password"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="sk-..."
+              className="flex-1 bg-white border border-rose-200 rounded-lg px-3 py-2 text-xs text-[#37352f] focus:outline-none focus:border-rose-400"
+            />
+            <button
+              onClick={saveApiKey}
+              disabled={!apiKey.trim()}
+              className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-medium rounded-lg disabled:opacity-50 transition-colors"
+            >
+              Save Key Locally
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Coach Output Box */}
       <div className="bg-white border border-[#e9e9e7] rounded-xl p-6 shadow-xs space-y-4">

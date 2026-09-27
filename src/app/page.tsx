@@ -228,10 +228,11 @@ function MainApp() {
     if (trades.length === 0) return;
     setLoadingAi(true);
     try {
+      const localKey = localStorage.getItem("deepseek_local_key");
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ trades }),
+        body: JSON.stringify({ trades, clientApiKey: localKey }),
       });
       if (res.ok) {
         const data = await res.json();
