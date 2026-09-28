@@ -3,7 +3,6 @@ import { getFirestore } from "firebase/firestore";
 import {
   getAuth,
   GoogleAuthProvider,
-  OAuthProvider,
   signInWithPopup,
   signInWithRedirect,
   signInWithEmailAndPassword,
@@ -28,14 +27,12 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 
 const googleProvider = new GoogleAuthProvider();
-const appleProvider = new OAuthProvider("apple.com");
 
 export {
   app,
   db,
   auth,
   googleProvider,
-  appleProvider,
   signInWithPopup,
   signInWithRedirect,
   signInWithEmailAndPassword,

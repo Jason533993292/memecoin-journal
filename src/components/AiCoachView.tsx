@@ -34,7 +34,7 @@ export default function AiCoachView({
 
   // Load API key from local storage on mount
   useEffect(() => {
-    const storedKey = localStorage.getItem("deepseek_local_key");
+    const storedKey = localStorage.getItem("ai_provider_api_key") || localStorage.getItem("deepseek_local_key");
     if (storedKey) {
       setApiKey(storedKey);
     } else {
@@ -44,13 +44,13 @@ export default function AiCoachView({
 
   const saveApiKey = async () => {
     if (apiKey.trim()) {
-      localStorage.setItem("deepseek_local_key", apiKey.trim());
+    localStorage.setItem("ai_provider_api_key", apiKey.trim());
       setIsApiKeySet(true);
     }
   };
 
   const resetApiKey = () => {
-    localStorage.removeItem("deepseek_local_key");
+    localStorage.removeItem("ai_provider_api_key");
     setApiKey("");
     setIsApiKeySet(false);
   };
@@ -80,7 +80,7 @@ export default function AiCoachView({
         setCustomAnswer(data.advice || "No response received.");
       } else {
         const errData = await res.json().catch(() => ({}));
-        setCustomAnswer(errData.error || "Failed to connect to DeepSeek API. Please check your key.");
+        setCustomAnswer(errData.error || "Failed to connect to the AI provider. Check that your API key matches the configured provider.");
       }
     } catch (err) {
       setCustomAnswer("Error querying AI coach.");
@@ -140,7 +140,7 @@ export default function AiCoachView({
                 AI Trade Review
               </h1>
               <p className="text-xs text-[#787774] mt-0.5">
-                DeepSeek AI analyzes your win rate, execution discipline, and mistakes.
+                AI analysis reviews your win rate, execution discipline, and mistakes.
               </p>
             </div>
           </div>
@@ -203,10 +203,10 @@ export default function AiCoachView({
         <div className="bg-rose-50 border border-rose-200 rounded-xl p-6 shadow-xs space-y-3">
           <div className="flex items-center gap-2 font-semibold text-sm text-rose-900">
             <AlertTriangle size={18} />
-            <span>Setup DeepSeek API Key</span>
+            <span>Set up an AI provider API key</span>
           </div>
           <p className="text-xs text-rose-700 leading-relaxed">
-            Configure your DeepSeek API key to unlock the AI coach. It is stored locally in your browser and used to analyze your trade execution.
+              Add an API key to unlock the AI coach. It is stored locally in your browser and sent only when you request an analysis. The current endpoint uses DeepSeek-compatible chat API keys; a Google/Gemini key needs a Gemini endpoint integration first.
           </p>
           <div className="flex gap-2 pt-2">
             <div className="relative flex-1">
@@ -245,7 +245,7 @@ export default function AiCoachView({
             <span>Coach's Direct Evaluation</span>
           </div>
           <span className="text-[11px] px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-            Live DeepSeek Analysis
+            Live AI Analysis
           </span>
         </div>
 
@@ -253,7 +253,7 @@ export default function AiCoachView({
           {aiBrief?.advice ? (
             renderFormattedText(aiBrief.advice)
           ) : (
-            "Click 'Refresh AI Review' above to send your recent trades and mistake tags to DeepSeek. Your AI coach will review your entries, sizing discipline, and exit timing."
+            "Click 'Refresh AI Review' above to send your recent trades and mistake tags to the configured AI provider. Your coach will review your entries, sizing discipline, and exit timing."
           )}
         </div>
       </div>

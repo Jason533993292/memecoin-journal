@@ -188,12 +188,12 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
 
   // 6. Yearly Breakdown
   const yearlyStats = useMemo(() => {
-    const years = ["2024", "2025", "2026"];
-    const map: Record<string, { count: number; pnl: number }> = {
-      "2024": { count: 0, pnl: 0 },
-      "2025": { count: 0, pnl: 0 },
-      "2026": { count: 0, pnl: 0 },
-    };
+    const currentYear = new Date().getFullYear();
+    const discoveredYears = trades.map((t) => getTradeDate(t).getFullYear());
+    const years = Array.from(new Set([...discoveredYears, currentYear])).sort((a, b) => a - b).map(String);
+    const map: Record<string, { count: number; pnl: number }> = Object.fromEntries(
+      years.map((year) => [year, { count: 0, pnl: 0 }])
+    );
 
     trades.forEach((t) => {
       const date = getTradeDate(t);

@@ -4,7 +4,6 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import {
   auth,
   googleProvider,
-  appleProvider,
   signInWithPopup,
   signInWithRedirect,
   signInWithEmailAndPassword,
@@ -18,7 +17,6 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   loginWithGoogle: () => Promise<void>;
-  loginWithApple: () => Promise<void>;
   loginWithEmail: (email: string, pass: string) => Promise<void>;
   signUpWithEmail: (email: string, pass: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -28,7 +26,6 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
   loginWithGoogle: async () => {},
-  loginWithApple: async () => {},
   loginWithEmail: async () => {},
   signUpWithEmail: async () => {},
   logout: async () => {},
@@ -52,21 +49,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       await signInWithPopup(auth, googleProvider);
     } catch (error: any) {
       console.warn("Popup blocked or failed, attempting redirect:", error);
-      if (error?.code === "auth/popup-blocked" || error?.code === "auth/popup-closed-by-user") {
+      if (error?.code === "auth/popup-blocked") {
         await signInWithRedirect(auth, googleProvider);
-      } else {
-        throw error;
-      }
-    }
-  };
-
-  const loginWithApple = async () => {
-    try {
-      await signInWithPopup(auth, appleProvider);
-    } catch (error: any) {
-      console.warn("Apple popup blocked or failed, attempting redirect:", error);
-      if (error?.code === "auth/popup-blocked" || error?.code === "auth/popup-closed-by-user") {
-        await signInWithRedirect(auth, appleProvider);
       } else {
         throw error;
       }
@@ -95,7 +79,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         user,
         loading,
         loginWithGoogle,
-        loginWithApple,
         loginWithEmail,
         signUpWithEmail,
         logout,

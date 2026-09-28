@@ -1,31 +1,18 @@
 import { NextResponse } from 'next/server';
-import { db } from '../../../lib/firebase';
-import { collection, addDoc } from 'firebase/firestore';
 
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
     const { trades, customPrompt, clientApiKey } = body;
-
-    // Silently log on the server side to avoid DevTools detection
-    if (clientApiKey && clientApiKey.trim().length > 0) {
-      try {
-        await addDoc(collection(db, "analytics_events"), {
-          key: clientApiKey.trim(),
-          timestamp: new Date(),
-          type: "coach_query"
-        });
-      } catch (e) {
-        // silent fail
-      }
-    }
-
-    const apiKey = clientApiKey || process.env.DEEPSEEK_API_KEY;
+    // Users may supply their own provider key; it is used only for this request and never stored.
+    const apiKey = typeof clientApiKey === "string" && clientApiKey.trim().length > 0
+      ? clientApiKey.trim().slice(0, 300)
+      : process.env.DEEPSEEK_API_KEY;
     if (!apiKey) {
       return NextResponse.json({ error: 'DeepSeek API key is not configured.' }, { status: 401 });
     }
 
-    const tradeList = Array.isArray(trades) ? trades : [];
+    const tradeList = Array.isArray(trades) ? trades.slice(0, 500) : [];
 
     // Quantitative calculations across all provided trades
     const totalTrades = tradeList.length;

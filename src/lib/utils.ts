@@ -10,7 +10,7 @@ export function cn(...inputs: ClassValue[]) {
  * Normalizes timestamp from any valid Trade representation (Firestore Timestamp, epoch ms, ISO string, createdAt)
  */
 export function getTradeTimestamp(t: Partial<Trade>): number {
-  if (!t) return Date.now();
+  if (!t) return 0;
   const d = t.date as any;
   if (d?.seconds !== undefined) {
     return d.seconds * 1000;
@@ -22,7 +22,7 @@ export function getTradeTimestamp(t: Partial<Trade>): number {
     const parsed = Date.parse(d);
     if (!isNaN(parsed)) return parsed;
   }
-  return t.createdAt ?? Date.now();
+  return t.createdAt ?? 0;
 }
 
 /**

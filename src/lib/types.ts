@@ -1,5 +1,3 @@
-import { Timestamp } from "firebase/firestore";
-
 export type TradeDate = any;
 
 export interface Trade {
@@ -12,6 +10,15 @@ export interface Trade {
   setupType?: string;
   mcap?: number;
   liquidity?: number;
+  entryLiquidityUsd?: number;
+  exitLiquidityUsd?: number;
+  entryMarketCapUsd?: number;
+  exitMarketCapUsd?: number;
+  slippagePct?: number;
+  dex?: string;
+  executionType?: "discretionary" | "momentum" | "sniper" | "copy" | "other";
+  wouldTakeAgain?: boolean;
+  tradeQualityScore?: number;
   price?: number;
   boughtSol: number;
   boughtUsd?: number;

@@ -6,7 +6,7 @@ import { Lock, Mail, Key, Loader2, AlertCircle, ArrowRight } from "lucide-react"
 import SolanaLogo from "./SolanaLogo";
 
 export default function AuthModal() {
-  const { loginWithGoogle, loginWithApple, loginWithEmail, signUpWithEmail } = useAuth();
+  const { loginWithGoogle, loginWithEmail, signUpWithEmail } = useAuth();
 
   const [mode, setMode] = useState<"signin" | "signup">("signup");
   const [email, setEmail] = useState("");
@@ -46,18 +46,21 @@ export default function AuthModal() {
     setLoading(false);
   };
 
-  const handleSocialLogin = async (provider: "google" | "apple") => {
+  const handleSocialLogin = async () => {
     setLoading(true);
     setErrorMsg("");
     try {
-      if (provider === "google") await loginWithGoogle();
-      else await loginWithApple();
+      await loginWithGoogle();
     } catch (err: any) {
       console.error("Social login error:", err);
       if (err?.code === "auth/configuration-not-found") {
-        setErrorMsg(`Firebase Error: ${provider.toUpperCase()} Sign-In is not enabled in Firebase Console yet. Please enable it under Authentication -> Sign-in method.`);
+        setErrorMsg("Google Sign-In is not enabled for this Firebase project. Enable Google under Authentication → Sign-in method.");
+      } else if (err?.code === "auth/unauthorized-domain") {
+        setErrorMsg("This site is not an authorized Firebase sign-in domain. Add the current domain under Firebase Authentication → Settings → Authorized domains.");
+      } else if (err?.code === "auth/operation-not-allowed") {
+        setErrorMsg("Google Sign-In is disabled in Firebase. Enable the Google provider and save it.");
       } else if (err?.code !== "auth/popup-closed-by-user") {
-        setErrorMsg(err?.message || `Failed to sign in with ${provider}.`);
+        setErrorMsg(err?.message || "Failed to sign in with Google.");
       }
     }
     setLoading(false);
@@ -91,7 +94,7 @@ export default function AuthModal() {
           <button
             type="button"
             disabled={loading}
-            onClick={() => handleSocialLogin("google")}
+            onClick={handleSocialLogin}
             className="w-full flex items-center justify-center gap-3 px-4 py-2.5 bg-white text-neutral-900 hover:bg-neutral-100 rounded-xl text-xs font-semibold shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24">
@@ -115,17 +118,6 @@ export default function AuthModal() {
             <span>Continue with Google</span>
           </button>
 
-          <button
-            type="button"
-            disabled={loading}
-            onClick={() => handleSocialLogin("apple")}
-            className="w-full flex items-center justify-center gap-3 px-4 py-2.5 bg-neutral-900 border border-neutral-700 text-white hover:bg-neutral-800 rounded-xl text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer"
-          >
-            <svg className="w-4 h-4 fill-current" viewBox="0 0 170 170">
-              <path d="M150.37 130.25c-2.45 5.66-5.35 10.87-8.71 15.66-4.58 6.53-8.33 11.05-11.22 13.56-4.48 4.12-9.28 6.23-14.42 6.35-3.69 0-8.14-1.05-13.32-3.18-5.19-2.12-9.97-3.17-14.34-3.17-4.58 0-9.49 1.05-14.75 3.17-5.26 2.13-9.5 3.24-12.74 3.35-4.33.13-9.13-1.9-14.4-6.08-3.32-2.65-7.2-7.3-11.66-13.96-5.83-8.62-10.4-18.3-13.72-29.04-3.32-10.73-4.98-21.07-4.98-31.02 0-14.75 3.65-27.18 10.95-37.28 7.3-10.1 16.71-15.22 28.23-15.36 4.71 0 9.77 1.18 15.19 3.55 5.42 2.37 9.17 3.55 11.25 3.55 1.95 0 5.83-1.24 11.65-3.73 5.82-2.48 10.98-3.65 15.48-3.5 10.86.6 19.86 4.67 27 12.22-9.74 5.9-14.5 14.28-14.28 25.15.22 8.43 3.32 15.54 9.3 21.32 5.98 5.79 13.32 9.08 22.02 9.87-2.3 6.9-5.46 13.88-9.48 20.93zM119.22 31.05c0-6.49 2.39-12.83 7.17-19.02 4.78-6.19 10.87-10.22 18.26-12.03.17 1.06.26 2.05.26 2.97 0 6.64-2.51 13.06-7.53 19.26-5.02 6.2-11.1 10.22-18.24 12.05-.17-.98-.26-1.92-.26-2.83z" />
-            </svg>
-            <span>Continue with Apple</span>
-          </button>
         </div>
 
         <div className="relative flex items-center justify-center">

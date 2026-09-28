@@ -84,6 +84,11 @@ export default function LogTradeModal({
   const [initialRiskSol, setInitialRiskSol] = useState("");
   const [feesSol, setFeesSol] = useState("");
   const [stopPrice, setStopPrice] = useState("");
+  const [entryLiquidityUsd, setEntryLiquidityUsd] = useState("");
+  const [exitLiquidityUsd, setExitLiquidityUsd] = useState("");
+  const [entryMarketCapUsd, setEntryMarketCapUsd] = useState("");
+  const [exitMarketCapUsd, setExitMarketCapUsd] = useState("");
+  const [slippagePct, setSlippagePct] = useState("");
   const [currencyMode, setCurrencyMode] = useState<"SOL" | "USD">("SOL");
 
   // Screenshot / Chart attachment
@@ -181,6 +186,11 @@ export default function LogTradeModal({
         setInitialRiskSol(initialData.initialRiskSol ? String(initialData.initialRiskSol) : "");
         setFeesSol(initialData.feesSol ? String(initialData.feesSol) : "");
         setStopPrice(initialData.stopPrice ? String(initialData.stopPrice) : "");
+        setEntryLiquidityUsd(initialData.entryLiquidityUsd ? String(initialData.entryLiquidityUsd) : "");
+        setExitLiquidityUsd(initialData.exitLiquidityUsd ? String(initialData.exitLiquidityUsd) : "");
+        setEntryMarketCapUsd(initialData.entryMarketCapUsd ? String(initialData.entryMarketCapUsd) : "");
+        setExitMarketCapUsd(initialData.exitMarketCapUsd ? String(initialData.exitMarketCapUsd) : "");
+        setSlippagePct(initialData.slippagePct ? String(initialData.slippagePct) : "");
         setNotes(initialData.notes ? `[Clone] ${initialData.notes}` : "");
         setSelectedGoodTags(initialData.goodTags || []);
         setSelectedMistakes(initialData.mistakes || []);
@@ -204,6 +214,8 @@ export default function LogTradeModal({
         setInitialRiskSol("");
         setFeesSol("");
         setStopPrice("");
+        setEntryLiquidityUsd(""); setExitLiquidityUsd("");
+        setEntryMarketCapUsd(""); setExitMarketCapUsd(""); setSlippagePct("");
         setNotes("");
         setScreenshotUrl("");
         setSelectedGoodTags([]);
@@ -454,6 +466,11 @@ export default function LogTradeModal({
       const parsedInitialRiskSol = parseFloat(initialRiskSol) || null;
       const parsedFeesSol = parseFloat(feesSol) || null;
       const parsedStopPrice = parseFloat(stopPrice) || null;
+      const parsedEntryLiquidity = parseFloat(entryLiquidityUsd) || null;
+      const parsedExitLiquidity = parseFloat(exitLiquidityUsd) || null;
+      const parsedEntryMcap = parseFloat(entryMarketCapUsd) || null;
+      const parsedExitMcap = parseFloat(exitMarketCapUsd) || null;
+      const parsedSlippage = parseFloat(slippagePct) || null;
 
       const finalSetup = customSetup.trim() || setupType;
 
@@ -483,6 +500,11 @@ export default function LogTradeModal({
         initialRiskSol: parsedInitialRiskSol,
         feesSol: parsedFeesSol,
         stopPrice: parsedStopPrice,
+        entryLiquidityUsd: parsedEntryLiquidity,
+        exitLiquidityUsd: parsedExitLiquidity,
+        entryMarketCapUsd: parsedEntryMcap,
+        exitMarketCapUsd: parsedExitMcap,
+        slippagePct: parsedSlippage,
         entryTimezoneOffset: new Date().getTimezoneOffset(),
         goodTags: selectedGoodTags,
         mistakes: selectedMistakes,
@@ -818,7 +840,7 @@ export default function LogTradeModal({
                 onClick={() => setShowAdvanced(!showAdvanced)}
                 className="w-full flex items-center justify-between text-xs font-medium text-[#787774] hover:text-[#37352f]"
               >
-                <span>Advanced Risk & Fee Parameters</span>
+                <span>Expert / Advanced Fields</span>
                 <span>{showAdvanced ? "▲" : "▼"}</span>
               </button>
 
@@ -856,6 +878,15 @@ export default function LogTradeModal({
                     <span className="text-[10px] text-[#9b9a97] block mt-0.5">
                       Jito tip / priority
                     </span>
+                  </div>
+
+                  <div className="col-span-2 sm:col-span-3 pt-2 border-t border-[#f1f1ef]">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-[#9b9a97] mb-2">Expert market context</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                      {[["Entry liquidity ($)", entryLiquidityUsd, setEntryLiquidityUsd], ["Exit liquidity ($)", exitLiquidityUsd, setExitLiquidityUsd], ["Entry mcap ($)", entryMarketCapUsd, setEntryMarketCapUsd], ["Exit mcap ($)", exitMarketCapUsd, setExitMarketCapUsd], ["Slippage (%)", slippagePct, setSlippagePct]].map(([label, value, setter]) => (
+                        <label key={String(label)} className="text-[10px] text-[#787774]">{String(label)}<input type="number" step="any" value={String(value)} onChange={(e) => (setter as (v: string) => void)(e.target.value)} className="mt-1 w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]" /></label>
+                      ))}
+                    </div>
                   </div>
 
                   <div className="col-span-2 sm:col-span-1">
