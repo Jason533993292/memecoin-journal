@@ -31,10 +31,13 @@ export default function AiCoachView({
   const [apiKey, setApiKey] = useState("");
   const [isApiKeySet, setIsApiKeySet] = useState(true);
   const [showKey, setShowKey] = useState(false);
+  const [provider, setProvider] = useState<"deepseek" | "gemini" | "openai">("deepseek");
 
   // Load API key from local storage on mount
   useEffect(() => {
+    const storedProvider = localStorage.getItem("ai_provider") as "deepseek" | "gemini" | "openai" | null;
     const storedKey = localStorage.getItem("ai_provider_api_key") || localStorage.getItem("deepseek_local_key");
+    if (storedProvider) setProvider(storedProvider);
     if (storedKey) {
       setApiKey(storedKey);
     } else {
@@ -44,7 +47,8 @@ export default function AiCoachView({
 
   const saveApiKey = async () => {
     if (apiKey.trim()) {
-    localStorage.setItem("ai_provider_api_key", apiKey.trim());
+      localStorage.setItem("ai_provider_api_key", apiKey.trim());
+      localStorage.setItem("ai_provider", provider);
       setIsApiKeySet(true);
     }
   };
@@ -72,6 +76,7 @@ export default function AiCoachView({
           trades: sortedTrades.slice(0, 15),
           customPrompt: customQuestion.trim(),
           clientApiKey: apiKey,
+          provider,
         }),
       });
 
@@ -184,7 +189,7 @@ export default function AiCoachView({
               <ShieldCheck size={14} className="text-emerald-600" />
               <span>AI Status</span>
             </div>
-            <div className="text-base font-semibold text-emerald-700">DeepSeek Chat V3</div>
+            <div className="text-base font-semibold text-emerald-700">{provider === "deepseek" ? "DeepSeek Chat" : provider === "gemini" ? "Google Gemini" : "OpenAI"}</div>
           </div>
           {isApiKeySet && (
             <button
@@ -206,15 +211,20 @@ export default function AiCoachView({
             <span>Set up an AI provider API key</span>
           </div>
           <p className="text-xs text-rose-700 leading-relaxed">
-              Add an API key to unlock the AI coach. It is stored locally in your browser and sent only when you request an analysis. The current endpoint uses DeepSeek-compatible chat API keys; a Google/Gemini key needs a Gemini endpoint integration first.
+              Add a provider API key. It stays in this browser and is sent only when you request an analysis. Supported providers: DeepSeek, Google Gemini, and OpenAI.
           </p>
           <div className="flex gap-2 pt-2">
             <div className="relative flex-1">
+              <select value={provider} onChange={(e) => setProvider(e.target.value as "deepseek" | "gemini" | "openai")} className="w-full bg-white border border-rose-200 rounded-lg px-3 py-2 text-xs text-[#37352f] focus:outline-none focus:border-rose-400">
+                <option value="deepseek">DeepSeek</option>
+                <option value="gemini">Google Gemini</option>
+                <option value="openai">OpenAI</option>
+              </select>
               <input
                 type={showKey ? "text" : "password"}
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                placeholder="sk-..."
+                placeholder={provider === "gemini" ? "AIza..." : "sk-..."}
                 className="w-full bg-white border border-rose-200 rounded-lg px-3 py-2 pr-10 text-xs text-[#37352f] focus:outline-none focus:border-rose-400"
               />
               <button

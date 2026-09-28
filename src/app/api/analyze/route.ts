@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
-    const { trades, customPrompt, clientApiKey } = body;
+    const { trades, customPrompt, clientApiKey, provider = "deepseek" } = body;
     // Users may supply their own provider key; it is used only for this request and never stored.
     const apiKey = typeof clientApiKey === "string" && clientApiKey.trim().length > 0
       ? clientApiKey.trim().slice(0, 300)
@@ -85,31 +85,34 @@ CRITICAL RULES:
 Trader Overview:
 ${tradesSummary}`;
 
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
+    const selectedProvider = ["deepseek", "gemini", "openai"].includes(provider) ? provider : "deepseek";
+    const endpoint = selectedProvider === "gemini"
+      ? `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(apiKey)}`
+      : selectedProvider === "openai"
+        ? "https://api.openai.com/v1/chat/completions"
+        : "https://api.deepseek.com/chat/completions";
+    const requestBody = selectedProvider === "gemini"
+      ? { contents: [{ role: "user", parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }] }] }
+      : { model: selectedProvider === "openai" ? "gpt-4o-mini" : "deepseek-chat", messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }], temperature: 0.6, max_tokens: 1500 };
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
+        ...(selectedProvider === "gemini" ? {} : { 'Authorization': `Bearer ${apiKey}` }),
       },
-      body: JSON.stringify({
-        model: 'deepseek-chat',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        temperature: 0.6,
-        max_tokens: 1500,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Deepseek API error:', errorText);
-      return NextResponse.json({ error: `DeepSeek API returned error: ${response.status}` }, { status: response.status });
+      return NextResponse.json({ error: `${selectedProvider} API returned error: ${response.status}` }, { status: response.status });
     }
 
     const data = await response.json();
-    const advice = data.choices?.[0]?.message?.content || "Keep tracking your trades to unlock coach insights.";
+    const advice = selectedProvider === "gemini"
+      ? data.candidates?.[0]?.content?.parts?.[0]?.text
+      : data.choices?.[0]?.message?.content;
 
     return NextResponse.json({ advice });
   } catch (error) {
