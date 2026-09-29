@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { Trade } from "../lib/types";
-import { Clock, X, TrendingUp, TrendingDown, Activity } from "lucide-react";
+import { Clock, X, TrendingUp, TrendingDown, Activity, Info } from "lucide-react";
 
 interface TimeOfDayHeatmapProps {
   trades: Trade[];
@@ -20,6 +20,8 @@ interface CellData {
   be: number;
   trades: Trade[];
 }
+
+type HeatmapMetric = "avgPnl" | "totalPnl" | "winRate" | "tradeCount";
 
 const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
 const DAY_FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -51,6 +53,8 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [expandedDay, setExpandedDay] = useState<number | null>(null);
   const [expandedHour, setExpandedHour] = useState<number | null>(null);
+  const [metric, setMetric] = useState<HeatmapMetric>("avgPnl");
+  const [minimumSample, setMinimumSample] = useState(1);
 
   // Build the 7x24 grid
   const gridData = useMemo(() => {
@@ -93,20 +97,28 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
     return grid;
   }, [trades, solPrice]);
 
-  // Find global min/max for color scaling
+  const metricValue = useCallback((cell: CellData) => {
+    if (metric === "avgPnl") return cell.tradeCount ? cell.totalPnlUsd / cell.tradeCount : 0;
+    if (metric === "winRate") return cell.tradeCount ? (cell.wins / cell.tradeCount) * 100 : 0;
+    if (metric === "tradeCount") return cell.tradeCount;
+    return cell.totalPnlUsd;
+  }, [metric]);
+
+  // Find global min/max for color scaling, excluding cells below the sample threshold.
   const { globalMin, globalMax } = useMemo(() => {
     let min = 0;
     let max = 0;
     gridData.forEach((row) =>
       row.forEach((cell) => {
-        if (cell.tradeCount > 0) {
-          if (cell.totalPnlUsd < min) min = cell.totalPnlUsd;
-          if (cell.totalPnlUsd > max) max = cell.totalPnlUsd;
+        if (cell.tradeCount >= minimumSample) {
+          const value = metricValue(cell);
+          if (value < min) min = value;
+          if (value > max) max = value;
         }
       })
     );
     return { globalMin: min, globalMax: max };
-  }, [gridData]);
+  }, [gridData, metric, metricValue, minimumSample]);
 
   // Compute best/worst hour and average
   const summaryStats = useMemo(() => {
@@ -121,8 +133,9 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
           totalPnlUsd += cell.totalPnlUsd;
           totalTrades += cell.tradeCount;
 
-          if (!bestCell || cell.totalPnlUsd > bestCell.totalPnlUsd) bestCell = { ...cell };
-          if (!worstCell || cell.totalPnlUsd < worstCell.totalPnlUsd) worstCell = { ...cell };
+          if (cell.tradeCount < minimumSample) return;
+          if (!bestCell || metricValue(cell) > metricValue(bestCell)) bestCell = { ...cell };
+          if (!worstCell || metricValue(cell) < metricValue(worstCell)) worstCell = { ...cell };
         }
       })
     );
@@ -135,27 +148,36 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
       avgPerTrade: number;
       totalTrades: number;
     };
-  }, [gridData]);
+  }, [gridData, metric, metricValue, minimumSample]);
 
   // Color for a cell
   const getCellColor = useCallback(
     (cell: CellData) => {
-      if (cell.tradeCount === 0) return "rgba(0,0,0,0.03)";
+      if (cell.tradeCount < minimumSample) return "rgba(0,0,0,0.03)";
 
-      const pnl = cell.totalPnlUsd;
-      if (pnl > 0) {
-        const intensity = globalMax > 0 ? Math.min(pnl / globalMax, 1) : 0;
+      const value = metricValue(cell);
+      if (value > 0) {
+        const intensity = globalMax > 0 ? Math.min(value / globalMax, 1) : 0;
         const alpha = 0.15 + intensity * 0.7;
         return `rgba(34, 197, 94, ${alpha})`;
-      } else if (pnl < 0) {
-        const intensity = globalMin < 0 ? Math.min(Math.abs(pnl) / Math.abs(globalMin), 1) : 0;
+      } else if (value < 0 && metric !== "winRate" && metric !== "tradeCount") {
+        const intensity = globalMin < 0 ? Math.min(Math.abs(value) / Math.abs(globalMin), 1) : 0;
         const alpha = 0.15 + intensity * 0.7;
         return `rgba(239, 68, 68, ${alpha})`;
       }
       return "rgba(0,0,0,0.08)";
     },
-    [globalMin, globalMax]
+    [globalMin, globalMax, metric, metricValue, minimumSample]
   );
+
+  const formatMetric = (cell: CellData) => {
+    if (metric === "avgPnl") return formatUsdSigned(cell.totalPnlUsd / cell.tradeCount);
+    if (metric === "totalPnl") return formatUsdSigned(cell.totalPnlUsd);
+    if (metric === "winRate") return `${Math.round((cell.wins / cell.tradeCount) * 100)}%`;
+    return `${cell.tradeCount}`;
+  };
+
+  const metricLabel = metric === "avgPnl" ? "Avg P&L" : metric === "totalPnl" ? "Total P&L" : metric === "winRate" ? "Win rate" : "Trades";
 
   // Format hour range for tooltip
   const formatHourRange = (hour: number) => {
@@ -229,13 +251,27 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
             <div>
               <h3 className="text-sm font-bold text-gray-900">Performance by Hour & Day</h3>
               <p className="text-[11px] text-gray-500">
-                Each square is an average P&L per trade in that hourly slot.
+                Compare time slots by average P&L, total P&L, win rate, or sample size.
               </p>
             </div>
           </div>
           <span className="text-[10px] text-gray-500 font-mono">
             {trades.length} total trades
           </span>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="flex rounded-lg border border-gray-200 bg-gray-50 p-0.5" role="group" aria-label="Heatmap metric">
+            {([['avgPnl', 'Avg P&L'], ['totalPnl', 'Total P&L'], ['winRate', 'Win rate'], ['tradeCount', 'Trades']] as const).map(([value, label]) => (
+              <button key={value} type="button" onClick={() => setMetric(value)} className={`rounded-md px-2 py-1 text-[10px] font-semibold transition-colors ${metric === value ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`} aria-pressed={metric === value}>{label}</button>
+            ))}
+          </div>
+          <label className="flex items-center gap-1.5 text-[10px] text-gray-500">
+            Minimum sample
+            <select value={minimumSample} onChange={(e) => setMinimumSample(Number(e.target.value))} className="rounded-md border border-gray-200 bg-white px-1.5 py-1 text-[10px] text-gray-700" aria-label="Minimum sample size">
+              <option value={1}>1 trade</option><option value={2}>2 trades</option><option value={3}>3 trades</option><option value={5}>5 trades</option>
+            </select>
+          </label>
+          <span className="inline-flex items-center gap-1 text-[10px] text-gray-400"><Info size={11} /> Cells below the threshold are muted.</span>
         </div>
       </div>
 
@@ -286,13 +322,13 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
                   onMouseLeave={() => setHoveredCell(null)}
                   onClick={() => handleCellClick(dayIdx, hour)}
                 >
-                  {cell.tradeCount > 0 && (
+                  {cell.tradeCount >= minimumSample && (
                     <span
                       className={`text-[8px] font-mono font-bold leading-none ${
                         cell.totalPnlUsd >= 0 ? "text-emerald-900" : "text-rose-900"
                       }`}
                     >
-                      {formatUsdSigned(cell.totalPnlUsd)}
+                      {formatMetric(cell)}
                     </span>
                   )}
                 </div>
@@ -329,9 +365,9 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
             </div>
             <div className="text-[10px] text-gray-500">
               {DAY_FULL[hoveredCell.day]} {formatHourRange(hoveredCell.hour)} ·{" "}
-              {hoveredData.tradeCount > 0
-                ? `${Math.round((hoveredData.wins / hoveredData.tradeCount) * 100)}% win rate`
-                : "—"}
+                {hoveredData.tradeCount >= minimumSample
+                  ? `${Math.round((hoveredData.wins / hoveredData.tradeCount) * 100)}% win rate`
+                  : `Needs ${minimumSample} trades (has ${hoveredData.tradeCount})`}
             </div>
           </div>
         </div>
@@ -344,7 +380,7 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-rose-50 border border-rose-100 rounded-md">
               <TrendingDown size={12} className="text-rose-500" />
               <span className="text-rose-700 font-medium">
-                Worst hour · {DAY_FULL[summaryStats.worstCell.dayIndex].slice(0, 3)}{" "}
+                Worst slot · {DAY_FULL[summaryStats.worstCell.dayIndex].slice(0, 3)}{" "}
                 {summaryStats.worstCell.hour === 0
                   ? "12 AM"
                   : summaryStats.worstCell.hour < 12
@@ -352,7 +388,7 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
                   : summaryStats.worstCell.hour === 12
                   ? "12 PM"
                   : `${summaryStats.worstCell.hour - 12} PM`}{" "}
-                · {formatUsd(summaryStats.worstCell.totalPnlUsd)}
+                · {metricLabel}: {formatMetric(summaryStats.worstCell)}
               </span>
             </div>
           )}
@@ -360,7 +396,7 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-100 rounded-md">
               <TrendingUp size={12} className="text-emerald-500" />
               <span className="text-emerald-700 font-medium">
-                Best hour · {DAY_FULL[summaryStats.bestCell.dayIndex].slice(0, 3)}{" "}
+                Best slot · {DAY_FULL[summaryStats.bestCell.dayIndex].slice(0, 3)}{" "}
                 {summaryStats.bestCell.hour === 0
                   ? "12 AM"
                   : summaryStats.bestCell.hour < 12
@@ -368,7 +404,7 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
                   : summaryStats.bestCell.hour === 12
                   ? "12 PM"
                   : `${summaryStats.bestCell.hour - 12} PM`}{" "}
-                · {formatUsd(summaryStats.bestCell.totalPnlUsd)}
+                · {metricLabel}: {formatMetric(summaryStats.bestCell)}
               </span>
             </div>
           )}
