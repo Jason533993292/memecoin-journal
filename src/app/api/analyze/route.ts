@@ -1,7 +1,28 @@
 import { NextResponse } from 'next/server';
 
+const requestBuckets = new Map<string, { startedAt: number; count: number }>();
+const WINDOW_MS = 60_000;
+const MAX_REQUESTS_PER_WINDOW = 12;
+
 export async function POST(request: Request) {
   try {
+    const forwardedFor = request.headers.get('x-forwarded-for');
+    const clientId = (forwardedFor?.split(',')[0].trim() || request.headers.get('x-real-ip') || 'unknown').slice(0, 80);
+    const now = Date.now();
+    const bucket = requestBuckets.get(clientId);
+    if (!bucket || now - bucket.startedAt >= WINDOW_MS) {
+      requestBuckets.set(clientId, { startedAt: now, count: 1 });
+    } else {
+      bucket.count += 1;
+      if (bucket.count > MAX_REQUESTS_PER_WINDOW) {
+        return NextResponse.json({ error: 'Too many AI requests. Please wait a minute and try again.' }, { status: 429 });
+      }
+    }
+    if (requestBuckets.size > 2_000) {
+      for (const [key, value] of requestBuckets) {
+        if (now - value.startedAt >= WINDOW_MS) requestBuckets.delete(key);
+      }
+    }
     const contentLength = Number(request.headers.get('content-length') || 0);
     if (contentLength > 200_000) {
       return NextResponse.json({ error: 'Analysis request is too large.' }, { status: 413 });
