@@ -8,7 +8,7 @@ import { Trade, JournalRules, AiCoachBrief, GoalSettings } from "../lib/types";
 import TopBanner from "../components/TopBanner";
 import DashboardView from "../components/DashboardView";
 import TradeJournalView from "../components/TradeJournalView";
-import WalletsView from "../components/WalletsView";
+const WalletsView = dynamic(() => import("../components/WalletsView"), { loading: () => <SectionLoading /> });
 const StatisticsView = dynamic(() => import("../components/StatisticsView"), { loading: () => <SectionLoading /> });
 const AiCoachView = dynamic(() => import("../components/AiCoachView"), { loading: () => <SectionLoading /> });
 import LogTradeModal from "../components/LogTradeModal";
