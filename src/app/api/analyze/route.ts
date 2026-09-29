@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   try {
+    const contentLength = Number(request.headers.get('content-length') || 0);
+    if (contentLength > 200_000) {
+      return NextResponse.json({ error: 'Analysis request is too large.' }, { status: 413 });
+    }
     const body = await request.json().catch(() => ({}));
     const { trades, customPrompt, clientApiKey, provider = "deepseek" } = body;
     // Users may supply their own provider key; it is used only for this request and never stored.
@@ -12,7 +16,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Add an API key for the selected provider before requesting an analysis.' }, { status: 401 });
     }
 
-    const tradeList = Array.isArray(trades) ? trades.slice(0, 500) : [];
+    const tradeList = Array.isArray(trades) ? trades.slice(0, 100) : [];
 
     // Quantitative calculations across all provided trades
     const totalTrades = tradeList.length;
@@ -94,6 +98,8 @@ ${tradesSummary}`;
     const requestBody = selectedProvider === "gemini"
       ? { contents: [{ role: "user", parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }] }] }
       : { model: selectedProvider === "openai" ? "gpt-4o-mini" : "deepseek-chat", messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }], temperature: 0.6, max_tokens: 1500 };
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 25_000);
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
@@ -101,7 +107,9 @@ ${tradesSummary}`;
         ...(selectedProvider === "gemini" ? {} : { 'Authorization': `Bearer ${apiKey}` }),
       },
       body: JSON.stringify(requestBody),
+      signal: controller.signal,
     });
+    clearTimeout(timeout);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -116,6 +124,9 @@ ${tradesSummary}`;
 
     return NextResponse.json({ advice });
   } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      return NextResponse.json({ error: 'The AI provider timed out. Please try again.' }, { status: 504 });
+    }
     console.error('Error fetching AI analysis:', error);
     return NextResponse.json({ error: 'Failed to fetch AI analysis' }, { status: 500 });
   }

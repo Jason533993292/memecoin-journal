@@ -401,6 +401,14 @@ export default function LogTradeModal({
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      showToast("Please choose an image file", "error");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      showToast("Image must be smaller than 10 MB", "error");
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = async (event) => {
