@@ -1,4 +1,6 @@
-export type TradeDate = any;
+import type { Timestamp } from "firebase/firestore";
+
+export type TradeDate = Timestamp | Date | number | string | null | undefined;
 
 export interface Trade {
   id: string;

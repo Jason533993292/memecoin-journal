@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { db, auth } from "../lib/firebase";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { db } from "../lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import {
   X,
@@ -29,6 +29,8 @@ import {
   DURATION_PRESETS,
 } from "../lib/constants";
 import { compressImage } from "../lib/utils";
+import { useAuth } from "../context/AuthContext";
+import { parseLocalStorageValue, useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
 
 // Re-export for backward compatibility
 export { DEFAULT_GOOD_TAGS, DEFAULT_MISTAKE_TAGS, COMMON_SETUPS, DURATION_PRESETS };
@@ -49,11 +51,12 @@ export default function LogTradeModal({
   solPrice = 150,
 }: LogTradeModalProps) {
   const { showToast } = useToast();
+  const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const caDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
 
-  const [ca, setCa] = useState("");
+  const [ca, setCa] = useState(initialData?.ca || "");
   const [loadingToken, setLoadingToken] = useState(false);
   const [saving, setSaving] = useState(false);
   const [fetchError, setFetchError] = useState("");
@@ -69,41 +72,50 @@ export default function LogTradeModal({
   } | null>(null);
 
   // Trade fields
-  const [wallet, setWallet] = useState("Main");
-  const [result, setResult] = useState<"Win" | "Loss" | "BE">("Win");
-  const [setupType, setSetupType] = useState<string>("Breakout / ATH Push");
+  const [wallet, setWallet] = useState(initialData?.wallet || "Main");
+  const [result, setResult] = useState<"Win" | "Loss" | "BE">(initialData?.result || "Win");
+  const [setupType, setSetupType] = useState<string>(initialData?.setupType || "Breakout / ATH Push");
   const [customSetup, setCustomSetup] = useState("");
-  const [durationMinutes, setDurationMinutes] = useState<number | undefined>(15);
+  const [durationMinutes, setDurationMinutes] = useState<number | undefined>(initialData?.durationMinutes || 15);
 
   // Financial fields
-  const [boughtSol, setBoughtSol] = useState("");
-  const [boughtUsd, setBoughtUsd] = useState("");
-  const [soldSol, setSoldSol] = useState("");
-  const [soldUsd, setSoldUsd] = useState("");
-  const [pnlSol, setPnlSol] = useState("");
-  const [pnlUsd, setPnlUsd] = useState("");
-  const [initialRiskSol, setInitialRiskSol] = useState("");
-  const [feesSol, setFeesSol] = useState("");
-  const [stopPrice, setStopPrice] = useState("");
-  const [entryLiquidityUsd, setEntryLiquidityUsd] = useState("");
-  const [exitLiquidityUsd, setExitLiquidityUsd] = useState("");
-  const [entryMarketCapUsd, setEntryMarketCapUsd] = useState("");
-  const [exitMarketCapUsd, setExitMarketCapUsd] = useState("");
-  const [slippagePct, setSlippagePct] = useState("");
+  const [boughtSol, setBoughtSol] = useState(initialData?.boughtSol ? String(initialData.boughtSol) : "");
+  const [boughtUsd, setBoughtUsd] = useState(initialData?.boughtUsd ? String(initialData.boughtUsd) : "");
+  const [soldSol, setSoldSol] = useState(initialData?.soldSol ? String(initialData.soldSol) : "");
+  const [soldUsd, setSoldUsd] = useState(initialData?.soldUsd ? String(initialData.soldUsd) : "");
+  const [pnlSol, setPnlSol] = useState(initialData?.pnlSol ? String(initialData.pnlSol) : "");
+  const [pnlUsd, setPnlUsd] = useState(initialData?.pnlUsd ? String(initialData.pnlUsd) : "");
+  const [initialRiskSol, setInitialRiskSol] = useState(initialData?.initialRiskSol ? String(initialData.initialRiskSol) : "");
+  const [feesSol, setFeesSol] = useState(initialData?.feesSol ? String(initialData.feesSol) : "");
+  const [stopPrice, setStopPrice] = useState(initialData?.stopPrice ? String(initialData.stopPrice) : "");
+  const [entryLiquidityUsd, setEntryLiquidityUsd] = useState(initialData?.entryLiquidityUsd ? String(initialData.entryLiquidityUsd) : "");
+  const [exitLiquidityUsd, setExitLiquidityUsd] = useState(initialData?.exitLiquidityUsd ? String(initialData.exitLiquidityUsd) : "");
+  const [entryMarketCapUsd, setEntryMarketCapUsd] = useState(initialData?.entryMarketCapUsd ? String(initialData.entryMarketCapUsd) : "");
+  const [exitMarketCapUsd, setExitMarketCapUsd] = useState(initialData?.exitMarketCapUsd ? String(initialData.exitMarketCapUsd) : "");
+  const [slippagePct, setSlippagePct] = useState(initialData?.slippagePct ? String(initialData.slippagePct) : "");
   const [currencyMode, setCurrencyMode] = useState<"SOL" | "USD">("SOL");
 
   // Screenshot / Chart attachment
   const [screenshotUrl, setScreenshotUrl] = useState<string>("");
 
   // Tags - separated into Good Execution vs Mistakes
-  const [selectedGoodTags, setSelectedGoodTags] = useState<string[]>([]);
-  const [selectedMistakes, setSelectedMistakes] = useState<string[]>([]);
+  const [selectedGoodTags, setSelectedGoodTags] = useState<string[]>(initialData?.goodTags || []);
+  const [selectedMistakes, setSelectedMistakes] = useState<string[]>(initialData?.mistakes || []);
   const [customTagInput, setCustomTagInput] = useState("");
   const [customTagType, setCustomTagType] = useState<"good" | "mistake">("mistake");
-  const [customTagPool, setCustomTagPool] = useState<string[]>([]);
+  const customTagStorageKey = user ? "memecoin_journal_" + user.uid + "_custom_tags" : "custom_tags";
+  const storedCustomTags = useLocalStorageValue(customTagStorageKey);
+  const customTagPool = useMemo(() => {
+    const parsed = parseLocalStorageValue<unknown>(storedCustomTags, []);
+    return Array.isArray(parsed)
+      ? parsed.filter((tag): tag is string => typeof tag === "string").slice(0, 40)
+      : [];
+  }, [storedCustomTags]);
 
-  const [notes, setNotes] = useState("");
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [notes, setNotes] = useState(initialData?.notes ? `[Clone] ${initialData.notes}` : "");
+  const [showAdvanced, setShowAdvanced] = useState(
+    Boolean(initialData?.initialRiskSol || initialData?.feesSol || initialData?.stopPrice)
+  );
 
   const parseQuickPaste = (value: string) => {
     setQuickPaste(value);
@@ -118,13 +130,15 @@ export default function LogTradeModal({
     if (sold) handleSoldChange(sold, true);
   };
 
-  // Load user's custom tags from localStorage
-  useEffect(() => {
+  const attachImage = async (rawUrl: string) => {
     try {
-      const saved = localStorage.getItem("memecoin_journal_custom_tags");
-      if (saved) setCustomTagPool(JSON.parse(saved));
-    } catch (e) {}
-  }, []);
+      const compressed = await compressImage(rawUrl);
+      setScreenshotUrl(compressed);
+      showToast("Chart screenshot attached and optimized.", "success");
+    } catch {
+      showToast("Screenshot could not be attached", "error", "Choose a smaller image or another file.");
+    }
+  };
 
   // Global Clipboard Paste Listener for screenshots with compression
   useEffect(() => {
@@ -138,15 +152,17 @@ export default function LogTradeModal({
         if (items[i].type.indexOf("image") !== -1) {
           const blob = items[i].getAsFile();
           if (blob) {
+            if (blob.size > 10 * 1024 * 1024) {
+              showToast("Image must be smaller than 10 MB", "error");
+              break;
+            }
             const reader = new FileReader();
             reader.onload = async (event) => {
               if (event.target?.result) {
-                const rawUrl = event.target.result as string;
-                const compressed = await compressImage(rawUrl);
-                setScreenshotUrl(compressed);
-                showToast("Chart screenshot pasted & optimized!", "success");
+                await attachImage(event.target.result as string);
               }
             };
+            reader.onerror = () => showToast("The pasted image could not be read", "error");
             reader.readAsDataURL(blob);
           }
           break;
@@ -156,7 +172,7 @@ export default function LogTradeModal({
 
     window.addEventListener("paste", handlePaste);
     return () => window.removeEventListener("paste", handlePaste);
-  }, [isOpen, showToast]);
+  }, [isOpen, showToast, user?.uid]);
 
   // Clean up debounce on unmount
   useEffect(() => {
@@ -181,65 +197,6 @@ export default function LogTradeModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Reset or initialize state when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      if (initialData) {
-        setCa(initialData.ca || "");
-        setWallet(initialData.wallet || "Main");
-        setResult(initialData.result || "Win");
-        setSetupType(initialData.setupType || "Breakout / ATH Push");
-        setCustomSetup("");
-        setDurationMinutes(initialData.durationMinutes || 15);
-        setBoughtSol(initialData.boughtSol ? String(initialData.boughtSol) : "");
-        setBoughtUsd(initialData.boughtUsd ? String(initialData.boughtUsd) : "");
-        setSoldSol(initialData.soldSol ? String(initialData.soldSol) : "");
-        setSoldUsd(initialData.soldUsd ? String(initialData.soldUsd) : "");
-        setPnlSol(initialData.pnlSol ? String(initialData.pnlSol) : "");
-        setPnlUsd(initialData.pnlUsd ? String(initialData.pnlUsd) : "");
-        setInitialRiskSol(initialData.initialRiskSol ? String(initialData.initialRiskSol) : "");
-        setFeesSol(initialData.feesSol ? String(initialData.feesSol) : "");
-        setStopPrice(initialData.stopPrice ? String(initialData.stopPrice) : "");
-        setEntryLiquidityUsd(initialData.entryLiquidityUsd ? String(initialData.entryLiquidityUsd) : "");
-        setExitLiquidityUsd(initialData.exitLiquidityUsd ? String(initialData.exitLiquidityUsd) : "");
-        setEntryMarketCapUsd(initialData.entryMarketCapUsd ? String(initialData.entryMarketCapUsd) : "");
-        setExitMarketCapUsd(initialData.exitMarketCapUsd ? String(initialData.exitMarketCapUsd) : "");
-        setSlippagePct(initialData.slippagePct ? String(initialData.slippagePct) : "");
-        setNotes(initialData.notes ? `[Clone] ${initialData.notes}` : "");
-        setSelectedGoodTags(initialData.goodTags || []);
-        setSelectedMistakes(initialData.mistakes || []);
-        if (initialData.initialRiskSol || initialData.feesSol || initialData.stopPrice) {
-          setShowAdvanced(true);
-        }
-      } else {
-        setCa("");
-        setTokenData(null);
-        setWallet("Main");
-        setResult("Win");
-        setSetupType("Breakout / ATH Push");
-        setCustomSetup("");
-        setDurationMinutes(15);
-        setBoughtSol("");
-        setBoughtUsd("");
-        setSoldSol("");
-        setSoldUsd("");
-        setPnlSol("");
-        setPnlUsd("");
-        setInitialRiskSol("");
-        setFeesSol("");
-        setStopPrice("");
-        setEntryLiquidityUsd(""); setExitLiquidityUsd("");
-        setEntryMarketCapUsd(""); setExitMarketCapUsd(""); setSlippagePct("");
-        setNotes("");
-        setScreenshotUrl("");
-        setSelectedGoodTags([]);
-        setSelectedMistakes([]);
-        setShowAdvanced(false);
-      }
-      setFetchError("");
-    }
-  }, [isOpen, initialData]);
-
   if (!isOpen) return null;
 
   const fetchTokenData = async (contractAddress = ca) => {
@@ -252,7 +209,10 @@ export default function LogTradeModal({
 
     // 1. Try server API route
     try {
-      const res = await fetch(`/api/token/${cleanCa}`);
+      const token = await user?.getIdToken();
+      const res = await fetch(`/api/token/${encodeURIComponent(cleanCa)}`, {
+        headers: token ? { Authorization: "Bearer " + token } : {},
+      });
       if (res.ok) {
         const data = await res.json();
         setTokenData(data);
@@ -324,6 +284,10 @@ export default function LogTradeModal({
 
   const switchCurrencyMode = (newMode: "SOL" | "USD") => {
     if (newMode === currencyMode) return;
+    if (newMode === "USD" && solPrice <= 0) {
+      showToast("Live SOL price is unavailable", "info", "Try again in a moment before entering amounts in USD.");
+      return;
+    }
 
     if (newMode === "USD") {
       const sBought = parseFloat(boughtSol);
@@ -345,11 +309,12 @@ export default function LogTradeModal({
   };
 
   const handleBoughtChange = (val: string, isSol: boolean) => {
+    if (!isSol && solPrice <= 0) return;
     const num = parseFloat(val);
     if (isSol) {
       setBoughtSol(val);
       if (!isNaN(num)) {
-        setBoughtUsd((num * solPrice).toFixed(2));
+        setBoughtUsd(solPrice > 0 ? (num * solPrice).toFixed(2) : "");
         if (soldSol) recalculatePnl(num, parseFloat(soldSol) || 0);
       } else {
         setBoughtUsd("");
@@ -367,11 +332,12 @@ export default function LogTradeModal({
   };
 
   const handleSoldChange = (val: string, isSol: boolean) => {
+    if (!isSol && solPrice <= 0) return;
     const num = parseFloat(val);
     if (isSol) {
       setSoldSol(val);
       if (!isNaN(num)) {
-        setSoldUsd((num * solPrice).toFixed(2));
+        setSoldUsd(solPrice > 0 ? (num * solPrice).toFixed(2) : "");
         if (boughtSol) recalculatePnl(parseFloat(boughtSol) || 0, num);
       } else {
         setSoldUsd("");
@@ -389,11 +355,12 @@ export default function LogTradeModal({
   };
 
   const handlePnlChange = (val: string, isSol: boolean) => {
+    if (!isSol && solPrice <= 0) return;
     const num = parseFloat(val);
     if (isSol) {
       setPnlSol(val);
       if (!isNaN(num)) {
-        setPnlUsd((num * solPrice).toFixed(2));
+        setPnlUsd(solPrice > 0 ? (num * solPrice).toFixed(2) : "");
         if (num > 0.005) setResult("Win");
         else if (num < -0.005) setResult("Loss");
         else setResult("BE");
@@ -427,44 +394,65 @@ export default function LogTradeModal({
     const reader = new FileReader();
     reader.onload = async (event) => {
       if (event.target?.result) {
-        const rawUrl = event.target.result as string;
-        const compressed = await compressImage(rawUrl);
-        setScreenshotUrl(compressed);
-        showToast("Chart screenshot attached & optimized!", "success");
+        await attachImage(event.target.result as string);
       }
     };
+    reader.onerror = () => showToast("The selected image could not be read", "error");
     reader.readAsDataURL(file);
   };
 
   const toggleGoodTag = (tag: string) => {
-    setSelectedGoodTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
-    );
+    if (selectedGoodTags.includes(tag)) {
+      setSelectedGoodTags(selectedGoodTags.filter((item) => item !== tag));
+    } else if (selectedGoodTags.length >= 20) {
+      showToast("Tag limit reached", "error", "Choose up to 20 execution tags per trade.");
+    } else {
+      setSelectedGoodTags([...selectedGoodTags, tag]);
+    }
   };
 
   const toggleMistake = (tag: string) => {
-    setSelectedMistakes((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
-    );
+    if (selectedMistakes.includes(tag)) {
+      setSelectedMistakes(selectedMistakes.filter((item) => item !== tag));
+    } else if (selectedMistakes.length >= 20) {
+      showToast("Tag limit reached", "error", "Choose up to 20 mistakes per trade.");
+    } else {
+      setSelectedMistakes([...selectedMistakes, tag]);
+    }
   };
 
   const handleAddCustomTag = (e?: React.MouseEvent | React.KeyboardEvent) => {
     if (e) e.preventDefault();
     const clean = customTagInput.trim();
     if (!clean) return;
+    if (clean.length > 80) {
+      showToast("Tag is too long", "error", "Keep custom tags to 80 characters or fewer.");
+      return;
+    }
 
     if (customTagType === "good") {
-      if (!selectedGoodTags.includes(clean)) setSelectedGoodTags((prev) => [...prev, clean]);
+      if (!selectedGoodTags.includes(clean)) {
+        if (selectedGoodTags.length >= 20) {
+          showToast("Tag limit reached", "error", "Choose up to 20 execution tags per trade.");
+          return;
+        }
+        setSelectedGoodTags((prev) => [...prev, clean]);
+      }
     } else {
-      if (!selectedMistakes.includes(clean)) setSelectedMistakes((prev) => [...prev, clean]);
+      if (!selectedMistakes.includes(clean)) {
+        if (selectedMistakes.length >= 20) {
+          showToast("Tag limit reached", "error", "Choose up to 20 mistakes per trade.");
+          return;
+        }
+        setSelectedMistakes((prev) => [...prev, clean]);
+      }
     }
 
     if (!customTagPool.includes(clean)) {
       const updatedPool = [...customTagPool, clean];
-      setCustomTagPool(updatedPool);
-      try {
-        localStorage.setItem("memecoin_journal_custom_tags", JSON.stringify(updatedPool));
-      } catch (err) {}
+      if (!user || !writeLocalStorageValue(customTagStorageKey, JSON.stringify(updatedPool))) {
+        showToast("Tag could not be saved", "error", "Browser storage may be full or disabled.");
+      }
     }
     setCustomTagInput("");
     showToast(`Added ${customTagType} tag "${clean}"`, "success");
@@ -472,6 +460,10 @@ export default function LogTradeModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (solPrice <= 0) {
+      showToast("Trade cannot be saved yet", "error", "Wait for the live SOL price to load, then try again.");
+      return;
+    }
     if (!tokenData && !ca) {
       showToast("Please enter a valid Contract Address or Token Name.", "error");
       return;
@@ -480,11 +472,11 @@ export default function LogTradeModal({
     setSaving(true);
     try {
       const parsedPnlSol = parseFloat(pnlSol) || 0;
-      const parsedPnlUsd = parseFloat(pnlUsd) || parsedPnlSol * solPrice;
+      const parsedPnlUsd = pnlUsd.trim() ? Number.parseFloat(pnlUsd) || 0 : parsedPnlSol * solPrice;
       const parsedBoughtSol = parseFloat(boughtSol) || 0;
-      const parsedBoughtUsd = parseFloat(boughtUsd) || parsedBoughtSol * solPrice;
+      const parsedBoughtUsd = boughtUsd.trim() ? Number.parseFloat(boughtUsd) || 0 : parsedBoughtSol * solPrice;
       const parsedSoldSol = parseFloat(soldSol) || parsedBoughtSol + parsedPnlSol;
-      const parsedSoldUsd = parseFloat(soldUsd) || parsedSoldSol * solPrice;
+      const parsedSoldUsd = soldUsd.trim() ? Number.parseFloat(soldUsd) || 0 : parsedSoldSol * solPrice;
       const parsedInitialRiskSol = parseFloat(initialRiskSol) || null;
       const parsedFeesSol = parseFloat(feesSol) || null;
       const parsedStopPrice = parseFloat(stopPrice) || null;
@@ -496,10 +488,8 @@ export default function LogTradeModal({
 
       const finalSetup = customSetup.trim() || setupType;
 
-      const currentUser = auth.currentUser;
-      const tradesCol = currentUser
-        ? collection(db, "users", currentUser.uid, "trades")
-        : collection(db, "trades");
+      if (!user) throw new Error("Please sign in before saving a trade.");
+      const tradesCol = collection(db, "users", user.uid, "trades");
 
       await addDoc(tradesCol, {
         ca: ca.trim(),
@@ -542,7 +532,7 @@ export default function LogTradeModal({
       );
       onTradeLogged();
       onClose();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error adding trade document:", error);
       showToast("Error saving trade to Firestore", "error");
     }
@@ -1084,6 +1074,7 @@ export default function LogTradeModal({
                 rows={2}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
+                maxLength={4000}
                 placeholder="Why did you enter? Did you stick to take-profit levels? What would you do differently?"
                 className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg p-2.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2] resize-none"
               />

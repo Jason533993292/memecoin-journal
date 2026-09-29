@@ -47,9 +47,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const loginWithGoogle = async () => {
     try {
       await signInWithPopup(auth, googleProvider);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.warn("Popup blocked or failed, attempting redirect:", error);
-      if (error?.code === "auth/popup-blocked") {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        error.code === "auth/popup-blocked"
+      ) {
         await signInWithRedirect(auth, googleProvider);
       } else {
         throw error;

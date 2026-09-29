@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useMemo } from "react";
 import { Trade } from "../lib/types";
 import { getTradeDate, getLocalDayKey } from "../lib/utils";
 import { Flame, Snowflake, AlertTriangle, ShieldCheck, Calendar } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import { useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
 
 interface TiltStreakHeatmapProps {
   trades: Trade[];
@@ -11,23 +13,14 @@ interface TiltStreakHeatmapProps {
 }
 
 export default function TiltStreakHeatmap({ trades, solPrice = 150 }: TiltStreakHeatmapProps) {
-  const [currency, setCurrency] = useState<"SOL" | "USD" | "EUR">("SOL");
+  const { user } = useAuth();
+  const currencyStorageKey = user ? "memecoin_journal_" + user.uid + "_calendar_currency" : "calendar_currency";
+  const storedCurrency = useLocalStorageValue(currencyStorageKey);
+  const currency = storedCurrency === "USD" || storedCurrency === "EUR" ? storedCurrency : "SOL";
   const USD_TO_EUR = 0.92; // Approx EUR/USD rate
 
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("memecoin_journal_calendar_currency");
-      if (saved === "SOL" || saved === "USD" || saved === "EUR") {
-        setCurrency(saved);
-      }
-    } catch (e) {}
-  }, []);
-
   const handleCurrencyChange = (c: "SOL" | "USD" | "EUR") => {
-    setCurrency(c);
-    try {
-      localStorage.setItem("memecoin_journal_calendar_currency", c);
-    } catch (e) {}
+    if (user) writeLocalStorageValue(currencyStorageKey, c);
   };
 
   // Pre-bucket all trades by local day key in O(N) single pass

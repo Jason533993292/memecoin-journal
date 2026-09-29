@@ -20,6 +20,8 @@ import {
   Zap,
 } from "lucide-react";
 import { useToast } from "./Toast";
+import { useAuth } from "../context/AuthContext";
+import { useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
 
 interface ShareablePnlCardModalProps {
   trade: Trade | null;
@@ -163,32 +165,28 @@ export default function ShareablePnlCardModal({
   solPrice = 150,
 }: ShareablePnlCardModalProps) {
   const { showToast } = useToast();
+  const { user } = useAuth();
   const [copiedText, setCopiedText] = useState(false);
   const [copiedImage, setCopiedImage] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const [selectedThemeId, setSelectedThemeId] = useState<string>("wolf");
-  const [themeFilter, setThemeFilter] = useState<"all" | "win" | "loss">("all");
+  const [selectedThemeId, setSelectedThemeId] = useState<string>(
+    trade && (trade.pnlSol || 0) < 0 ? "wojak" : "wolf"
+  );
+  const [themeFilter, setThemeFilter] = useState<"all" | "win" | "loss">(
+    trade && (trade.pnlSol || 0) < 0 ? "loss" : trade ? "win" : "all"
+  );
   const [customImageSrc, setCustomImageSrc] = useState<string | null>(null);
   const [unit, setUnit] = useState<"SOL" | "USD" | "EUR">("SOL");
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>("16:9");
-  const [tokenLogoUrl, setTokenLogoUrl] = useState<string | null>(null);
+  const [tokenLogo, setTokenLogo] = useState<{ tradeId: string; url: string } | null>(null);
+  const tokenLogoUrl = trade && tokenLogo?.tradeId === trade.id ? tokenLogo.url : null;
   const [cyberFx, setCyberFx] = useState(true);
-  const [traderHandle, setTraderHandle] = useState<string>("");
+  const traderHandleStorageKey = user ? "memecoin_journal_" + user.uid + "_trader_handle" : "trader_handle";
+  const traderHandle = useLocalStorageValue(traderHandleStorageKey) || "";
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Load saved trader handle from localStorage
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("journal_trader_handle");
-      if (saved) setTraderHandle(saved);
-    }
-  }, []);
-
   const handleHandleChange = (val: string) => {
-    setTraderHandle(val);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("journal_trader_handle", val);
-    }
+    if (user) writeLocalStorageValue(traderHandleStorageKey, val);
   };
 
   // Close on Escape key
@@ -206,25 +204,21 @@ export default function ShareablePnlCardModal({
   // Auto-select Win vs Loss mood and fetch token logo when trade changes
   useEffect(() => {
     if (!trade) return;
-    const isWin = (trade.pnlSol || 0) >= 0;
-    if (isWin) {
-      setSelectedThemeId("wolf");
-      setThemeFilter("win");
-    } else {
-      setSelectedThemeId("wojak");
-      setThemeFilter("loss");
-    }
-    setCustomImageSrc(null);
 
     // Fetch token logo from DexScreener if CA is present
-    if (trade.ca) {
+    if (trade?.ca && user) {
       const cleanCa = trade.ca.trim();
       let active = true;
-      fetch(`/api/token/${cleanCa}`)
+      user.getIdToken()
+        .then((token) =>
+          fetch(`/api/token/${encodeURIComponent(cleanCa)}`, {
+            headers: token ? { Authorization: "Bearer " + token } : {},
+          })
+        )
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
           if (active && data?.imageUrl) {
-            setTokenLogoUrl(data.imageUrl);
+            setTokenLogo({ tradeId: trade.id, url: data.imageUrl });
           }
         })
         .catch((e) => console.warn("Failed to fetch token logo:", e));
@@ -232,10 +226,8 @@ export default function ShareablePnlCardModal({
       return () => {
         active = false;
       };
-    } else {
-      setTokenLogoUrl(null);
     }
-  }, [trade?.id, trade?.ca]);
+  }, [trade?.id, trade?.ca, user?.uid]);
 
   if (!isOpen || !trade) return null;
 

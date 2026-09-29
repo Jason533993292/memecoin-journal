@@ -11,8 +11,9 @@ export function cn(...inputs: ClassValue[]) {
  */
 export function getTradeTimestamp(t: Partial<Trade>): number {
   if (!t) return 0;
-  const d = t.date as any;
-  if (d?.seconds !== undefined) {
+  const d = t.date;
+  if (d instanceof Date) return d.getTime();
+  if (d && typeof d === "object" && "seconds" in d && typeof d.seconds === "number") {
     return d.seconds * 1000;
   }
   if (typeof d === "number") {
@@ -62,46 +63,51 @@ export function escapeCsvField(str: string | number | undefined | null): string 
 }
 
 /**
- * Client-side canvas image compression to keep base64 payloads safely below Firestore limits (< 500KB)
+ * Client-side image compression with a strict Firestore-safe output size.
  */
-export async function compressImage(dataUrl: string, maxBytes = 500_000): Promise<string> {
-  if (!dataUrl || !dataUrl.startsWith("data:image")) return dataUrl;
-  return new Promise((resolve) => {
+export async function compressImage(dataUrl: string, maxBytes = 450_000): Promise<string> {
+  if (!dataUrl || !dataUrl.startsWith("data:image/")) {
+    throw new TypeError("A valid image is required.");
+  }
+  if (dataUrl.length > 14_000_000) {
+    throw new RangeError("Image is too large to process safely.");
+  }
+
+  return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
-      const canvas = document.createElement("canvas");
-      const maxDim = 1200;
-      let width = img.width;
-      let height = img.height;
-
-      if (width > maxDim || height > maxDim) {
-        if (width > height) {
-          height = Math.round((height * maxDim) / width);
-          width = maxDim;
-        } else {
-          width = Math.round((width * maxDim) / height);
-          height = maxDim;
+      try {
+        const canvas = document.createElement("canvas");
+        const maxDim = 1200;
+        const initialScale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("Image compression is unavailable in this browser."));
+          return;
         }
-      }
 
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        resolve(dataUrl);
-        return;
-      }
-      ctx.drawImage(img, 0, 0, width, height);
+        for (let scale = initialScale; scale >= 0.25; scale *= 0.75) {
+          const width = Math.max(1, Math.round(img.width * scale));
+          const height = Math.max(1, Math.round(img.height * scale));
+          canvas.width = width;
+          canvas.height = height;
+          ctx.clearRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0, width, height);
 
-      let quality = 0.85;
-      let result = canvas.toDataURL("image/jpeg", quality);
-      while (result.length > maxBytes && quality > 0.3) {
-        quality -= 0.1;
-        result = canvas.toDataURL("image/jpeg", quality);
+          for (let quality = 0.85; quality >= 0.25; quality -= 0.1) {
+            const result = canvas.toDataURL("image/jpeg", quality);
+            if (result.length <= maxBytes) {
+              resolve(result);
+              return;
+            }
+          }
+        }
+        reject(new RangeError("The image could not be compressed small enough to save."));
+      } catch {
+        reject(new Error("The image could not be compressed in this browser."));
       }
-      resolve(result);
     };
-    img.onerror = () => resolve(dataUrl);
+    img.onerror = () => reject(new Error("The selected image could not be read."));
     img.src = dataUrl;
   });
 }

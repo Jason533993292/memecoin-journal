@@ -1,11 +1,15 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Trade, AiCoachBrief } from "../lib/types";
-import { Bot, Sparkles, RefreshCw, AlertTriangle, ShieldCheck, Target, HelpCircle, Eye, EyeOff, KeyRound } from "lucide-react";
+import { Bot, RefreshCw, AlertTriangle, ShieldCheck, Target, HelpCircle, Eye, EyeOff, KeyRound } from "lucide-react";
 import { DEFAULT_GOOD_TAGS } from "../lib/constants";
 import { getTradeTimestamp } from "../lib/utils";
 import { useAuth } from "../context/AuthContext";
+import { useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
+import { useToast } from "./Toast";
+
+type AiProvider = "deepseek" | "gemini" | "openai";
 
 interface AiCoachViewProps {
   trades: Trade[];
@@ -27,46 +31,61 @@ export default function AiCoachView({
   loadingAi,
 }: AiCoachViewProps) {
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [customQuestion, setCustomQuestion] = useState("");
   const [customAnswer, setCustomAnswer] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
-  const [apiKey, setApiKey] = useState("");
-  const [isApiKeySet, setIsApiKeySet] = useState(true);
+  const [apiKeyDraft, setApiKeyDraft] = useState("");
   const [showKey, setShowKey] = useState(false);
-  const [provider, setProvider] = useState<"deepseek" | "gemini" | "openai">("deepseek");
+  const apiKeyStorageKey = user ? "ai_" + user.uid + "_provider_api_key" : "ai_signed_out_provider_api_key";
+  const providerStorageKey = user ? "ai_" + user.uid + "_provider" : "ai_signed_out_provider";
+  const savedApiKey = useLocalStorageValue(apiKeyStorageKey);
+  const savedProvider = useLocalStorageValue(providerStorageKey);
+  const [providerOverride, setProviderOverride] = useState<AiProvider | null>(null);
+  const provider: AiProvider =
+    providerOverride ||
+    (savedProvider === "gemini" || savedProvider === "openai" ? savedProvider : "deepseek");
+  const effectiveSavedProvider = savedProvider === "gemini" || savedProvider === "openai"
+    ? savedProvider
+    : "deepseek";
+  const providerChanged = Boolean(savedApiKey && effectiveSavedProvider !== provider);
+  const apiKey = apiKeyDraft || (providerChanged ? "" : savedApiKey || "");
+  const isApiKeySet = Boolean(savedApiKey);
 
-  // Load API key from local storage on mount
-  useEffect(() => {
+  const saveProviderSettings = () => {
+    const nextKey = apiKeyDraft.trim();
     if (!user) return;
-    const prefix = `ai_${user.uid}_`;
-    const storedProvider = localStorage.getItem(`${prefix}provider`) as "deepseek" | "gemini" | "openai" | null;
-    const storedKey = localStorage.getItem(`${prefix}provider_api_key`);
-    if (storedProvider) setProvider(storedProvider);
-    if (storedKey) {
-      setApiKey(storedKey);
-    } else {
-      setIsApiKeySet(false);
+    if ((providerChanged || !savedApiKey) && nextKey.length < 8) {
+      showToast("Add a key for this provider", "error", "The key you saved for another provider cannot be reused.");
+      return;
     }
-  }, [user]);
-
-  const saveApiKey = async () => {
-    if (apiKey.trim()) {
-      if (!user) return;
-      localStorage.setItem(`ai_${user.uid}_provider_api_key`, apiKey.trim());
-      localStorage.setItem(`ai_${user.uid}_provider`, provider);
-      setIsApiKeySet(true);
+    if (nextKey && nextKey.length > 300) {
+      showToast("That API key does not look valid", "error", "Check the key and try again.");
+      return;
     }
+    const keySaved = nextKey ? writeLocalStorageValue(apiKeyStorageKey, nextKey) : true;
+    const providerSaved = writeLocalStorageValue(providerStorageKey, provider);
+    if (!keySaved || !providerSaved) {
+      showToast("API key could not be saved", "error", "Browser storage may be disabled or full.");
+      return;
+    }
+    setApiKeyDraft("");
+    setProviderOverride(null);
+    showToast("Provider settings saved on this device", "success");
   };
 
   const resetApiKey = () => {
-    if (user) localStorage.removeItem(`ai_${user.uid}_provider_api_key`);
-    setApiKey("");
-    setIsApiKeySet(false);
+    writeLocalStorageValue(apiKeyStorageKey, null);
+    setApiKeyDraft("");
   };
 
   const handleAskQuestion = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customQuestion.trim()) return;
+    if (!user || !customQuestion.trim()) return;
+    if (providerChanged || !apiKey) {
+      showToast("Save your AI provider settings first", "error", "Select a provider and add its matching API key.");
+      return;
+    }
     setAsking(true);
     setCustomAnswer(null);
 
@@ -74,11 +93,25 @@ export default function AiCoachView({
     const sortedTrades = [...trades].sort((a, b) => getTradeTimestamp(b) - getTradeTimestamp(a));
 
     try {
+      const token = await user.getIdToken();
       const res = await fetch("/api/analyze", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + token,
+        },
         body: JSON.stringify({
-          trades: sortedTrades.slice(0, 15),
+          trades: sortedTrades.slice(0, 15).map((trade) => ({
+            symbol: trade.symbol,
+            result: trade.result,
+            pnlSol: trade.pnlSol,
+            pnlUsd: trade.pnlUsd,
+            mistakes: trade.mistakes,
+            goodTags: trade.goodTags,
+            setupType: trade.setupType,
+            createdAt: trade.createdAt,
+            date: trade.date,
+          })),
           customPrompt: customQuestion.trim(),
           clientApiKey: apiKey,
           provider,
@@ -92,10 +125,11 @@ export default function AiCoachView({
         const errData = await res.json().catch(() => ({}));
         setCustomAnswer(errData.error || "Failed to connect to the AI provider. Check that your API key matches the configured provider.");
       }
-    } catch (err) {
+    } catch {
       setCustomAnswer("Error querying AI coach.");
+    } finally {
+      setAsking(false);
     }
-    setAsking(false);
   };
 
   const { totalTrades, winRate, primaryTilt, sortedMistakes } = useMemo(() => {
@@ -209,26 +243,32 @@ export default function AiCoachView({
       </div>
 
       {/* API Key Setup Box */}
-      {!isApiKeySet && (
+      {(
         <div className="bg-rose-50 border border-rose-200 rounded-xl p-6 shadow-xs space-y-3">
           <div className="flex items-center gap-2 font-semibold text-sm text-rose-900">
             <AlertTriangle size={18} />
-            <span>Set up an AI provider API key</span>
+            <span>{isApiKeySet ? "AI provider settings" : "Set up an AI provider API key"}</span>
           </div>
           <p className="text-xs text-rose-700 leading-relaxed">
-              Add a provider API key. It stays in this browser and is sent only when you request an analysis. Supported providers: DeepSeek, Google Gemini, and OpenAI.
+              Choose a provider and matching API key. It stays in this browser and is sent only when you request an analysis. Supported providers: DeepSeek, Google Gemini, and OpenAI.
           </p>
           <div className="flex gap-2 pt-2">
             <div className="relative flex-1">
-              <select value={provider} onChange={(e) => setProvider(e.target.value as "deepseek" | "gemini" | "openai")} className="w-full bg-white border border-rose-200 rounded-lg px-3 py-2 text-xs text-[#37352f] focus:outline-none focus:border-rose-400">
+              <label className="sr-only" htmlFor="ai-provider">AI provider</label>
+              <select id="ai-provider" value={provider} onChange={(e) => {
+                setApiKeyDraft("");
+                setProviderOverride(e.target.value as AiProvider);
+              }} className="w-full bg-white border border-rose-200 rounded-lg px-3 py-2 text-xs text-[#37352f] focus:outline-none focus:border-rose-400">
                 <option value="deepseek">DeepSeek</option>
                 <option value="gemini">Google Gemini</option>
                 <option value="openai">OpenAI</option>
               </select>
               <input
+                aria-label="Provider API key"
                 type={showKey ? "text" : "password"}
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
+                value={apiKeyDraft || (providerChanged ? "" : savedApiKey || "")}
+                onChange={(e) => setApiKeyDraft(e.target.value)}
+                maxLength={300}
                 placeholder={provider === "gemini" ? "AIza..." : "sk-..."}
                 className="w-full bg-white border border-rose-200 rounded-lg px-3 py-2 pr-10 text-xs text-[#37352f] focus:outline-none focus:border-rose-400"
               />
@@ -242,11 +282,11 @@ export default function AiCoachView({
               </button>
             </div>
             <button
-              onClick={saveApiKey}
-              disabled={!apiKey.trim()}
+              onClick={saveProviderSettings}
+              disabled={!apiKey.trim() || (providerChanged && !apiKeyDraft.trim())}
               className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-medium rounded-lg disabled:opacity-50 transition-colors"
             >
-              Save Key Locally
+              Save Provider Settings
             </button>
           </div>
         </div>
@@ -257,7 +297,7 @@ export default function AiCoachView({
         <div className="flex items-center justify-between pb-3 border-b border-[#f1f1ef]">
           <div className="flex items-center gap-2 font-semibold text-sm text-[#37352f]">
             <Bot size={18} className="text-[#2383e2]" />
-            <span>Coach's Direct Evaluation</span>
+            <span>Coach&apos;s Direct Evaluation</span>
           </div>
           <span className="text-[11px] px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
             Live AI Analysis
@@ -280,7 +320,7 @@ export default function AiCoachView({
           <span>Ask Your Trading Coach Anything</span>
         </div>
         <p className="text-xs text-[#787774]">
-          Ask specific questions like "Why am I losing money on Tuesdays?" or "How can I stop chasing 50% green candles?"
+          Ask specific questions like &quot;Why am I losing money on Tuesdays?&quot; or &quot;How can I stop chasing 50% green candles?&quot;
         </p>
 
         <form onSubmit={handleAskQuestion} className="space-y-3">
@@ -294,7 +334,7 @@ export default function AiCoachView({
             />
             <button
               type="submit"
-              disabled={asking || !customQuestion.trim()}
+              disabled={asking || !customQuestion.trim() || !apiKey || providerChanged}
               className="px-4 py-2 bg-[#2383e2] hover:bg-[#1a73ca] text-white text-xs font-medium rounded-lg disabled:opacity-50 flex items-center gap-1.5 transition-colors"
             >
               {asking ? <RefreshCw size={13} className="animate-spin" /> : <span>Ask Coach</span>}
@@ -304,7 +344,7 @@ export default function AiCoachView({
 
         {customAnswer && (
           <div className="mt-4 p-4 bg-blue-50/50 border border-blue-200 rounded-lg text-xs text-[#37352f] leading-relaxed">
-            <strong className="block text-blue-900 font-semibold mb-1">Coach's Answer:</strong>
+            <strong className="block text-blue-900 font-semibold mb-1">Coach&apos;s Answer:</strong>
             {renderFormattedText(customAnswer)}
           </div>
         )}

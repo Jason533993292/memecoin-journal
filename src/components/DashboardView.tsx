@@ -208,7 +208,7 @@ export default function DashboardView({
             className="bg-[#f7f6f3] hover:bg-[#eeece8] border border-[#e3e2de] text-[#37352f] px-3.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-2xs"
           >
             <Sparkles size={13} className="text-amber-600" />
-            <span>Today's Recap ({tradesToday.length})</span>
+            <span>Today&apos;s Recap ({tradesToday.length})</span>
           </button>
 
           {/* Log Trade Button */}

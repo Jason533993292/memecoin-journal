@@ -2,8 +2,16 @@
 
 import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { Lock, Mail, Key, Loader2, AlertCircle, ArrowRight } from "lucide-react";
+import { Mail, Key, Loader2, AlertCircle, ArrowRight } from "lucide-react";
 import SolanaLogo from "./SolanaLogo";
+
+function getAuthError(error: unknown) {
+  if (!error || typeof error !== "object") return { code: "", message: "" };
+  return {
+    code: "code" in error && typeof error.code === "string" ? error.code : "",
+    message: "message" in error && typeof error.message === "string" ? error.message : "",
+  };
+}
 
 export default function AuthModal() {
   const { loginWithGoogle, loginWithEmail, signUpWithEmail } = useAuth();
@@ -28,9 +36,9 @@ export default function AuthModal() {
       } else {
         await loginWithEmail(email.trim(), password);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Auth error:", err);
-      const code = err?.code || "";
+      const { code, message } = getAuthError(err);
       if (code === "auth/email-already-in-use") {
         setErrorMsg("Email already in use. Try signing in.");
       } else if (code === "auth/wrong-password" || code === "auth/user-not-found" || code === "auth/invalid-credential") {
@@ -40,7 +48,7 @@ export default function AuthModal() {
       } else if (code === "auth/configuration-not-found") {
         setErrorMsg("Authentication method not enabled in Firebase Console. (Go to Firebase Console -> Authentication -> Sign-in method and enable Email/Google).");
       } else {
-        setErrorMsg(err?.message || "Failed to authenticate.");
+        setErrorMsg(message || "Failed to authenticate.");
       }
     }
     setLoading(false);
@@ -51,16 +59,17 @@ export default function AuthModal() {
     setErrorMsg("");
     try {
       await loginWithGoogle();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Social login error:", err);
-      if (err?.code === "auth/configuration-not-found") {
+      const { code, message } = getAuthError(err);
+      if (code === "auth/configuration-not-found") {
         setErrorMsg("Google Sign-In is not enabled for this Firebase project. Enable Google under Authentication → Sign-in method.");
-      } else if (err?.code === "auth/unauthorized-domain") {
+      } else if (code === "auth/unauthorized-domain") {
         setErrorMsg("This site is not an authorized Firebase sign-in domain. Add the current domain under Firebase Authentication → Settings → Authorized domains.");
-      } else if (err?.code === "auth/operation-not-allowed") {
+      } else if (code === "auth/operation-not-allowed") {
         setErrorMsg("Google Sign-In is disabled in Firebase. Enable the Google provider and save it.");
-      } else if (err?.code !== "auth/popup-closed-by-user") {
-        setErrorMsg(err?.message || "Failed to sign in with Google.");
+      } else if (code !== "auth/popup-closed-by-user") {
+        setErrorMsg(message || "Failed to sign in with Google.");
       }
     }
     setLoading(false);
@@ -193,7 +202,7 @@ export default function AuthModal() {
             </p>
           ) : (
             <p className="text-xs text-neutral-400">
-              Don't have an account yet?{" "}
+              Don&apos;t have an account yet?{" "}
               <button
                 type="button"
                 onClick={() => {
@@ -207,6 +216,13 @@ export default function AuthModal() {
             </p>
           )}
         </div>
+
+        <p className="text-center text-[10px] leading-4 text-neutral-500">
+          By creating an account or continuing to use the journal, you acknowledge the{" "}
+          <a href="/terms" className="text-neutral-300 underline underline-offset-2">Terms</a>
+          {" "}and{" "}
+          <a href="/privacy" className="text-neutral-300 underline underline-offset-2">Privacy notice</a>.
+        </p>
       </div>
     </div>
   );

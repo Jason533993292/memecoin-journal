@@ -3,12 +3,13 @@
 import { useState } from "react";
 import { X, Plus, Trash2, Check } from "lucide-react";
 import { JournalRules } from "../lib/types";
+import { useToast } from "./Toast";
 
 interface RuleEditorModalProps {
   isOpen: boolean;
   onClose: () => void;
   rules: JournalRules;
-  onSaveRules: (updated: JournalRules) => void;
+  onSaveRules: (updated: JournalRules) => Promise<void>;
 }
 
 export default function RuleEditorModal({
@@ -17,6 +18,7 @@ export default function RuleEditorModal({
   rules,
   onSaveRules,
 }: RuleEditorModalProps) {
+  const { showToast } = useToast();
   const [riskList, setRiskList] = useState<string[]>([...rules.riskManagement]);
   const [planList, setPlanList] = useState<string[]>([...rules.tradePlan]);
   const [newRisk, setNewRisk] = useState("");
@@ -24,12 +26,22 @@ export default function RuleEditorModal({
 
   if (!isOpen) return null;
 
-  const handleSave = () => {
-    onSaveRules({
-      riskManagement: riskList.filter((r) => r.trim().length > 0),
-      tradePlan: planList.filter((p) => p.trim().length > 0),
-    });
-    onClose();
+  const handleSave = async () => {
+    const riskManagement = riskList.filter((rule) => rule.trim().length > 0);
+    const tradePlan = planList.filter((rule) => rule.trim().length > 0);
+    if (
+      riskManagement.length > 20 || tradePlan.length > 20 ||
+      [...riskManagement, ...tradePlan].some((rule) => rule.length > 300)
+    ) {
+      showToast("Rules exceed the limit", "error", "Use no more than 20 rules per list and keep each under 300 characters.");
+      return;
+    }
+    try {
+      await onSaveRules({ riskManagement, tradePlan });
+      onClose();
+    } catch {
+      // The dashboard displays the cloud-save error and leaves this editor open.
+    }
   };
 
   return (
@@ -63,6 +75,7 @@ export default function RuleEditorModal({
                   <span className="w-5 text-center text-[#9b9a97] font-mono">{index + 1}</span>
                   <input
                     type="text"
+                    maxLength={300}
                     value={item}
                     onChange={(e) => {
                       const updated = [...riskList];
@@ -84,11 +97,16 @@ export default function RuleEditorModal({
             <div className="flex gap-2 mt-2">
               <input
                 type="text"
+                maxLength={300}
                 value={newRisk}
                 onChange={(e) => setNewRisk(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && newRisk.trim()) {
                     e.preventDefault();
+                    if (riskList.length >= 20) {
+                      showToast("Rule limit reached", "error", "Keep up to 20 rules per section.");
+                      return;
+                    }
                     setRiskList([...riskList, newRisk.trim()]);
                     setNewRisk("");
                   }
@@ -100,6 +118,10 @@ export default function RuleEditorModal({
                 type="button"
                 onClick={() => {
                   if (newRisk.trim()) {
+                    if (riskList.length >= 20) {
+                      showToast("Rule limit reached", "error", "Keep up to 20 rules per section.");
+                      return;
+                    }
                     setRiskList([...riskList, newRisk.trim()]);
                     setNewRisk("");
                   }
@@ -122,7 +144,8 @@ export default function RuleEditorModal({
                 <div key={index} className="flex items-center gap-2">
                   <span className="w-5 text-center text-[#9b9a97] font-mono">{index + 1}</span>
                   <input
-                    type="text"
+                  type="text"
+                  maxLength={300}
                     value={item}
                     onChange={(e) => {
                       const updated = [...planList];
@@ -144,11 +167,16 @@ export default function RuleEditorModal({
             <div className="flex gap-2 mt-2">
               <input
                 type="text"
+                maxLength={300}
                 value={newPlan}
                 onChange={(e) => setNewPlan(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && newPlan.trim()) {
                     e.preventDefault();
+                    if (planList.length >= 20) {
+                      showToast("Rule limit reached", "error", "Keep up to 20 rules per section.");
+                      return;
+                    }
                     setPlanList([...planList, newPlan.trim()]);
                     setNewPlan("");
                   }
@@ -160,6 +188,10 @@ export default function RuleEditorModal({
                 type="button"
                 onClick={() => {
                   if (newPlan.trim()) {
+                    if (planList.length >= 20) {
+                      showToast("Rule limit reached", "error", "Keep up to 20 rules per section.");
+                      return;
+                    }
                     setPlanList([...planList, newPlan.trim()]);
                     setNewPlan("");
                   }

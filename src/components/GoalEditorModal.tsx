@@ -9,7 +9,7 @@ interface GoalEditorModalProps {
   isOpen: boolean;
   onClose: () => void;
   goals: GoalSettings;
-  onSaveGoals: (goals: GoalSettings) => void;
+  onSaveGoals: (goals: GoalSettings) => Promise<void>;
 }
 
 export default function GoalEditorModal({
@@ -26,16 +26,6 @@ export default function GoalEditorModal({
   const [maxDailyTrades, setMaxDailyTrades] = useState(String(goals.maxDailyTrades || 6));
 
   useEffect(() => {
-    if (goals) {
-      setWeeklyTarget(String(goals.weeklyPnlSolTarget || 5));
-      setMonthlyTarget(String(goals.monthlyPnlSolTarget || 20));
-      setTargetWinRate(String(goals.targetWinRate || 60));
-      setMaxDailyLoss(String(goals.maxDailyLossSol || 2));
-      setMaxDailyTrades(String(goals.maxDailyTrades || 6));
-    }
-  }, [goals]);
-
-  useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -46,7 +36,7 @@ export default function GoalEditorModal({
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const updated: GoalSettings = {
       weeklyPnlSolTarget: Math.max(0.1, parseFloat(weeklyTarget) || 5),
@@ -55,9 +45,13 @@ export default function GoalEditorModal({
       maxDailyLossSol: Math.max(0.1, parseFloat(maxDailyLoss) || 2),
       maxDailyTrades: Math.max(1, parseInt(maxDailyTrades, 10) || 6),
     };
-    onSaveGoals(updated);
-    showToast("Trading goals updated", "success");
-    onClose();
+    try {
+      await onSaveGoals(updated);
+      showToast("Trading goals updated", "success");
+      onClose();
+    } catch {
+      // The dashboard displays the cloud-save error and keeps the editor open.
+    }
   };
 
   return (
@@ -94,6 +88,7 @@ export default function GoalEditorModal({
                 type="number"
                 step="0.1"
                 min="0.1"
+                max="1000000"
                 value={weeklyTarget}
                 onChange={(e) => setWeeklyTarget(e.target.value)}
                 className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-3 py-2 text-xs font-mono font-medium focus:outline-none focus:border-[#2383e2]"
@@ -111,6 +106,7 @@ export default function GoalEditorModal({
                 type="number"
                 step="0.5"
                 min="0.5"
+                max="1000000"
                 value={monthlyTarget}
                 onChange={(e) => setMonthlyTarget(e.target.value)}
                 className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-3 py-2 text-xs font-mono font-medium focus:outline-none focus:border-[#2383e2]"
@@ -153,6 +149,7 @@ export default function GoalEditorModal({
                     type="number"
                     step="0.1"
                     min="0.1"
+                    max="1000000"
                     value={maxDailyLoss}
                     onChange={(e) => setMaxDailyLoss(e.target.value)}
                     className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-2 text-xs font-mono font-medium focus:outline-none focus:border-[#2383e2]"
@@ -169,6 +166,7 @@ export default function GoalEditorModal({
                   type="number"
                   step="1"
                   min="1"
+                  max="1000"
                   value={maxDailyTrades}
                   onChange={(e) => setMaxDailyTrades(e.target.value)}
                   className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-2 text-xs font-mono font-medium focus:outline-none focus:border-[#2383e2]"

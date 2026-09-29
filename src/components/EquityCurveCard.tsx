@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { Trade } from "../lib/types";
 import { getTradeTimestamp, getTradeDate } from "../lib/utils";
+import { useCurrentTime } from "../lib/useLocalStorage";
 import { DEFAULT_GOOD_TAGS } from "../lib/constants";
 import {
   TrendingUp,
@@ -25,6 +26,7 @@ interface EquityCurveCardProps {
 }
 
 export default function EquityCurveCard({ trades, solPrice = 150 }: EquityCurveCardProps) {
+  const now = useCurrentTime();
   const [timeframe, setTimeframe] = useState<"all" | "30d" | "7d">("all");
   const [currency, setCurrency] = useState<"SOL" | "USD">("SOL");
   const [chartMode, setChartMode] = useState<"equity" | "underwater">("equity");
@@ -32,7 +34,6 @@ export default function EquityCurveCard({ trades, solPrice = 150 }: EquityCurveC
   const [startingCapitalSol, setStartingCapitalSol] = useState<number>(10);
 
   const { chartData, tickMap, netPnl, peakPnl, maxDrawdown, winRate, currentBalance, filteredCount } = useMemo(() => {
-    const now = Date.now();
     const sorted = [...trades].sort((a, b) => {
       return getTradeTimestamp(a) - getTradeTimestamp(b);
     });
@@ -152,7 +153,7 @@ export default function EquityCurveCard({ trades, solPrice = 150 }: EquityCurveC
       currentBalance: parseFloat((baseOffset + runningPnl).toFixed(2)),
       filteredCount: filtered.length,
     };
-  }, [trades, timeframe, currency, solPrice, curveType, startingCapitalSol]);
+  }, [trades, timeframe, currency, solPrice, curveType, startingCapitalSol, now]);
 
   const isPositive = netPnl >= 0;
   const isUnderwater = chartMode === "underwater";

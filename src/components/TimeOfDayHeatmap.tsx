@@ -3,6 +3,8 @@
 import { useState, useMemo, useCallback } from "react";
 import { Trade } from "../lib/types";
 import { Clock, X, TrendingUp, TrendingDown, Activity, Info } from "lucide-react";
+import { getTradeDate, getTradeTimestamp } from "../lib/utils";
+import { useCurrentTime } from "../lib/useLocalStorage";
 
 interface TimeOfDayHeatmapProps {
   trades: Trade[];
@@ -49,6 +51,7 @@ function formatUsdSigned(val: number): string {
 }
 
 export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHeatmapProps) {
+  const now = useCurrentTime();
   const [hoveredCell, setHoveredCell] = useState<{ day: number; hour: number } | null>(null);
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [expandedDay, setExpandedDay] = useState<number | null>(null);
@@ -73,9 +76,7 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
     );
 
     trades.forEach((t) => {
-      const tradeDate = t.date?.seconds
-        ? new Date(t.date.seconds * 1000)
-        : new Date(t.createdAt || Date.now());
+      const tradeDate = getTradeDate(t);
 
       // Convert JS getDay (0=Sun) to our grid (0=Mon)
       const jsDay = tradeDate.getDay();
@@ -228,18 +229,16 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
 
     // All trades for the entire day
     return gridData[expandedDay].flatMap((cell) => cell.trades).sort((a, b) => {
-      const timeA = a.date?.seconds ? a.date.seconds * 1000 : a.createdAt || 0;
-      const timeB = b.date?.seconds ? b.date.seconds * 1000 : b.createdAt || 0;
-      return timeA - timeB;
+      return getTradeTimestamp(a) - getTradeTimestamp(b);
     });
   }, [expandedDay, expandedHour, gridData]);
 
   // Currently hovered cell data
   const hoveredData = hoveredCell ? gridData[hoveredCell.day][hoveredCell.hour] : null;
 
-  const now = new Date();
-  const currentDayIdx = now.getDay() === 0 ? 6 : now.getDay() - 1;
-  const currentHour = now.getHours();
+  const currentDate = new Date(now);
+  const currentDayIdx = now ? (currentDate.getDay() === 0 ? 6 : currentDate.getDay() - 1) : -1;
+  const currentHour = now ? currentDate.getHours() : -1;
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
@@ -450,9 +449,7 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
             {/* Trade Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-[300px] overflow-y-auto pr-1">
               {expandedTrades.map((trade) => {
-                const tradeDate = trade.date?.seconds
-                  ? new Date(trade.date.seconds * 1000)
-                  : new Date(trade.createdAt || Date.now());
+                const tradeDate = getTradeDate(trade);
                 const timeStr = tradeDate.toLocaleTimeString("en-US", {
                   hour: "numeric",
                   minute: "2-digit",

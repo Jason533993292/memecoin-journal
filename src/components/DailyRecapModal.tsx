@@ -156,7 +156,7 @@ ${todaySummary.worstTrade ? `💥 Worst: $${todaySummary.worstTrade.symbol} (${t
             >
               <div>
                 <span className="text-[10px] uppercase font-bold tracking-wider opacity-75">
-                  Today's Net Realized
+                  Today&apos;s Net Realized
                 </span>
                 <div className="text-2xl font-mono font-extrabold mt-0.5">
                   {todaySummary.netPnlSol >= 0 ? `+${todaySummary.netPnlSol}` : todaySummary.netPnlSol} SOL
@@ -168,7 +168,7 @@ ${todaySummary.worstTrade ? `💥 Worst: $${todaySummary.worstTrade.symbol} (${t
 
               <div className="text-right space-y-1">
                 <span className="text-[10px] uppercase font-bold tracking-wider opacity-75 block">
-                  Today's Win Rate
+                  Today&apos;s Win Rate
                 </span>
                 <div className="text-lg font-bold">
                   {todaySummary.winRate}%
@@ -224,7 +224,7 @@ ${todaySummary.worstTrade ? `💥 Worst: $${todaySummary.worstTrade.symbol} (${t
             {(todaySummary.goodTags.length > 0 || todaySummary.mistakes.length > 0) && (
               <div className="p-3 bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl space-y-2">
                 <h4 className="text-[11px] font-bold text-[#787774] uppercase tracking-wider">
-                  Today's Discipline Breakdown
+                  Today&apos;s Discipline Breakdown
                 </h4>
                 <div className="flex flex-wrap gap-1.5">
                   {todaySummary.goodTags.map(([tag, count]) => (

@@ -1,6 +1,7 @@
 "use client";
 
 import { Trade } from "../lib/types";
+import { getTradeTimestamp } from "../lib/utils";
 import {
   X,
   ExternalLink,
@@ -68,8 +69,9 @@ export default function TradeDetailDrawer({
     setTimeout(() => setCopied(false), 1500);
   };
 
-  const dateStr = trade.date?.seconds
-    ? new Date(trade.date.seconds * 1000).toLocaleString("en-US", {
+  const timestamp = getTradeTimestamp(trade);
+  const dateStr = timestamp
+    ? new Date(timestamp).toLocaleString("en-US", {
         weekday: "short",
         month: "short",
         day: "numeric",

@@ -17,6 +17,7 @@ export async function GET() {
       {
         headers: { Accept: "application/json" },
         next: { revalidate: 60 },
+        signal: AbortSignal.timeout(3_000),
       }
     );
 
@@ -39,6 +40,7 @@ export async function GET() {
     // Fallback: Jupiter Price API
     const jupRes = await fetch("https://api.jup.ag/price/v2?ids=So11111111111111111111111111111111111111112", {
       next: { revalidate: 60 },
+      signal: AbortSignal.timeout(3_000),
     });
     if (jupRes.ok) {
       const jupData = await jupRes.json();
@@ -57,12 +59,10 @@ export async function GET() {
     console.error("Jupiter fallback failed:", err);
   }
 
-  // If all fails, fallback to 150
+  if (cachedPrice) return NextResponse.json(cachedPrice);
+
   return NextResponse.json(
-    cachedPrice || {
-      price: 150.0,
-      change24h: 0,
-      timestamp: now,
-    }
+    { error: "Live SOL price is temporarily unavailable." },
+    { status: 503, headers: { "Cache-Control": "no-store" } }
   );
 }

@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import dynamic from "next/dynamic";
-import { db } from "../lib/firebase";
-import { collection, onSnapshot, query, orderBy, doc, deleteDoc, getDoc, setDoc } from "firebase/firestore";
+import { db, type User } from "../lib/firebase";
+import { collection, onSnapshot, query, orderBy, limit, doc, deleteDoc, setDoc } from "firebase/firestore";
 import { Trade, JournalRules, AiCoachBrief, GoalSettings } from "../lib/types";
 import TopBanner from "../components/TopBanner";
 import DashboardView from "../components/DashboardView";
@@ -19,11 +19,38 @@ import CommandPaletteModal from "../components/CommandPaletteModal";
 import ShareablePnlCardModal from "../components/ShareablePnlCardModal";
 import GoalEditorModal from "../components/GoalEditorModal";
 import DailyRecapModal from "../components/DailyRecapModal";
+import AccountDeletionModal from "../components/AccountDeletionModal";
 import { ToastProvider, useToast } from "../components/Toast";
+import { parseLocalStorageValue, useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
 import { Trash2 } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
 import AuthModal from "../components/AuthModal";
+
+const DEFAULT_RULES: JournalRules = {
+  riskManagement: [
+    "Max risk 1 SOL per trade — never risk your rent money.",
+    "Never size more than 10% of total portfolio into a newly launched coin.",
+    "Cut loss immediately if narrative breaks or developer dumps.",
+    "Never average down on a dumping coin. Losers average losers.",
+    "Max 3 losses per session — step away from the keyboard if tilting.",
+  ],
+  tradePlan: [
+    "Filter DexScreener & BullX for volume > $500k and liquidity > $50k.",
+    "Inspect developer wallet, top 10 holders, and bundle percentage on Bubblemaps.",
+    "Wait for 5m consolidation pullback before entering green pumps.",
+    "Take initial investment (50%) out at 2x. Let house money ride.",
+    "Leave a 10-20% moonbag with trailing stop on psychological levels.",
+  ],
+};
+
+const DEFAULT_GOALS: GoalSettings = {
+  weeklyPnlSolTarget: 5,
+  monthlyPnlSolTarget: 20,
+  targetWinRate: 60,
+  maxDailyLossSol: 2,
+  maxDailyTrades: 6,
+};
 
 function SectionLoading() {
   return <div className="min-h-[240px] flex items-center justify-center text-sm text-[#787774]">Loading section…</div>;
@@ -31,12 +58,26 @@ function SectionLoading() {
 
 function MainApp() {
   const { user, loading: authLoading } = useAuth();
+
+  if (authLoading) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-white text-sm text-[#787774]">
+        Loading your private journal…
+      </main>
+    );
+  }
+  if (!user) return <AuthModal />;
+  return <AuthenticatedApp key={user.uid} user={user} />;
+}
+
+function AuthenticatedApp({ user }: { user: User }) {
+  const { showToast } = useToast();
   const [currentTab, setCurrentTab] = useState<string>("dashboard");
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Live SOL Price State
-  const [solPrice, setSolPrice] = useState<number>(150);
+  const [solPrice, setSolPrice] = useState<number>(0);
   const [solChange24h, setSolChange24h] = useState<number>(0);
 
   // Modals & Drawers
@@ -50,134 +91,116 @@ function MainApp() {
   const [sharingTrade, setSharingTrade] = useState<Trade | null>(null);
   const [clonedTrade, setClonedTrade] = useState<Partial<Trade> | null>(null);
   const [tradeToDeleteDirectly, setTradeToDeleteDirectly] = useState<string | null>(null);
+  const [isAccountDeletionOpen, setIsAccountDeletionOpen] = useState(false);
 
-  // Rules state (stored in localStorage + user document)
-  const [rules, setRules] = useState<JournalRules>({
-    riskManagement: [
-      "Max risk 1 SOL per trade — never risk your rent money.",
-      "Never size more than 10% of total portfolio into a newly launched coin.",
-      "Cut loss immediately if narrative breaks or developer dumps.",
-      "Never average down on a dumping coin. Losers average losers.",
-      "Max 3 losses per session — step away from the keyboard if tilting.",
-    ],
-    tradePlan: [
-      "Filter DexScreener & BullX for volume > $500k and liquidity > $50k.",
-      "Inspect developer wallet, top 10 holders, and bundle percentage on Bubblemaps.",
-      "Wait for 5m consolidation pullback before entering green pumps.",
-      "Take initial investment (50%) out at 2x. Let house money ride.",
-      "Leave a 10-20% moonbag with trailing stop on psychological levels.",
-    ],
-  });
-
-  // Goals state
-  const [goals, setGoals] = useState<GoalSettings>({
-    weeklyPnlSolTarget: 5,
-    monthlyPnlSolTarget: 20,
-    targetWinRate: 60,
-    maxDailyLossSol: 2,
-    maxDailyTrades: 6,
-  });
+  // Rules and goals are stored in Firestore per account, not in shared browser keys.
+  const [rules, setRules] = useState<JournalRules>(DEFAULT_RULES);
+  const [goals, setGoals] = useState<GoalSettings>(DEFAULT_GOALS);
 
   // AI Brief state
-  const [aiBrief, setAiBrief] = useState<AiCoachBrief | null>(null);
+  const aiBriefStorageKey = "memecoin_journal_" + user.uid + "_ai_brief";
+  const providerApiKey = useLocalStorageValue("ai_" + user.uid + "_provider_api_key");
+  const storedProvider = useLocalStorageValue("ai_" + user.uid + "_provider");
+  const selectedProvider = storedProvider === "gemini" || storedProvider === "openai"
+    ? storedProvider
+    : "deepseek";
+  const cachedAiBrief = useLocalStorageValue(aiBriefStorageKey);
+  const aiBrief = parseLocalStorageValue<AiCoachBrief | null>(cachedAiBrief, null);
   const [loadingAi, setLoadingAi] = useState(false);
   const [permissionError, setPermissionError] = useState(false);
 
-  // Fetch Live SOL Price
-  const fetchSolPrice = async () => {
-    try {
-      const res = await fetch("/api/sol-price");
-      if (res.ok) {
-        const data = await res.json();
-        if (data.price) setSolPrice(data.price);
-        if (data.change24h !== undefined) setSolChange24h(data.change24h);
-      }
-    } catch (e) {
-      console.error("Failed to fetch SOL price:", e);
-    }
-  };
-
   useEffect(() => {
-    fetchSolPrice();
-    const interval = setInterval(fetchSolPrice, 60000);
-    return () => clearInterval(interval);
+    let active = true;
+    const updateSolPrice = async () => {
+      try {
+        const response = await fetch("/api/sol-price");
+        if (!active || !response.ok) return;
+        const data = await response.json();
+        if (typeof data.price === "number" && Number.isFinite(data.price) && data.price > 0) setSolPrice(data.price);
+        if (data.change24h !== undefined) setSolChange24h(data.change24h);
+      } catch (error) {
+        if (active) console.warn("Live SOL price is unavailable", error);
+      }
+    };
+    void updateSolPrice();
+    const interval = setInterval(() => void updateSolPrice(), 60_000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
   }, []);
 
-  // Load rules, goals & AI brief from user document / localStorage
+  const activeTrades = trades;
+  const activeRules = rules;
+  const activeGoals = goals;
+  const activeAiBrief = aiBrief;
+  const activeLoading = loading;
+
   useEffect(() => {
-    if (!user) {
-      setAiBrief(null);
-      return;
-    }
-    const storageKey = (name: string) => `memecoin_journal_${user.uid}_${name}`;
-    try {
-      const savedRules = localStorage.getItem(storageKey("rules"));
-      if (savedRules) {
-        setRules(JSON.parse(savedRules));
-      }
-      const savedGoals = localStorage.getItem(storageKey("goals"));
-      if (savedGoals) {
-        setGoals(JSON.parse(savedGoals));
-      }
-      const savedAi = localStorage.getItem(storageKey("ai_brief"));
-      if (savedAi) {
-        setAiBrief(JSON.parse(savedAi));
-      }
-    } catch (e) {}
-  }, [user]);
-
-  const handleSaveRules = async (updated: JournalRules) => {
-    setRules(updated);
-    try {
-      if (user) localStorage.setItem(`memecoin_journal_${user.uid}_rules`, JSON.stringify(updated));
-      const targetDoc = user ? doc(db, "users", user.uid, "settings", "preferences") : doc(db, "settings", "user_preferences");
-      await setDoc(targetDoc, { rules: updated }, { merge: true });
-    } catch (e) {}
-  };
-
-  const handleSaveGoals = async (updated: GoalSettings) => {
-    setGoals(updated);
-    try {
-      if (user) localStorage.setItem(`memecoin_journal_${user.uid}_goals`, JSON.stringify(updated));
-      const targetDoc = user ? doc(db, "users", user.uid, "settings", "preferences") : doc(db, "settings", "user_preferences");
-      await setDoc(targetDoc, { goals: updated }, { merge: true });
-    } catch (e) {}
-  };
-
-  // Real-time Firestore subscription + Auto-migration of legacy public trades
-  useEffect(() => {
-    if (!user) {
-      setTrades([]);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-
-    const tradesCollection = collection(db, "users", user.uid, "trades");
-    const q = query(tradesCollection, orderBy("date", "desc"));
-
-    const unsubscribe = onSnapshot(
-      q,
+    const uid = user.uid;
+    const tradeQuery = query(
+      collection(db, "users", uid, "trades"),
+      orderBy("date", "desc"),
+      limit(1000)
+    );
+    const unsubscribeTrades = onSnapshot(
+      tradeQuery,
       (snapshot) => {
-        const fetchedTrades = snapshot.docs.map((d) => ({
-          id: d.id,
-          ...d.data(),
-        })) as Trade[];
-        setTrades(fetchedTrades);
+        setTrades(
+          snapshot.docs.map((tradeDocument) => ({
+            id: tradeDocument.id,
+            ...tradeDocument.data(),
+          })) as Trade[]
+        );
         setPermissionError(false);
         setLoading(false);
       },
-      (error: any) => {
-        console.error("Firestore real-time listener error:", error);
-        if (error?.code === "permission-denied" || error?.message?.includes("permissions")) {
-          setPermissionError(true);
-        }
+      (error: unknown) => {
+        console.error("Firestore trade listener failed", error);
+        setTrades([]);
+        setPermissionError(true);
         setLoading(false);
       }
     );
-    return () => unsubscribe();
-  }, [user]);
+
+    const unsubscribePreferences = onSnapshot(
+      doc(db, "users", uid, "settings", "preferences"),
+      (snapshot) => {
+        const preferences = snapshot.data();
+        setRules((preferences?.rules as JournalRules | undefined) || DEFAULT_RULES);
+        setGoals((preferences?.goals as GoalSettings | undefined) || DEFAULT_GOALS);
+      },
+      (error: unknown) => {
+        console.error("Firestore settings listener failed", error);
+        setPermissionError(true);
+      }
+    );
+
+    return () => {
+      unsubscribeTrades();
+      unsubscribePreferences();
+    };
+  }, [user.uid]);
+
+  const handleSaveRules = async (updated: JournalRules) => {
+    try {
+      await setDoc(doc(db, "users", user.uid, "settings", "preferences"), { rules: updated }, { merge: true });
+      setRules(updated);
+    } catch {
+      showToast("Could not save rules", "error", "Check your connection and try again.");
+      throw new Error("Rule settings could not be saved.");
+    }
+  };
+
+  const handleSaveGoals = async (updated: GoalSettings) => {
+    try {
+      await setDoc(doc(db, "users", user.uid, "settings", "preferences"), { goals: updated }, { merge: true });
+      setGoals(updated);
+    } catch {
+      showToast("Could not save goals", "error", "Check your connection and try again.");
+      throw new Error("Goal settings could not be saved.");
+    }
+  };
 
   // Backwards-compatible trigger for modals
   const fetchTrades = useCallback(() => {}, []);
@@ -188,16 +211,13 @@ function MainApp() {
   };
 
   const confirmDeleteTradeDirectly = async () => {
-    if (!tradeToDeleteDirectly) return;
+    if (!tradeToDeleteDirectly || !user) return;
     const id = tradeToDeleteDirectly;
     setTradeToDeleteDirectly(null);
     try {
-      const tradeDocRef = user
-        ? doc(db, "users", user.uid, "trades", id)
-        : doc(db, "trades", id);
-      await deleteDoc(tradeDocRef);
-    } catch (e) {
-      console.error("Error deleting trade:", e);
+      await deleteDoc(doc(db, "users", user.uid, "trades", id));
+    } catch {
+      showToast("Could not delete this trade", "error", "Check your connection and try again.");
     }
   };
 
@@ -249,18 +269,32 @@ function MainApp() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // AI Brief generator (DeepSeek)
-  const refreshAiBrief = async () => {
-    if (trades.length === 0) return;
+  const refreshAiBrief = useCallback(async () => {
+    if (!user || activeTrades.length === 0) return;
     setLoadingAi(true);
     try {
-      const keyPrefix = user ? `ai_${user.uid}_` : "ai_guest_";
-      const localKey = localStorage.getItem(`${keyPrefix}provider_api_key`);
-      const provider = localStorage.getItem(`${keyPrefix}provider`) || "deepseek";
+      const token = await user.getIdToken();
       const res = await fetch("/api/analyze", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ trades, clientApiKey: localKey, provider }),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + token,
+        },
+        body: JSON.stringify({
+          trades: activeTrades.slice(0, 100).map((trade) => ({
+            symbol: trade.symbol,
+            result: trade.result,
+            pnlSol: trade.pnlSol,
+            pnlUsd: trade.pnlUsd,
+            mistakes: trade.mistakes,
+            goodTags: trade.goodTags,
+            setupType: trade.setupType,
+            createdAt: trade.createdAt,
+            date: trade.date,
+          })),
+          clientApiKey: providerApiKey,
+          provider: selectedProvider,
+        }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -268,24 +302,27 @@ function MainApp() {
           advice: data.advice,
           timestamp: Date.now(),
         };
-        setAiBrief(newBrief);
-        if (user) localStorage.setItem(`memecoin_journal_${user.uid}_ai_brief`, JSON.stringify(newBrief));
+        writeLocalStorageValue(aiBriefStorageKey, JSON.stringify(newBrief));
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showToast("AI review could not run", "error", data.error || "Check the provider key and try again.");
       }
-    } catch (e) {
-      console.error("Error refreshing AI brief:", e);
+    } catch {
+      showToast("AI review could not run", "error", "Check your connection and try again.");
+    } finally {
+      setLoadingAi(false);
     }
-    setLoadingAi(false);
-  };
+  }, [activeTrades, aiBriefStorageKey, providerApiKey, selectedProvider, showToast, user]);
 
   return (
     <div className="min-h-screen bg-white text-[#37352f] flex flex-col font-sans">
-      {/* Top Banner with "TRUST THE PROCESS", live SOL price, Cmd+K trigger and tabs */}
       <TopBanner
         currentTab={currentTab}
         setCurrentTab={setCurrentTab}
         onOpenNewTrade={() => setIsNewTradeModalOpen(true)}
         onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         onOpenDailyRecap={() => setIsDailyRecapOpen(true)}
+        onDeleteAccount={() => setIsAccountDeletionOpen(true)}
         solPrice={solPrice}
         solChange24h={solChange24h}
       />
@@ -299,10 +336,10 @@ function MainApp() {
               <span className="text-xl">⚠️</span>
               <div>
                 <strong className="font-semibold block text-amber-950">
-                  Cloud Firestore Rules Need Update
+                  Journal sync is unavailable
                 </strong>
                 <p className="text-amber-800 text-[11px] mt-0.5">
-                  Your Firebase database is currently in locked mode. Update your Firestore Rules to allow read/write so your journal can sync.
+                  We could not read your private journal data. Check the deployed Firebase rules and your connection. The app never needs public database rules.
                 </p>
               </div>
             </div>
@@ -319,25 +356,27 @@ function MainApp() {
 
         {currentTab === "dashboard" && (
           <DashboardView
-            trades={trades}
-            rules={rules}
-            goals={goals}
+            key={user.uid}
+            trades={activeTrades}
+            rules={activeRules}
+            goals={activeGoals}
             onNavigateTab={setCurrentTab}
             onOpenNewTrade={() => setIsNewTradeModalOpen(true)}
             onOpenRuleEditor={() => setIsRuleEditorOpen(true)}
             onOpenGoalEditor={() => setIsGoalEditorOpen(true)}
             onOpenDailyRecap={() => setIsDailyRecapOpen(true)}
-            aiBrief={aiBrief}
+            aiBrief={activeAiBrief}
             onRefreshAiBrief={refreshAiBrief}
             loadingAi={loadingAi}
-            loading={loading}
+            loading={activeLoading}
             solPrice={solPrice}
           />
         )}
 
         {currentTab === "journal" && (
           <TradeJournalView
-            trades={trades}
+            key={user.uid}
+            trades={activeTrades}
             solPrice={solPrice}
             onOpenNewTrade={() => setIsNewTradeModalOpen(true)}
             onTradeDeleted={fetchTrades}
@@ -346,14 +385,15 @@ function MainApp() {
           />
         )}
 
-        {currentTab === "wallets" && <WalletsView trades={trades} solPrice={solPrice} />}
+        {currentTab === "wallets" && <WalletsView key={user.uid} trades={activeTrades} solPrice={solPrice} />}
 
-        {currentTab === "statistics" && <StatisticsView trades={trades} solPrice={solPrice} />}
+        {currentTab === "statistics" && <StatisticsView key={user.uid} trades={activeTrades} solPrice={solPrice} />}
 
         {currentTab === "ai-coach" && (
           <AiCoachView
-            trades={trades}
-            aiBrief={aiBrief}
+            key={user.uid}
+            trades={activeTrades}
+            aiBrief={activeAiBrief}
             onRefreshAiBrief={refreshAiBrief}
             loadingAi={loadingAi}
           />
@@ -362,6 +402,7 @@ function MainApp() {
 
       {/* Log New Trade Modal */}
       <LogTradeModal
+        key={`${user.uid}:${isNewTradeModalOpen ? clonedTrade?.id || "new" : "closed"}`}
         isOpen={isNewTradeModalOpen}
         onClose={() => {
           setIsNewTradeModalOpen(false);
@@ -374,6 +415,7 @@ function MainApp() {
 
       {/* Edit Trade Modal */}
       <EditTradeModal
+        key={`${user.uid}:${editingTrade?.id || "closed"}`}
         trade={editingTrade}
         isOpen={!!editingTrade}
         onClose={() => setEditingTrade(null)}
@@ -383,6 +425,7 @@ function MainApp() {
 
       {/* Trade Detail Inspector Drawer */}
       <TradeDetailDrawer
+        key={user.uid}
         trade={inspectingTrade}
         isOpen={!!inspectingTrade}
         onClose={() => setInspectingTrade(null)}
@@ -397,17 +440,19 @@ function MainApp() {
 
       {/* Rule Editor Modal */}
       <RuleEditorModal
+        key={`${user.uid}:${isRuleEditorOpen ? "open" : "closed"}`}
         isOpen={isRuleEditorOpen}
         onClose={() => setIsRuleEditorOpen(false)}
-        rules={rules}
+        rules={activeRules}
         onSaveRules={handleSaveRules}
       />
 
       {/* Goal Tracker Editor Modal */}
       <GoalEditorModal
+        key={`${user.uid}:${isGoalEditorOpen ? "open" : "closed"}`}
         isOpen={isGoalEditorOpen}
         onClose={() => setIsGoalEditorOpen(false)}
-        goals={goals}
+        goals={activeGoals}
         onSaveGoals={handleSaveGoals}
       />
 
@@ -415,26 +460,34 @@ function MainApp() {
       <DailyRecapModal
         isOpen={isDailyRecapOpen}
         onClose={() => setIsDailyRecapOpen(false)}
-        trades={trades}
+        trades={activeTrades}
         solPrice={solPrice}
       />
 
       {/* Cmd+K Quick Command Palette */}
       <CommandPaletteModal
+        key={isCommandPaletteOpen ? "open" : "closed"}
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
         onNavigateTab={setCurrentTab}
         onOpenNewTrade={() => setIsNewTradeModalOpen(true)}
-        trades={trades}
+        trades={activeTrades}
         onSelectTrade={(trade) => setInspectingTrade(trade)}
       />
 
       {/* 1-Click Shareable PnL Card Graphic Modal */}
       <ShareablePnlCardModal
+        key={`${user.uid}:${sharingTrade?.id || "closed"}`}
         trade={sharingTrade}
         isOpen={!!sharingTrade}
         onClose={() => setSharingTrade(null)}
         solPrice={solPrice}
+      />
+
+      <AccountDeletionModal
+        key={`${user.uid}:${isAccountDeletionOpen ? "open" : "closed"}`}
+        isOpen={isAccountDeletionOpen}
+        onClose={() => setIsAccountDeletionOpen(false)}
       />
 
       {/* Custom Delete Trade Confirmation Modal */}
@@ -474,8 +527,11 @@ function MainApp() {
           </div>
         </div>
       )}
-      {/* Auth Modal for Unauthenticated Users */}
-      {!user && !authLoading && <AuthModal />}
+      <footer className="mt-auto border-t border-[#e9e9e7] px-4 py-4 text-center text-xs text-[#787774]">
+        <a href="/privacy" className="hover:text-[#2383e2]">Privacy</a>
+        <span className="mx-3" aria-hidden="true">·</span>
+        <a href="/terms" className="hover:text-[#2383e2]">Terms</a>
+      </footer>
     </div>
   );
 }

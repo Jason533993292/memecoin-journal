@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import SolanaLogo from "./SolanaLogo";
 import {
   LayoutDashboard,
@@ -15,7 +16,7 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
-import { LogIn, LogOut, User as UserIcon } from "lucide-react";
+import { LogIn, LogOut, Trash2, User as UserIcon } from "lucide-react";
 
 interface TopBannerProps {
   currentTab: string;
@@ -23,6 +24,7 @@ interface TopBannerProps {
   onOpenNewTrade: () => void;
   onOpenCommandPalette?: () => void;
   onOpenDailyRecap?: () => void;
+  onDeleteAccount?: () => void;
   solPrice?: number;
   solChange24h?: number;
 }
@@ -33,10 +35,12 @@ export default function TopBanner({
   onOpenNewTrade,
   onOpenCommandPalette,
   onOpenDailyRecap,
-  solPrice = 150,
+  onDeleteAccount,
+  solPrice = 0,
   solChange24h = 0,
 }: TopBannerProps) {
   const { user, loginWithGoogle, logout } = useAuth();
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
 
   const tabs = [
     { id: "dashboard", label: "Dashboard", fullLabel: "MemeCoins Dashboard", icon: LayoutDashboard },
@@ -77,9 +81,9 @@ export default function TopBanner({
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {/* Live SOL Price Badge */}
           <div className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 bg-white border border-[#e3e2de] rounded-md text-[11px] font-mono shadow-xs">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span className={`w-2 h-2 rounded-full ${solPrice > 0 ? "bg-emerald-500 animate-pulse" : "bg-neutral-300"}`}></span>
             <span className="text-[#37352f] font-semibold">
-              ${solPrice.toFixed(2)}
+              {solPrice > 0 ? `$${solPrice.toFixed(2)}` : "SOL —"}
             </span>
             {solChange24h !== 0 && (
               <span
@@ -125,25 +129,53 @@ export default function TopBanner({
 
           {/* User Auth Controls */}
           {user ? (
-            <div className="flex items-center gap-2 pl-1 border-l border-[#e3e2de]">
-              {user.photoURL ? (
-                <img
-                  src={user.photoURL}
-                  alt={user.displayName || "User"}
-                  className="w-6 h-6 rounded-full border border-neutral-300"
-                />
-              ) : (
-                <div className="w-6 h-6 rounded-full bg-neutral-200 border border-neutral-300 flex items-center justify-center text-[10px] font-bold text-neutral-700">
-                  {user.email?.charAt(0).toUpperCase() || "U"}
+            <div className="relative flex items-center gap-1 pl-1 border-l border-[#e3e2de]">
+              <button
+                type="button"
+                onClick={() => setAccountMenuOpen((open) => !open)}
+                aria-label="Open account menu"
+                aria-expanded={accountMenuOpen}
+                className="flex items-center gap-1.5 rounded-md p-1 hover:bg-[#eeece8]"
+              >
+                {user.photoURL ? (
+                  <img
+                    src={user.photoURL}
+                    alt=""
+                    className="h-6 w-6 rounded-full border border-neutral-300"
+                  />
+                ) : (
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full border border-neutral-300 bg-neutral-200 text-[10px] font-bold text-neutral-700">
+                    {user.email?.charAt(0).toUpperCase() || "U"}
+                  </span>
+                )}
+                <UserIcon size={13} className="text-[#787774]" />
+              </button>
+              {accountMenuOpen && (
+                <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-[#e3e2de] bg-white p-2 shadow-xl">
+                  <p className="truncate px-2 py-2 text-[11px] text-[#787774]">{user.email}</p>
+                  {onDeleteAccount && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAccountMenuOpen(false);
+                        onDeleteAccount();
+                      }}
+                      className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs text-rose-700 hover:bg-rose-50"
+                    >
+                      <Trash2 size={14} />
+                      Delete account and data
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => void logout()}
+                    className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs text-[#37352f] hover:bg-[#f7f6f3]"
+                  >
+                    <LogOut size={14} />
+                    Sign out
+                  </button>
                 </div>
               )}
-              <button
-                onClick={logout}
-                title="Sign Out"
-                className="p-1 hover:bg-[#eeece8] rounded-md text-[#787774] transition-colors"
-              >
-                <LogOut size={13} />
-              </button>
             </div>
           ) : (
             <button

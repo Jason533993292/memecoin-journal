@@ -1,16 +1,193 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Isolated user scope: Users can only read and write their own document and subcollections
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-      
-      match /{allSubcollections=**} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
-      }
+    // ===============================================================
+    // Assumed data model
+    // ===============================================================
+    // users/{uid}/trades/{tradeId}
+    //   Owner-only trade journal data. Required fields: ca, name, symbol,
+    //   wallet, result, setupType, boughtSol, pnlSol, pnlUsd, mistakes,
+    //   date (server timestamp). Notes and createdAt are optional to keep
+    //   older owner records editable; new app writes include both.
+    //   Other numeric entry/exit/risk values, tags, screenshot, and metadata
+    //   are optional. Trade IDs are Firestore document IDs, not data fields.
+    //
+    // users/{uid}/settings/preferences
+    //   Owner-only rules and goals. A document may contain either or both.
+    //   API keys and authentication credentials are never stored here.
+    //
+    // All other document paths are denied. The application currently stores
+    // no screenshots in Firebase Storage; screenshots are small data URLs in
+    // each user's trade document and are size-limited below.
+
+    function isAuthenticated() {
+      return request.auth != null;
     }
 
-    // Default deny all other paths
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    function validString(data, field, minLength, maxLength) {
+      return data[field] is string
+        && data[field].size() >= minLength
+        && data[field].size() <= maxLength;
+    }
+
+    function validOptionalString(data, field, maxLength) {
+      return !(field in data)
+        || data[field] == null
+        || (data[field] is string && data[field].size() <= maxLength);
+    }
+
+    function validOptionalNumber(data, field, minimum, maximum) {
+      return !(field in data)
+        || data[field] == null
+        || (data[field] is number && data[field] >= minimum && data[field] <= maximum);
+    }
+
+    // Rules cannot iterate list elements. These explicit bounded checks keep
+    // every accepted tag/rule item a short string, not merely a bounded list.
+    function validShortStringList(values, maxItems, maxLength) {
+      return values is list
+        && values.size() <= maxItems
+        && (values.size() < 1 || (values[0] is string && values[0].size() <= maxLength))
+        && (values.size() < 2 || (values[1] is string && values[1].size() <= maxLength))
+        && (values.size() < 3 || (values[2] is string && values[2].size() <= maxLength))
+        && (values.size() < 4 || (values[3] is string && values[3].size() <= maxLength))
+        && (values.size() < 5 || (values[4] is string && values[4].size() <= maxLength))
+        && (values.size() < 6 || (values[5] is string && values[5].size() <= maxLength))
+        && (values.size() < 7 || (values[6] is string && values[6].size() <= maxLength))
+        && (values.size() < 8 || (values[7] is string && values[7].size() <= maxLength))
+        && (values.size() < 9 || (values[8] is string && values[8].size() <= maxLength))
+        && (values.size() < 10 || (values[9] is string && values[9].size() <= maxLength))
+        && (values.size() < 11 || (values[10] is string && values[10].size() <= maxLength))
+        && (values.size() < 12 || (values[11] is string && values[11].size() <= maxLength))
+        && (values.size() < 13 || (values[12] is string && values[12].size() <= maxLength))
+        && (values.size() < 14 || (values[13] is string && values[13].size() <= maxLength))
+        && (values.size() < 15 || (values[14] is string && values[14].size() <= maxLength))
+        && (values.size() < 16 || (values[15] is string && values[15].size() <= maxLength))
+        && (values.size() < 17 || (values[16] is string && values[16].size() <= maxLength))
+        && (values.size() < 18 || (values[17] is string && values[17].size() <= maxLength))
+        && (values.size() < 19 || (values[18] is string && values[18].size() <= maxLength))
+        && (values.size() < 20 || (values[19] is string && values[19].size() <= maxLength));
+    }
+
+    function validTrade(data) {
+      return data.keys().hasOnly([
+          'ca', 'name', 'symbol', 'wallet', 'result', 'setupType', 'mcap',
+          'liquidity', 'entryLiquidityUsd', 'exitLiquidityUsd',
+          'entryMarketCapUsd', 'exitMarketCapUsd', 'slippagePct', 'dex',
+          'executionType', 'wouldTakeAgain', 'tradeQualityScore', 'price',
+          'boughtSol', 'boughtUsd', 'soldSol', 'soldUsd', 'pnlSol', 'pnlUsd',
+          'mistakes', 'goodTags', 'isPaper', 'notes', 'screenshotUrl',
+          'durationMinutes', 'entryTime', 'exitTime', 'initialRiskSol',
+          'stopPrice', 'feesSol', 'entryTimezoneOffset', 'date', 'createdAt'
+        ])
+        && data.keys().hasAll([
+          'ca', 'name', 'symbol', 'wallet', 'result', 'setupType',
+          'boughtSol', 'pnlSol', 'pnlUsd', 'mistakes', 'date'
+        ])
+        && validString(data, 'ca', 0, 64)
+        && validString(data, 'name', 1, 120)
+        && validString(data, 'symbol', 1, 40)
+        && validString(data, 'wallet', 1, 80)
+        && validString(data, 'setupType', 1, 120)
+        && data.result in ['Win', 'Loss', 'BE']
+        && data.boughtSol is number && data.boughtSol >= 0 && data.boughtSol <= 100000000
+        && data.pnlSol is number && data.pnlSol >= -100000000 && data.pnlSol <= 100000000
+        && data.pnlUsd is number && data.pnlUsd >= -100000000000 && data.pnlUsd <= 100000000000
+        && data.mistakes is list && data.mistakes.size() <= 20
+        && validShortStringList(data.mistakes, 20, 80)
+        && validOptionalString(data, 'notes', 4000)
+        && data.date is timestamp
+        && validOptionalNumber(data, 'createdAt', 0, 10000000000000)
+        && validOptionalNumber(data, 'boughtUsd', 0, 100000000000)
+        && validOptionalNumber(data, 'soldSol', 0, 100000000)
+        && validOptionalNumber(data, 'soldUsd', 0, 100000000000)
+        && validOptionalNumber(data, 'mcap', 0, 1000000000000)
+        && validOptionalNumber(data, 'liquidity', 0, 1000000000000)
+        && validOptionalNumber(data, 'entryLiquidityUsd', 0, 1000000000000)
+        && validOptionalNumber(data, 'exitLiquidityUsd', 0, 1000000000000)
+        && validOptionalNumber(data, 'entryMarketCapUsd', 0, 1000000000000)
+        && validOptionalNumber(data, 'exitMarketCapUsd', 0, 1000000000000)
+        && validOptionalNumber(data, 'slippagePct', 0, 100)
+        && validOptionalNumber(data, 'price', 0, 1000000000)
+        && validOptionalNumber(data, 'initialRiskSol', 0, 100000000)
+        && validOptionalNumber(data, 'stopPrice', 0, 1000000000)
+        && validOptionalNumber(data, 'feesSol', 0, 100000000)
+        && validOptionalNumber(data, 'durationMinutes', 0, 525600)
+        && validOptionalNumber(data, 'entryTimezoneOffset', -840, 840)
+        && validOptionalNumber(data, 'tradeQualityScore', 0, 100)
+        && validOptionalString(data, 'dex', 80)
+        && validOptionalString(data, 'entryTime', 80)
+        && validOptionalString(data, 'exitTime', 80)
+        && validOptionalString(data, 'screenshotUrl', 500000)
+        && validOptionalString(data, 'executionType', 20)
+        && (!('executionType' in data) || data.executionType == null
+          || data.executionType in ['discretionary', 'momentum', 'sniper', 'copy', 'other'])
+        && (!('wouldTakeAgain' in data) || data.wouldTakeAgain == null || data.wouldTakeAgain is bool)
+        && (!('isPaper' in data) || data.isPaper == null || data.isPaper is bool)
+        && (!('goodTags' in data) || data.goodTags == null
+          || validShortStringList(data.goodTags, 20, 80));
+    }
+
+    function validRules(rules) {
+      return rules is map
+        && rules.keys().hasOnly(['riskManagement', 'tradePlan'])
+        && rules.keys().hasAll(['riskManagement', 'tradePlan'])
+        && validShortStringList(rules.riskManagement, 20, 300)
+        && validShortStringList(rules.tradePlan, 20, 300);
+    }
+
+    function validGoals(goals) {
+      return goals is map
+        && goals.keys().hasOnly([
+          'weeklyPnlSolTarget', 'monthlyPnlSolTarget', 'targetWinRate',
+          'maxDailyLossSol', 'maxDailyTrades'
+        ])
+        && goals.keys().hasAll([
+          'weeklyPnlSolTarget', 'monthlyPnlSolTarget', 'targetWinRate',
+          'maxDailyLossSol', 'maxDailyTrades'
+        ])
+        && goals.weeklyPnlSolTarget is number
+        && goals.weeklyPnlSolTarget >= 0 && goals.weeklyPnlSolTarget <= 1000000
+        && goals.monthlyPnlSolTarget is number
+        && goals.monthlyPnlSolTarget >= 0 && goals.monthlyPnlSolTarget <= 1000000
+        && goals.targetWinRate is number && goals.targetWinRate >= 0 && goals.targetWinRate <= 100
+        && goals.maxDailyLossSol is number
+        && goals.maxDailyLossSol >= 0 && goals.maxDailyLossSol <= 1000000
+        && goals.maxDailyTrades is number && goals.maxDailyTrades >= 0 && goals.maxDailyTrades <= 1000;
+    }
+
+    function validPreferences(data) {
+      return data.keys().hasOnly(['rules', 'goals'])
+        && data.keys().hasAny(['rules', 'goals'])
+        && (!('rules' in data) || validRules(data.rules))
+        && (!('goals' in data) || validGoals(data.goals));
+    }
+
+    match /users/{uid}/trades/{tradeId} {
+      allow read, delete: if isOwner(uid);
+      allow create: if isOwner(uid)
+        && validTrade(request.resource.data)
+        && request.resource.data.notes is string
+        && request.resource.data.createdAt is number;
+      allow update: if isOwner(uid)
+        && validTrade(request.resource.data)
+        && request.resource.data.date == resource.data.date
+        && (!('createdAt' in resource.data)
+          || request.resource.data.createdAt == resource.data.createdAt);
+    }
+
+    match /users/{uid}/settings/{settingId} {
+      allow read, delete: if isOwner(uid) && settingId == 'preferences';
+      allow create, update: if isOwner(uid)
+        && settingId == 'preferences'
+        && validPreferences(request.resource.data);
+    }
+
+    // Default deny for user roots, undeclared subcollections, and all other data.
     match /{document=**} {
       allow read, write: if false;
     }

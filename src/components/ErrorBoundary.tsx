@@ -35,7 +35,7 @@ export default class ErrorBoundary extends Component<Props, State> {
           </div>
           <h1 className="text-xl font-bold mb-2">Something went wrong</h1>
           <p className="text-sm text-neutral-400 max-w-md mb-6">
-            An unexpected error occurred in the application. Don't worry—your trade logs are safely stored.
+            An unexpected error occurred in the application. Don&apos;t worry—your trade logs are safely stored.
           </p>
           <button
             onClick={() => window.location.reload()}

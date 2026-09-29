@@ -42,86 +42,63 @@ export default function EditTradeModal({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
 
-  const [ca, setCa] = useState("");
-  const [name, setName] = useState("");
-  const [symbol, setSymbol] = useState("");
+  const [ca, setCa] = useState(trade?.ca || "");
+  const [name, setName] = useState(trade?.name || "");
+  const [symbol, setSymbol] = useState(trade?.symbol || "");
   const [saving, setSaving] = useState(false);
 
-  const [mcap, setMcap] = useState<number | undefined>(undefined);
-  const [liquidity, setLiquidity] = useState<number | undefined>(undefined);
-  const [price, setPrice] = useState<number | undefined>(undefined);
+  const [mcap, setMcap] = useState<number | undefined>(trade?.mcap);
+  const [liquidity, setLiquidity] = useState<number | undefined>(trade?.liquidity);
+  const [price, setPrice] = useState<number | undefined>(trade?.price);
 
   // Trade fields
-  const [wallet, setWallet] = useState("Main");
-  const [result, setResult] = useState<"Win" | "Loss" | "BE">("Win");
-  const [setupType, setSetupType] = useState<string>("Breakout / ATH Push");
+  const [wallet, setWallet] = useState(trade?.wallet || "Main");
+  const [result, setResult] = useState<"Win" | "Loss" | "BE">(trade?.result || "Win");
+  const [setupType, setSetupType] = useState<string>(trade?.setupType || "Breakout / ATH Push");
   const [customSetup, setCustomSetup] = useState("");
-  const [durationMinutes, setDurationMinutes] = useState<number | undefined>(15);
-  const [screenshotUrl, setScreenshotUrl] = useState<string>("");
+  const [durationMinutes, setDurationMinutes] = useState<number | undefined>(trade?.durationMinutes || 15);
+  const [screenshotUrl, setScreenshotUrl] = useState<string>(trade?.screenshotUrl || "");
 
-  const [boughtSol, setBoughtSol] = useState("");
-  const [boughtUsd, setBoughtUsd] = useState("");
-  const [soldSol, setSoldSol] = useState("");
-  const [soldUsd, setSoldUsd] = useState("");
-  const [pnlSol, setPnlSol] = useState("");
-  const [pnlUsd, setPnlUsd] = useState("");
-  const [initialRiskSol, setInitialRiskSol] = useState("");
-  const [feesSol, setFeesSol] = useState("");
-  const [stopPrice, setStopPrice] = useState("");
-  const [entryLiquidityUsd, setEntryLiquidityUsd] = useState("");
-  const [exitLiquidityUsd, setExitLiquidityUsd] = useState("");
-  const [entryMarketCapUsd, setEntryMarketCapUsd] = useState("");
-  const [exitMarketCapUsd, setExitMarketCapUsd] = useState("");
-  const [slippagePct, setSlippagePct] = useState("");
+  const [boughtSol, setBoughtSol] = useState(trade?.boughtSol != null ? String(trade.boughtSol) : "");
+  const [boughtUsd, setBoughtUsd] = useState(
+    trade?.boughtUsd != null
+      ? String(trade.boughtUsd)
+      : trade?.boughtSol != null && solPrice > 0
+        ? (trade.boughtSol * solPrice).toFixed(2)
+        : ""
+  );
+  const [soldSol, setSoldSol] = useState(trade?.soldSol != null ? String(trade.soldSol) : "");
+  const [soldUsd, setSoldUsd] = useState(
+    trade?.soldUsd != null
+      ? String(trade.soldUsd)
+      : trade?.soldSol != null && solPrice > 0
+        ? (trade.soldSol * solPrice).toFixed(2)
+        : ""
+  );
+  const [pnlSol, setPnlSol] = useState(trade?.pnlSol != null ? String(trade.pnlSol) : "");
+  const [pnlUsd, setPnlUsd] = useState(
+    trade?.pnlUsd != null
+      ? String(trade.pnlUsd)
+      : trade?.pnlSol != null && solPrice > 0
+        ? (trade.pnlSol * solPrice).toFixed(2)
+        : ""
+  );
+  const [initialRiskSol, setInitialRiskSol] = useState(trade?.initialRiskSol != null ? String(trade.initialRiskSol) : "");
+  const [feesSol, setFeesSol] = useState(trade?.feesSol != null ? String(trade.feesSol) : "");
+  const [stopPrice, setStopPrice] = useState(trade?.stopPrice != null ? String(trade.stopPrice) : "");
+  const [entryLiquidityUsd, setEntryLiquidityUsd] = useState(trade?.entryLiquidityUsd != null ? String(trade.entryLiquidityUsd) : "");
+  const [exitLiquidityUsd, setExitLiquidityUsd] = useState(trade?.exitLiquidityUsd != null ? String(trade.exitLiquidityUsd) : "");
+  const [entryMarketCapUsd, setEntryMarketCapUsd] = useState(trade?.entryMarketCapUsd != null ? String(trade.entryMarketCapUsd) : "");
+  const [exitMarketCapUsd, setExitMarketCapUsd] = useState(trade?.exitMarketCapUsd != null ? String(trade.exitMarketCapUsd) : "");
+  const [slippagePct, setSlippagePct] = useState(trade?.slippagePct != null ? String(trade.slippagePct) : "");
   const [currencyMode, setCurrencyMode] = useState<"SOL" | "USD">("SOL");
 
-  const [selectedMistakes, setSelectedMistakes] = useState<string[]>([]);
-  const [selectedGoodTags, setSelectedGoodTags] = useState<string[]>([]);
-  const [notes, setNotes] = useState("");
-  const [showAdvanced, setShowAdvanced] = useState(false);
-
-  useEffect(() => {
-    if (trade) {
-      setCa(trade.ca || "");
-      setName(trade.name || "");
-      setSymbol(trade.symbol || "");
-      setWallet(trade.wallet || "Main");
-      setResult(trade.result || "Win");
-      setSetupType(trade.setupType || "Breakout / ATH Push");
-      setDurationMinutes(trade.durationMinutes || 15);
-      setScreenshotUrl(trade.screenshotUrl || "");
-
-      const bSol = trade.boughtSol !== undefined ? String(trade.boughtSol) : "";
-      const sSol = trade.soldSol !== undefined ? String(trade.soldSol) : "";
-      const pSol = trade.pnlSol !== undefined ? String(trade.pnlSol) : "";
-
-      setBoughtSol(bSol);
-      setBoughtUsd(trade.boughtUsd ? String(trade.boughtUsd) : bSol ? (parseFloat(bSol) * solPrice).toFixed(2) : "");
-      setSoldSol(sSol);
-      setSoldUsd(trade.soldUsd ? String(trade.soldUsd) : sSol ? (parseFloat(sSol) * solPrice).toFixed(2) : "");
-      setPnlSol(pSol);
-      setPnlUsd(trade.pnlUsd ? String(trade.pnlUsd) : pSol ? (parseFloat(pSol) * solPrice).toFixed(2) : "");
-      setInitialRiskSol(trade.initialRiskSol !== undefined && trade.initialRiskSol !== null ? String(trade.initialRiskSol) : "");
-      setFeesSol(trade.feesSol !== undefined && trade.feesSol !== null ? String(trade.feesSol) : "");
-      setStopPrice(trade.stopPrice !== undefined && trade.stopPrice !== null ? String(trade.stopPrice) : "");
-      setEntryLiquidityUsd(trade.entryLiquidityUsd ? String(trade.entryLiquidityUsd) : "");
-      setExitLiquidityUsd(trade.exitLiquidityUsd ? String(trade.exitLiquidityUsd) : "");
-      setEntryMarketCapUsd(trade.entryMarketCapUsd ? String(trade.entryMarketCapUsd) : "");
-      setExitMarketCapUsd(trade.exitMarketCapUsd ? String(trade.exitMarketCapUsd) : "");
-      setSlippagePct(trade.slippagePct ? String(trade.slippagePct) : "");
-
-      if (trade.initialRiskSol || trade.feesSol || trade.stopPrice) {
-        setShowAdvanced(true);
-      }
-
-      setSelectedMistakes(trade.mistakes || []);
-      setSelectedGoodTags(trade.goodTags || []);
-      setNotes(trade.notes || "");
-      setMcap(trade.mcap);
-      setLiquidity(trade.liquidity);
-      setPrice(trade.price);
-    }
-  }, [trade, solPrice]);
+  const [selectedMistakes, setSelectedMistakes] = useState<string[]>(trade?.mistakes || []);
+  const [selectedGoodTags, setSelectedGoodTags] = useState<string[]>(trade?.goodTags || []);
+  const [notes, setNotes] = useState(trade?.notes || "");
+  const [showAdvanced, setShowAdvanced] = useState(
+    Boolean(trade?.initialRiskSol || trade?.feesSol || trade?.stopPrice)
+  );
 
   // Global Clipboard Paste Listener for screenshots with compression
   useEffect(() => {
@@ -213,6 +190,10 @@ export default function EditTradeModal({
 
   const switchCurrencyMode = (newMode: "SOL" | "USD") => {
     if (newMode === currencyMode) return;
+    if (newMode === "USD" && solPrice <= 0) {
+      showToast("Live SOL price is unavailable", "info", "Try again in a moment before entering amounts in USD.");
+      return;
+    }
 
     if (newMode === "USD") {
       const sBought = parseFloat(boughtSol);
@@ -234,11 +215,12 @@ export default function EditTradeModal({
   };
 
   const handleBoughtChange = (val: string, isSol: boolean) => {
+    if (!isSol && solPrice <= 0) return;
     const num = parseFloat(val);
     if (isSol) {
       setBoughtSol(val);
       if (!isNaN(num)) {
-        setBoughtUsd((num * solPrice).toFixed(2));
+        setBoughtUsd(solPrice > 0 ? (num * solPrice).toFixed(2) : "");
         if (soldSol) recalculatePnl(num, parseFloat(soldSol) || 0);
       } else {
         setBoughtUsd("");
@@ -256,11 +238,12 @@ export default function EditTradeModal({
   };
 
   const handleSoldChange = (val: string, isSol: boolean) => {
+    if (!isSol && solPrice <= 0) return;
     const num = parseFloat(val);
     if (isSol) {
       setSoldSol(val);
       if (!isNaN(num)) {
-        setSoldUsd((num * solPrice).toFixed(2));
+        setSoldUsd(solPrice > 0 ? (num * solPrice).toFixed(2) : "");
         if (boughtSol) recalculatePnl(parseFloat(boughtSol) || 0, num);
       } else {
         setSoldUsd("");
@@ -278,11 +261,12 @@ export default function EditTradeModal({
   };
 
   const handlePnlChange = (val: string, isSol: boolean) => {
+    if (!isSol && solPrice <= 0) return;
     const num = parseFloat(val);
     if (isSol) {
       setPnlSol(val);
       if (!isNaN(num)) {
-        setPnlUsd((num * solPrice).toFixed(2));
+        setPnlUsd(solPrice > 0 ? (num * solPrice).toFixed(2) : "");
         if (num > 0.005) setResult("Win");
         else if (num < -0.005) setResult("Loss");
         else setResult("BE");
@@ -301,29 +285,41 @@ export default function EditTradeModal({
   };
 
   const toggleGoodTag = (tag: string) => {
-    setSelectedGoodTags((prev) =>
-      prev.includes(tag) ? prev.filter((g) => g !== tag) : [...prev, tag]
-    );
+    if (selectedGoodTags.includes(tag)) {
+      setSelectedGoodTags(selectedGoodTags.filter((current) => current !== tag));
+    } else if (selectedGoodTags.length >= 20) {
+      showToast("Tag limit reached", "error", "Choose up to 20 execution tags per trade.");
+    } else {
+      setSelectedGoodTags([...selectedGoodTags, tag]);
+    }
   };
 
   const toggleMistake = (tag: string) => {
-    setSelectedMistakes((prev) =>
-      prev.includes(tag) ? prev.filter((m) => m !== tag) : [...prev, tag]
-    );
+    if (selectedMistakes.includes(tag)) {
+      setSelectedMistakes(selectedMistakes.filter((current) => current !== tag));
+    } else if (selectedMistakes.length >= 20) {
+      showToast("Tag limit reached", "error", "Choose up to 20 mistakes per trade.");
+    } else {
+      setSelectedMistakes([...selectedMistakes, tag]);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!trade) return;
+    if (solPrice <= 0 && (!boughtUsd.trim() || !soldUsd.trim() || !pnlUsd.trim())) {
+      showToast("Cannot calculate USD values yet", "error", "Wait for the live SOL price to load before editing this trade.");
+      return;
+    }
 
     setSaving(true);
     try {
       const parsedPnlSol = parseFloat(pnlSol) || 0;
-      const parsedPnlUsd = parseFloat(pnlUsd) || parsedPnlSol * solPrice;
+      const parsedPnlUsd = pnlUsd.trim() ? Number.parseFloat(pnlUsd) || 0 : parsedPnlSol * solPrice;
       const parsedBoughtSol = parseFloat(boughtSol) || 0;
-      const parsedBoughtUsd = parseFloat(boughtUsd) || parsedBoughtSol * solPrice;
+      const parsedBoughtUsd = boughtUsd.trim() ? Number.parseFloat(boughtUsd) || 0 : parsedBoughtSol * solPrice;
       const parsedSoldSol = parseFloat(soldSol) || parsedBoughtSol + parsedPnlSol;
-      const parsedSoldUsd = parseFloat(soldUsd) || parsedSoldSol * solPrice;
+      const parsedSoldUsd = soldUsd.trim() ? Number.parseFloat(soldUsd) || 0 : parsedSoldSol * solPrice;
       const parsedInitialRiskSol = parseFloat(initialRiskSol) || null;
       const parsedFeesSol = parseFloat(feesSol) || null;
       const parsedStopPrice = parseFloat(stopPrice) || null;
@@ -336,9 +332,8 @@ export default function EditTradeModal({
       const finalSetup = customSetup.trim() || setupType;
 
       const currentUser = auth.currentUser;
-      const tradeRef = currentUser
-        ? doc(db, "users", currentUser.uid, "trades", trade.id)
-        : doc(db, "trades", trade.id);
+      if (!currentUser) throw new Error("Please sign in before editing a trade.");
+      const tradeRef = doc(db, "users", currentUser.uid, "trades", trade.id);
 
       await updateDoc(tradeRef, {
         ca: ca.trim(),
@@ -802,6 +797,7 @@ export default function EditTradeModal({
               rows={2}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
+              maxLength={4000}
               className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg p-2.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2] resize-none"
             />
           </div>

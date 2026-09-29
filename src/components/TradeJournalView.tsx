@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { exportTradesToCSV, exportTradesToJSON, parseCSV } from "../lib/exportImport";
 import { getTradeTimestamp, getTradeDate } from "../lib/utils";
+import { useCurrentTime } from "../lib/useLocalStorage";
 import { useToast } from "./Toast";
 import ImageLightboxModal from "./ImageLightboxModal";
 
@@ -53,6 +54,7 @@ export default function TradeJournalView({
   onOpenEditTrade,
   onSelectTrade,
 }: TradeJournalViewProps) {
+  const now = useCurrentTime();
   const { showToast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterResult, setFilterResult] = useState<string>("All");
@@ -113,9 +115,8 @@ export default function TradeJournalView({
     
     try {
       const currentUser = auth.currentUser;
-      const tradeDocRef = currentUser
-        ? doc(db, "users", currentUser.uid, "trades", id)
-        : doc(db, "trades", id);
+      if (!currentUser) throw new Error("Please sign in to delete this trade.");
+      const tradeDocRef = doc(db, "users", currentUser.uid, "trades", id);
       await deleteDoc(tradeDocRef);
       showToast("Trade deleted from Firestore", "info");
       onTradeDeleted();
@@ -134,9 +135,14 @@ export default function TradeJournalView({
 
     try {
       const text = await file.text();
-      let imported: any[] = [];
+      let imported: Array<Record<string, unknown>> = [];
       if (file.name.endsWith(".json")) {
-        imported = JSON.parse(text);
+        const parsed: unknown = JSON.parse(text);
+        imported = Array.isArray(parsed)
+          ? parsed.filter((item): item is Record<string, unknown> =>
+              Boolean(item) && typeof item === "object" && !Array.isArray(item)
+            )
+          : [];
       } else if (file.name.endsWith(".csv")) {
         const rows = parseCSV(text);
         if (rows.length <= 1) throw new Error("Empty CSV file");
@@ -171,9 +177,8 @@ export default function TradeJournalView({
       if (Array.isArray(imported) && imported.length > 0) {
         let count = 0;
         const currentUser = auth.currentUser;
-        const tradesCol = currentUser
-          ? collection(db, "users", currentUser.uid, "trades")
-          : collection(db, "trades");
+        if (!currentUser) throw new Error("Please sign in to import trades.");
+        const tradesCol = collection(db, "users", currentUser.uid, "trades");
 
         for (const item of imported) {
           await addDoc(tradesCol, {
@@ -218,8 +223,10 @@ export default function TradeJournalView({
 
   // Filter & Sort Trades
   const filteredTrades = useMemo(() => {
-    const now = Date.now();
-    const todayStart = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).getTime();
+    const currentDate = new Date(now);
+    const todayStart = now
+      ? new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate()).getTime()
+      : 0;
 
     return trades
       .filter((trade) => !deletedIds.includes(trade.id))
@@ -261,7 +268,7 @@ export default function TradeJournalView({
         if (sortBy === "size-desc") return (b.boughtSol || 0) - (a.boughtSol || 0);
         return 0;
       });
-  }, [trades, searchQuery, filterResult, filterWallet, filterSetup, filterMistake, dateRange, sortBy]);
+  }, [trades, searchQuery, filterResult, filterWallet, filterSetup, filterMistake, dateRange, sortBy, now]);
 
   const totalFilteredPnl = filteredTrades.reduce((acc, t) => acc + (t.pnlSol || 0), 0);
 
@@ -465,7 +472,7 @@ export default function TradeJournalView({
         <div className="flex items-center gap-2">
           <select
             value={sortBy}
-            onChange={(e: any) => setSortBy(e.target.value)}
+            onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
             className="bg-[#fbfbfa] border border-[#e3e2de] rounded-md px-2 py-1 text-xs text-[#37352f] focus:outline-none"
           >
             <option value="date-desc">Newest First</option>
@@ -533,8 +540,9 @@ export default function TradeJournalView({
         /* Cards Grid View */
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredTrades.map((trade) => {
-            const dateStr = trade.date?.seconds
-              ? new Date(trade.date.seconds * 1000).toLocaleDateString("en-US", {
+            const timestamp = getTradeTimestamp(trade);
+            const dateStr = timestamp
+              ? new Date(timestamp).toLocaleDateString("en-US", {
                   month: "short",
                   day: "numeric",
                   hour: "2-digit",
@@ -712,8 +720,9 @@ export default function TradeJournalView({
               </thead>
               <tbody>
                 {filteredTrades.map((trade) => {
-                  const dateStr = trade.date?.seconds
-                    ? new Date(trade.date.seconds * 1000).toLocaleDateString("en-US", {
+                  const timestamp = getTradeTimestamp(trade);
+                  const dateStr = timestamp
+                    ? new Date(timestamp).toLocaleDateString("en-US", {
                         month: "short",
                         day: "numeric",
                         hour: "2-digit",

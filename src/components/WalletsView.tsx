@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Trade, Wallet, WalletTransaction } from "../lib/types";
 import {
   Lock,
@@ -23,6 +23,8 @@ import {
 import DepositPaycheckModal from "./DepositPaycheckModal";
 import { useToast } from "./Toast";
 import { useAuth } from "../context/AuthContext";
+import { parseLocalStorageValue, useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
+import { getTradeTimestamp } from "../lib/utils";
 
 interface WalletsViewProps {
   trades: Trade[];
@@ -31,12 +33,25 @@ interface WalletsViewProps {
 
 const DEFAULT_WALLETS: Wallet[] = [];
 
+function createLocalId(prefix: string) {
+  return `${prefix}-${globalThis.crypto.randomUUID()}`;
+}
+
 export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps) {
   const { user } = useAuth();
   const storagePrefix = user ? `memecoin_journal_${user.uid}_` : "memecoin_journal_guest_";
   const { showToast } = useToast();
-  const [wallets, setWallets] = useState<Wallet[]>(DEFAULT_WALLETS);
-  const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
+  const storedWallets = useLocalStorageValue(`${storagePrefix}wallets`);
+  const storedTransactions = useLocalStorageValue(`${storagePrefix}wallet_txs`);
+  const storedPaperCapital = useLocalStorageValue(`${storagePrefix}paper_capital`);
+  const walletsValue = parseLocalStorageValue<unknown>(storedWallets, DEFAULT_WALLETS);
+  const wallets = Array.isArray(walletsValue) ? walletsValue as Wallet[] : DEFAULT_WALLETS;
+  const transactionsValue = parseLocalStorageValue<unknown>(storedTransactions, []);
+  const transactions = Array.isArray(transactionsValue) ? transactionsValue as WalletTransaction[] : [];
+  const parsedPaperCapital = Number.parseFloat(storedPaperCapital || "");
+  const paperCapitalSol = Number.isFinite(parsedPaperCapital) && parsedPaperCapital >= 0
+    ? parsedPaperCapital
+    : 25;
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
 
   // Live On-Chain Address Checker
@@ -46,7 +61,6 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
   const [lookupResult, setLookupResult] = useState<{ address: string; balanceSol: number } | null>(null);
 
   // Paper Trading Balance
-  const [paperCapitalSol, setPaperCapitalSol] = useState<number>(25.0);
   const [isEditingPaperCapital, setIsEditingPaperCapital] = useState(false);
   const [tempPaperCapital, setTempPaperCapital] = useState("25.0");
 
@@ -64,33 +78,16 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
   const [activeTab, setActiveTab] = useState<"wallets" | "txLog">("wallets");
   const [walletToDelete, setWalletToDelete] = useState<{ id: string; name: string } | null>(null);
 
-  // Load from localStorage
-  useEffect(() => {
-    try {
-      if (!user) return;
-      const saved = localStorage.getItem(`${storagePrefix}wallets`);
-      if (saved) setWallets(JSON.parse(saved));
-      
-      const savedTx = localStorage.getItem(`${storagePrefix}wallet_txs`);
-      if (savedTx) setTransactions(JSON.parse(savedTx));
-
-      const savedPaper = localStorage.getItem(`${storagePrefix}paper_capital`);
-      if (savedPaper) setPaperCapitalSol(parseFloat(savedPaper));
-    } catch (e) {}
-  }, [user, storagePrefix]);
-
   const saveWalletsToStorage = (updated: Wallet[]) => {
-    setWallets(updated);
-    try {
-      localStorage.setItem(`${storagePrefix}wallets`, JSON.stringify(updated));
-    } catch (e) {}
+    if (!writeLocalStorageValue(`${storagePrefix}wallets`, JSON.stringify(updated))) {
+      showToast("Could not save wallets", "error", "Browser storage may be disabled or full.");
+    }
   };
 
   const saveTxToStorage = (updated: WalletTransaction[]) => {
-    setTransactions(updated);
-    try {
-      localStorage.setItem(`${storagePrefix}wallet_txs`, JSON.stringify(updated));
-    } catch (e) {}
+    if (!writeLocalStorageValue(`${storagePrefix}wallet_txs`, JSON.stringify(updated))) {
+      showToast("Could not save wallet history", "error", "Browser storage may be disabled or full.");
+    }
   };
 
   const copyAddress = (addr: string) => {
@@ -108,7 +105,16 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
     setLookupResult(null);
 
     try {
-      const res = await fetch(`/api/sol-balance?address=${clean}`);
+      const token = await user?.getIdToken();
+      const res = await fetch("/api/sol-balance", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: "Bearer " + token } : {}),
+        },
+        body: JSON.stringify({ address: clean }),
+        cache: "no-store",
+      });
       if (res.ok) {
         const data = await res.json();
         setLookupResult(data);
@@ -125,7 +131,7 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
   const handleAddVerifiedWallet = () => {
     if (!lookupResult) return;
     const newW: Wallet = {
-      id: `w-${Date.now()}`,
+      id: createLocalId("w"),
       name: lookupName.trim() || "Solana Wallet",
       balanceSol: lookupResult.balanceSol,
       address: lookupResult.address,
@@ -140,9 +146,11 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
   const handleSavePaperCapital = () => {
     const num = parseFloat(tempPaperCapital);
     if (!isNaN(num) && num >= 0) {
-      setPaperCapitalSol(num);
-      localStorage.setItem(`${storagePrefix}paper_capital`, String(num));
-      showToast("Paper trading capital updated", "success", `${num} SOL`);
+      if (writeLocalStorageValue(`${storagePrefix}paper_capital`, String(num))) {
+        showToast("Paper trading capital updated", "success", `${num} SOL`);
+      } else {
+        showToast("Could not save paper balance", "error", "Browser storage may be disabled or full.");
+      }
     }
     setIsEditingPaperCapital(false);
   };
@@ -167,7 +175,7 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
       setEditingWallet(null);
     } else {
       const newW: Wallet = {
-        id: `w-${Date.now()}`,
+        id: createLocalId("w"),
         name: newWalletName.trim(),
         balanceSol: parseFloat(newWalletBalance) || 0,
         address: newWalletAddress.trim() || "Address not set",
@@ -212,15 +220,14 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
     saveWalletsToStorage(updatedWallets);
 
     const newTx: WalletTransaction = {
-      id: `tx-${Date.now()}`,
+      id: createLocalId("tx"),
       walletId,
       walletName: targetWallet.name,
       type: deltaSol >= 0 ? "deposit" : "paycheck",
       amountSol: Math.abs(deltaSol),
-      amountUsd: Math.abs(deltaSol) * solPrice,
+      ...(solPrice > 0 ? { amountUsd: Math.abs(deltaSol) * solPrice } : {}),
       notes,
       date: new Date().toISOString(),
-      createdAt: Date.now(),
     };
 
     saveTxToStorage([newTx, ...transactions]);
@@ -520,7 +527,7 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
                         <WalletIcon size={24} className="text-[#9b9a97]" />
                         <span className="font-semibold text-[#37352f]">No Trading Wallets Added Yet</span>
                         <p className="text-[11px] max-w-sm text-[#787774]">
-                          Click "+ New Wallet" above to track balances, deposits, and paycheck profit sweeps across Phantom, BullX, or Photon.
+                          Click &quot;+ New Wallet&quot; above to track balances, deposits, and paycheck profit sweeps across Phantom, BullX, or Photon.
                         </p>
                       </div>
                     </td>
@@ -637,7 +644,7 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
         <div className="border border-[#e9e9e7] rounded-lg overflow-hidden bg-white shadow-xs">
           {transactions.length === 0 ? (
             <div className="p-8 text-center text-xs text-[#9b9a97]">
-              No deposit or paycheck history logged yet. Click "Deposit" or "Paycheck" on any wallet above.
+              No deposit or paycheck history logged yet. Click &quot;Deposit&quot; or &quot;Paycheck&quot; on any wallet above.
             </div>
           ) : (
             <table className="w-full text-left border-collapse text-xs">
@@ -655,12 +662,12 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
                 {transactions.map((tx) => (
                   <tr key={tx.id} className="hover:bg-[#fcfbf9]">
                     <td className="notion-table-td text-[#787774] font-mono text-[11px]">
-                      {new Date(tx.createdAt || Date.now()).toLocaleDateString("en-US", {
+                      {getTradeTimestamp(tx) > 0 ? new Date(getTradeTimestamp(tx)).toLocaleDateString("en-US", {
                         month: "short",
                         day: "numeric",
                         hour: "2-digit",
                         minute: "2-digit",
-                      })}
+                      }) : "—"}
                     </td>
                     <td className="notion-table-td font-semibold">
                       {tx.type === "deposit" ? (
