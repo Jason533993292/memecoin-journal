@@ -100,26 +100,31 @@ function MainApp() {
 
   // Load rules, goals & AI brief from user document / localStorage
   useEffect(() => {
+    if (!user) {
+      setAiBrief(null);
+      return;
+    }
+    const storageKey = (name: string) => `memecoin_journal_${user.uid}_${name}`;
     try {
-      const savedRules = localStorage.getItem("memecoin_journal_rules");
+      const savedRules = localStorage.getItem(storageKey("rules"));
       if (savedRules) {
         setRules(JSON.parse(savedRules));
       }
-      const savedGoals = localStorage.getItem("memecoin_journal_goals");
+      const savedGoals = localStorage.getItem(storageKey("goals"));
       if (savedGoals) {
         setGoals(JSON.parse(savedGoals));
       }
-      const savedAi = localStorage.getItem("memecoin_journal_ai_brief");
+      const savedAi = localStorage.getItem(storageKey("ai_brief"));
       if (savedAi) {
         setAiBrief(JSON.parse(savedAi));
       }
     } catch (e) {}
-  }, []);
+  }, [user]);
 
   const handleSaveRules = async (updated: JournalRules) => {
     setRules(updated);
     try {
-      localStorage.setItem("memecoin_journal_rules", JSON.stringify(updated));
+      if (user) localStorage.setItem(`memecoin_journal_${user.uid}_rules`, JSON.stringify(updated));
       const targetDoc = user ? doc(db, "users", user.uid, "settings", "preferences") : doc(db, "settings", "user_preferences");
       await setDoc(targetDoc, { rules: updated }, { merge: true });
     } catch (e) {}
@@ -128,7 +133,7 @@ function MainApp() {
   const handleSaveGoals = async (updated: GoalSettings) => {
     setGoals(updated);
     try {
-      localStorage.setItem("memecoin_journal_goals", JSON.stringify(updated));
+      if (user) localStorage.setItem(`memecoin_journal_${user.uid}_goals`, JSON.stringify(updated));
       const targetDoc = user ? doc(db, "users", user.uid, "settings", "preferences") : doc(db, "settings", "user_preferences");
       await setDoc(targetDoc, { goals: updated }, { merge: true });
     } catch (e) {}
@@ -277,7 +282,7 @@ function MainApp() {
           timestamp: Date.now(),
         };
         setAiBrief(newBrief);
-        localStorage.setItem("memecoin_journal_ai_brief", JSON.stringify(newBrief));
+        if (user) localStorage.setItem(`memecoin_journal_${user.uid}_ai_brief`, JSON.stringify(newBrief));
       }
     } catch (e) {
       console.error("Error refreshing AI brief:", e);

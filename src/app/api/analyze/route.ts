@@ -7,9 +7,9 @@ export async function POST(request: Request) {
     // Users may supply their own provider key; it is used only for this request and never stored.
     const apiKey = typeof clientApiKey === "string" && clientApiKey.trim().length > 0
       ? clientApiKey.trim().slice(0, 300)
-      : process.env.DEEPSEEK_API_KEY;
+      : null;
     if (!apiKey) {
-      return NextResponse.json({ error: 'DeepSeek API key is not configured.' }, { status: 401 });
+      return NextResponse.json({ error: 'Add an API key for the selected provider before requesting an analysis.' }, { status: 401 });
     }
 
     const tradeList = Array.isArray(trades) ? trades.slice(0, 500) : [];

@@ -5,6 +5,7 @@ import { Trade, AiCoachBrief } from "../lib/types";
 import { Bot, Sparkles, RefreshCw, AlertTriangle, ShieldCheck, Target, HelpCircle, Eye, EyeOff, KeyRound } from "lucide-react";
 import { DEFAULT_GOOD_TAGS } from "../lib/constants";
 import { getTradeTimestamp } from "../lib/utils";
+import { useAuth } from "../context/AuthContext";
 
 interface AiCoachViewProps {
   trades: Trade[];
@@ -25,6 +26,7 @@ export default function AiCoachView({
   onRefreshAiBrief,
   loadingAi,
 }: AiCoachViewProps) {
+  const { user } = useAuth();
   const [customQuestion, setCustomQuestion] = useState("");
   const [customAnswer, setCustomAnswer] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
@@ -35,26 +37,29 @@ export default function AiCoachView({
 
   // Load API key from local storage on mount
   useEffect(() => {
-    const storedProvider = localStorage.getItem("ai_provider") as "deepseek" | "gemini" | "openai" | null;
-    const storedKey = localStorage.getItem("ai_provider_api_key") || localStorage.getItem("deepseek_local_key");
+    if (!user) return;
+    const prefix = `ai_${user.uid}_`;
+    const storedProvider = localStorage.getItem(`${prefix}provider`) as "deepseek" | "gemini" | "openai" | null;
+    const storedKey = localStorage.getItem(`${prefix}provider_api_key`);
     if (storedProvider) setProvider(storedProvider);
     if (storedKey) {
       setApiKey(storedKey);
     } else {
       setIsApiKeySet(false);
     }
-  }, []);
+  }, [user]);
 
   const saveApiKey = async () => {
     if (apiKey.trim()) {
-      localStorage.setItem("ai_provider_api_key", apiKey.trim());
-      localStorage.setItem("ai_provider", provider);
+      if (!user) return;
+      localStorage.setItem(`ai_${user.uid}_provider_api_key`, apiKey.trim());
+      localStorage.setItem(`ai_${user.uid}_provider`, provider);
       setIsApiKeySet(true);
     }
   };
 
   const resetApiKey = () => {
-    localStorage.removeItem("ai_provider_api_key");
+    if (user) localStorage.removeItem(`ai_${user.uid}_provider_api_key`);
     setApiKey("");
     setIsApiKeySet(false);
   };

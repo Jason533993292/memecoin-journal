@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import DepositPaycheckModal from "./DepositPaycheckModal";
 import { useToast } from "./Toast";
+import { useAuth } from "../context/AuthContext";
 
 interface WalletsViewProps {
   trades: Trade[];
@@ -31,6 +32,8 @@ interface WalletsViewProps {
 const DEFAULT_WALLETS: Wallet[] = [];
 
 export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps) {
+  const { user } = useAuth();
+  const storagePrefix = user ? `memecoin_journal_${user.uid}_` : "memecoin_journal_guest_";
   const { showToast } = useToast();
   const [wallets, setWallets] = useState<Wallet[]>(DEFAULT_WALLETS);
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
@@ -64,28 +67,29 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
   // Load from localStorage
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("memecoin_journal_wallets");
+      if (!user) return;
+      const saved = localStorage.getItem(`${storagePrefix}wallets`);
       if (saved) setWallets(JSON.parse(saved));
       
-      const savedTx = localStorage.getItem("memecoin_journal_wallet_txs");
+      const savedTx = localStorage.getItem(`${storagePrefix}wallet_txs`);
       if (savedTx) setTransactions(JSON.parse(savedTx));
 
-      const savedPaper = localStorage.getItem("memecoin_journal_paper_capital");
+      const savedPaper = localStorage.getItem(`${storagePrefix}paper_capital`);
       if (savedPaper) setPaperCapitalSol(parseFloat(savedPaper));
     } catch (e) {}
-  }, []);
+  }, [user, storagePrefix]);
 
   const saveWalletsToStorage = (updated: Wallet[]) => {
     setWallets(updated);
     try {
-      localStorage.setItem("memecoin_journal_wallets", JSON.stringify(updated));
+      localStorage.setItem(`${storagePrefix}wallets`, JSON.stringify(updated));
     } catch (e) {}
   };
 
   const saveTxToStorage = (updated: WalletTransaction[]) => {
     setTransactions(updated);
     try {
-      localStorage.setItem("memecoin_journal_wallet_txs", JSON.stringify(updated));
+      localStorage.setItem(`${storagePrefix}wallet_txs`, JSON.stringify(updated));
     } catch (e) {}
   };
 
@@ -137,7 +141,7 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
     const num = parseFloat(tempPaperCapital);
     if (!isNaN(num) && num >= 0) {
       setPaperCapitalSol(num);
-      localStorage.setItem("memecoin_journal_paper_capital", String(num));
+      localStorage.setItem(`${storagePrefix}paper_capital`, String(num));
       showToast("Paper trading capital updated", "success", `${num} SOL`);
     }
     setIsEditingPaperCapital(false);
