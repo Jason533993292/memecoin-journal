@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { db } from "../lib/firebase";
 import { collection, onSnapshot, query, orderBy, doc, deleteDoc, getDoc, setDoc } from "firebase/firestore";
 import { Trade, JournalRules, AiCoachBrief, GoalSettings } from "../lib/types";
@@ -8,8 +9,8 @@ import TopBanner from "../components/TopBanner";
 import DashboardView from "../components/DashboardView";
 import TradeJournalView from "../components/TradeJournalView";
 import WalletsView from "../components/WalletsView";
-import StatisticsView from "../components/StatisticsView";
-import AiCoachView from "../components/AiCoachView";
+const StatisticsView = dynamic(() => import("../components/StatisticsView"), { loading: () => <SectionLoading /> });
+const AiCoachView = dynamic(() => import("../components/AiCoachView"), { loading: () => <SectionLoading /> });
 import LogTradeModal from "../components/LogTradeModal";
 import EditTradeModal from "../components/EditTradeModal";
 import TradeDetailDrawer from "../components/TradeDetailDrawer";
@@ -23,6 +24,10 @@ import { Trash2 } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
 import AuthModal from "../components/AuthModal";
+
+function SectionLoading() {
+  return <div className="min-h-[240px] flex items-center justify-center text-sm text-[#787774]">Loading section…</div>;
+}
 
 function MainApp() {
   const { user, loading: authLoading } = useAuth();
@@ -249,8 +254,9 @@ function MainApp() {
     if (trades.length === 0) return;
     setLoadingAi(true);
     try {
-      const localKey = localStorage.getItem("ai_provider_api_key") || localStorage.getItem("deepseek_local_key");
-      const provider = localStorage.getItem("ai_provider") || "deepseek";
+      const keyPrefix = user ? `ai_${user.uid}_` : "ai_guest_";
+      const localKey = localStorage.getItem(`${keyPrefix}provider_api_key`);
+      const provider = localStorage.getItem(`${keyPrefix}provider`) || "deepseek";
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
