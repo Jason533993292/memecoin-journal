@@ -57,6 +57,7 @@ export default function LogTradeModal({
   const [loadingToken, setLoadingToken] = useState(false);
   const [saving, setSaving] = useState(false);
   const [fetchError, setFetchError] = useState("");
+  const [quickPaste, setQuickPaste] = useState("");
 
   const [tokenData, setTokenData] = useState<{
     name: string;
@@ -103,6 +104,19 @@ export default function LogTradeModal({
 
   const [notes, setNotes] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  const parseQuickPaste = (value: string) => {
+    setQuickPaste(value);
+    const address = value.match(/[1-9A-HJ-NP-Za-km-z]{32,44}/)?.[0];
+    if (address) setCa(address);
+    const labelledBought = value.match(/(?:bought|buy|spent|entry)\s*[:=]?\s*([0-9]+(?:\.[0-9]+)?)/i)?.[1];
+    const labelledSold = value.match(/(?:sold|sell|received|exit)\s*[:=]?\s*([0-9]+(?:\.[0-9]+)?)/i)?.[1];
+    const numbers = [...value.matchAll(/(?<![A-Za-z])[0-9]+(?:\.[0-9]+)?/g)].map((m) => m[0]);
+    const bought = labelledBought || numbers[0];
+    const sold = labelledSold || numbers[1];
+    if (bought) handleBoughtChange(bought, true);
+    if (sold) handleSoldChange(sold, true);
+  };
 
   // Load user's custom tags from localStorage
   useEffect(() => {
@@ -600,6 +614,18 @@ export default function LogTradeModal({
                   <AlertCircle size={12} /> {fetchError}
                 </p>
               )}
+            </div>
+
+            <div className="rounded-lg border border-dashed border-[#cfd8e3] bg-blue-50/30 p-3">
+              <label className="block text-[11px] font-semibold text-[#37352f] mb-1">Quick paste (optional)</label>
+              <textarea
+                value={quickPaste}
+                onChange={(e) => parseQuickPaste(e.target.value)}
+                placeholder="Paste address + bought/sold, e.g. 9x... bought 0.5 sold 0.8"
+                rows={2}
+                className="w-full bg-white border border-[#d9e2ec] rounded-lg px-2.5 py-2 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2] font-mono"
+              />
+              <p className="text-[10px] text-[#787774] mt-1">Fills the contract address and SOL amounts. Review the values before saving.</p>
             </div>
 
             {/* Token Preview Card */}
