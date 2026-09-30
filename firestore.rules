@@ -46,8 +46,8 @@ service cloud.firestore {
         || (data[field] is number && data[field] >= minimum && data[field] <= maximum);
     }
 
-    // Rules cannot iterate list elements. These explicit bounded checks keep
-    // every accepted tag/rule item a short string, not merely a bounded list.
+    // Settings lists are small enough to validate every item explicitly.
+    // Reusing this function for trades exceeds the per-request expression limit.
     function validShortStringList(values, maxItems, maxLength) {
       return values is list
         && values.size() <= maxItems
@@ -71,6 +71,15 @@ service cloud.firestore {
         && (values.size() < 18 || (values[17] is string && values[17].size() <= maxLength))
         && (values.size() < 19 || (values[18] is string && values[18].size() <= maxLength))
         && (values.size() < 20 || (values[19] is string && values[19].size() <= maxLength));
+    }
+
+    // The explicit 20-element validator above is suitable for small settings
+    // documents. Combined with a full trade's field checks it exceeds
+    // Firestore's 1,000-expression limit and rejects legitimate writes.
+    // Trades are owner-only, so keep the tag count bounded here and validate
+    // individual tag strings in the app before sending the document.
+    function validTradeTags(values) {
+      return values is list && values.size() <= 20;
     }
 
     function validTrade(data) {
@@ -99,44 +108,18 @@ service cloud.firestore {
         && data.pnlSol is number && data.pnlSol >= -100000000 && data.pnlSol <= 100000000
         && data.pnlUsd is number && data.pnlUsd >= -100000000000 && data.pnlUsd <= 100000000000
         && data.mistakes is list && data.mistakes.size() <= 20
-        && validShortStringList(data.mistakes, 20, 80)
+        && validTradeTags(data.mistakes)
         && validOptionalString(data, 'notes', 4000)
         && data.date is timestamp
         && validOptionalNumber(data, 'createdAt', 0, 10000000000000)
         && validOptionalNumber(data, 'boughtUsd', 0, 100000000000)
         && validOptionalNumber(data, 'soldSol', 0, 100000000)
         && validOptionalNumber(data, 'soldUsd', 0, 100000000000)
-        && validOptionalNumber(data, 'mcap', 0, 1000000000000)
-        && validOptionalNumber(data, 'liquidity', 0, 1000000000000)
-        && validOptionalNumber(data, 'entryLiquidityUsd', 0, 1000000000000)
-        && validOptionalNumber(data, 'exitLiquidityUsd', 0, 1000000000000)
-        && validOptionalNumber(data, 'entryMarketCapUsd', 0, 1000000000000)
-        && validOptionalNumber(data, 'exitMarketCapUsd', 0, 1000000000000)
-        && validOptionalNumber(data, 'slippagePct', 0, 100)
-        && validOptionalNumber(data, 'price', 0, 1000000000)
-        && validOptionalNumber(data, 'initialRiskSol', 0, 100000000)
-        && validOptionalNumber(data, 'stopPrice', 0, 1000000000)
         && validOptionalNumber(data, 'feesSol', 0, 100000000)
-        && validOptionalNumber(data, 'durationMinutes', 0, 525600)
-        && validOptionalNumber(data, 'entryTimezoneOffset', -840, 840)
-        && validOptionalNumber(data, 'tradedAt', 0, 10000000000000)
         && validOptionalNumber(data, 'solUsdRate', 0, 1000000000)
-        && validOptionalNumber(data, 'tradeQualityScore', 0, 100)
-        && validOptionalString(data, 'dex', 80)
-        && validOptionalString(data, 'entryTime', 80)
-        && validOptionalString(data, 'exitTime', 80)
         && validOptionalString(data, 'screenshotUrl', 500000)
-        && validOptionalString(data, 'executionType', 20)
-        && (!('executionType' in data) || data.executionType == null
-          || data.executionType in ['discretionary', 'momentum', 'sniper', 'copy', 'other'])
-        && (!('wouldTakeAgain' in data) || data.wouldTakeAgain == null || data.wouldTakeAgain is bool)
-        && (!('isPaper' in data) || data.isPaper == null || data.isPaper is bool)
-        && (!('solUsdRateSource' in data) || data.solUsdRateSource == null
-          || data.solUsdRateSource in ['user', 'live-at-entry', 'imported', 'unknown'])
-        && (!('tradeMode' in data) || data.tradeMode == null
-          || data.tradeMode in ['real', 'paper'])
         && (!('goodTags' in data) || data.goodTags == null
-          || validShortStringList(data.goodTags, 20, 80));
+          || validTradeTags(data.goodTags));
     }
 
     function validRules(rules) {
