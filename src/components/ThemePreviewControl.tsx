@@ -2,17 +2,15 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 import {
-  DEFAULT_PREVIEW_THEME,
   PREVIEW_THEME_OPTIONS,
-  getPreviewThemeFromSearch,
-  isThemePreviewEnabled,
+  normalizePreviewTheme,
   type PreviewTheme,
 } from "../lib/themePreview";
 
 const PREVIEW_STORAGE_KEY = "memecoin-journal:theme-preview";
 
 function isPreviewTheme(value: string | null): value is PreviewTheme {
-  return PREVIEW_THEME_OPTIONS.some((theme) => theme.id === value);
+  return normalizePreviewTheme(value) !== null;
 }
 
 const subscribeToPreviewChanges = (onStoreChange: () => void) => {
@@ -24,51 +22,42 @@ const subscribeToPreviewChanges = (onStoreChange: () => void) => {
   };
 };
 
-const subscribeToNothing = () => () => {};
-
-function getStoredPreviewTheme(): PreviewTheme {
-  if (typeof window === "undefined") return DEFAULT_PREVIEW_THEME;
+function getStoredPreviewTheme(): PreviewTheme | null {
+  if (typeof window === "undefined") return null;
 
   const storedTheme = window.localStorage.getItem(PREVIEW_STORAGE_KEY);
-  return isPreviewTheme(storedTheme)
-    ? storedTheme
-    : getPreviewThemeFromSearch(window.location.search);
+  return isPreviewTheme(storedTheme) ? storedTheme : null;
 }
 
 export default function ThemePreviewControl() {
-  const enabled = useSyncExternalStore(
-    subscribeToNothing,
-    () => isThemePreviewEnabled(window.location.search),
-    () => false,
-  );
   const theme = useSyncExternalStore(
     subscribeToPreviewChanges,
     getStoredPreviewTheme,
-    () => DEFAULT_PREVIEW_THEME,
+    () => null,
   );
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!theme) {
+      delete document.documentElement.dataset.themePreview;
+      return;
+    }
 
     document.documentElement.dataset.themePreview = theme;
-    window.localStorage.setItem(PREVIEW_STORAGE_KEY, theme);
 
     return () => {
       delete document.documentElement.dataset.themePreview;
     };
-  }, [enabled, theme]);
+  }, [theme]);
 
-  if (!enabled) return null;
-
-  const activeThemeLabel = PREVIEW_THEME_OPTIONS.find((option) => option.id === theme)?.label;
+  const activeThemeLabel = PREVIEW_THEME_OPTIONS.find((option) => option.id === theme)?.label || "Default";
 
   return (
     <details className="theme-preview-control">
-      <summary aria-label="Choose private preview theme">
+      <summary aria-label="Choose site theme">
         <span className="theme-preview-label">Theme</span>
         <span className="theme-preview-value">{activeThemeLabel}</span>
       </summary>
-      <div className="theme-preview-options" role="group" aria-label="Private design preview">
+      <div className="theme-preview-options" role="group" aria-label="Site theme options">
         {PREVIEW_THEME_OPTIONS.map((option) => (
           <button
             type="button"
@@ -84,6 +73,18 @@ export default function ThemePreviewControl() {
             {option.label}
           </button>
         ))}
+        <button
+          type="button"
+          onClick={(event) => {
+            window.localStorage.removeItem(PREVIEW_STORAGE_KEY);
+            window.dispatchEvent(new Event("theme-preview-change"));
+            event.currentTarget.closest("details")?.removeAttribute("open");
+          }}
+          aria-pressed={!theme}
+          className={!theme ? "is-active" : undefined}
+        >
+          Default
+        </button>
       </div>
     </details>
   );

@@ -68,7 +68,7 @@
   white-space: nowrap;
 }
 
-/* Private visual exploration. The switcher only mounts with ?theme-preview=1. */
+/* Appearance choices are stored only in the current browser. */
 .theme-preview-control {
   background: #ffffff;
   border: 1px solid #e3e2de;
