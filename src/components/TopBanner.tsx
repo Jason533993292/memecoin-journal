@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import SolanaLogo from "./SolanaLogo";
+import ThemePreviewControl from "./ThemePreviewControl";
 import {
   LayoutDashboard,
   BookOpen,
@@ -79,6 +80,8 @@ export default function TopBanner({
 
         {/* Right side controls */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <ThemePreviewControl />
+
           {/* Live SOL Price Badge */}
           <div className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 bg-white border border-[#e3e2de] rounded-md text-[11px] font-mono shadow-xs">
             <span className={`w-2 h-2 rounded-full ${solPrice > 0 ? "bg-emerald-500 animate-pulse" : "bg-neutral-300"}`}></span>

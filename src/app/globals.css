@@ -67,3 +67,144 @@
   color: #37352f;
   white-space: nowrap;
 }
+
+/* Private visual exploration. The switcher only mounts with ?theme-preview=1. */
+.theme-preview-control {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #e3e2de;
+  border-radius: 6px;
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.theme-preview-label {
+  color: #787774;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 0 4px 0 5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.theme-preview-control button {
+  border-radius: 4px;
+  color: #5a5957;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 4px 6px;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.theme-preview-control button:hover,
+.theme-preview-control button.is-active {
+  background: #2383e2;
+  color: #ffffff;
+}
+
+html[data-theme-preview] {
+  color-scheme: dark;
+}
+
+html[data-theme-preview] body,
+html[data-theme-preview] [class*="min-h-screen"] {
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+html[data-theme-preview] .bg-white,
+html[data-theme-preview] [class*="bg-[#ffffff]"],
+html[data-theme-preview] [class*="bg-[#fbfbfa]"] {
+  background-color: var(--preview-surface) !important;
+}
+
+html[data-theme-preview] [class*="bg-[#f7f6f3]"],
+html[data-theme-preview] [class*="bg-[#fcfbf9]"],
+html[data-theme-preview] [class*="bg-[#f1f1ef]"] {
+  background-color: var(--preview-raised) !important;
+}
+
+html[data-theme-preview] [class*="border-[#e9e9e7]"],
+html[data-theme-preview] [class*="border-[#e3e2de]"],
+html[data-theme-preview] [class*="border-[#f1f1ef]"],
+html[data-theme-preview] [class*="border-[#f7f6f5]"] {
+  border-color: var(--preview-border) !important;
+}
+
+html[data-theme-preview] [class*="text-[#37352f]"],
+html[data-theme-preview] [class*="text-[#5a5957]"] {
+  color: var(--preview-text) !important;
+}
+
+html[data-theme-preview] [class*="text-[#787774]"],
+html[data-theme-preview] [class*="text-[#9b9a97]"],
+html[data-theme-preview] [class*="text-[#908e89]"] {
+  color: var(--preview-muted) !important;
+}
+
+html[data-theme-preview] [class*="bg-[#2383e2]"] {
+  background-color: var(--preview-accent) !important;
+}
+
+html[data-theme-preview] [class*="hover:bg-[#1a73ca]"]:hover,
+html[data-theme-preview] [class*="hover:bg-[#eeece8]"]:hover,
+html[data-theme-preview] [class*="hover:bg-[#f1f1ef]"]:hover {
+  background-color: var(--preview-hover) !important;
+}
+
+html[data-theme-preview] .notion-card,
+html[data-theme-preview] .notion-table-th,
+html[data-theme-preview] .notion-table-td {
+  border-color: var(--preview-border);
+  color: var(--preview-text);
+}
+
+html[data-theme-preview="terminal"] {
+  --preview-surface: #111619;
+  --preview-raised: #182024;
+  --preview-border: #2a383e;
+  --preview-text: #e6f0ed;
+  --preview-muted: #91a39f;
+  --preview-accent: #38d39f;
+  --preview-hover: #223036;
+}
+
+html[data-theme-preview="premium-journal"] {
+  --preview-surface: #1c1a19;
+  --preview-raised: #282421;
+  --preview-border: #413a35;
+  --preview-text: #f1e9dc;
+  --preview-muted: #a99d90;
+  --preview-accent: #c5874e;
+  --preview-hover: #35302b;
+}
+
+html[data-theme-preview="modern-platform"] {
+  --preview-surface: #12131b;
+  --preview-raised: #1a1d2a;
+  --preview-border: #30364d;
+  --preview-text: #f2f5ff;
+  --preview-muted: #9aa4bf;
+  --preview-accent: #6d7dff;
+  --preview-hover: #292e43;
+}
+
+html[data-theme-preview] .theme-preview-control {
+  background: var(--preview-raised);
+  border-color: var(--preview-border);
+}
+
+html[data-theme-preview] .theme-preview-label {
+  color: var(--preview-muted);
+}
+
+html[data-theme-preview] .theme-preview-control button {
+  color: var(--preview-muted);
+}
+
+html[data-theme-preview] .theme-preview-control button:hover,
+html[data-theme-preview] .theme-preview-control button.is-active {
+  background: var(--preview-accent);
+  color: #ffffff;
+}
