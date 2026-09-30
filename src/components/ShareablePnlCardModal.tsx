@@ -205,20 +205,22 @@ export default function ShareablePnlCardModal({
   useEffect(() => {
     if (!trade) return;
 
-    // Fetch token logo from DexScreener if CA is present
+    // Fetch public token artwork directly so sharing a card does not depend on
+    // optional server-side credentials.
     if (trade?.ca && user) {
       const cleanCa = trade.ca.trim();
       let active = true;
-      user.getIdToken()
-        .then((token) =>
-          fetch(`/api/token/${encodeURIComponent(cleanCa)}`, {
-            headers: token ? { Authorization: "Bearer " + token } : {},
-          })
-        )
+      fetch(`https://api.dexscreener.com/latest/dex/tokens/${encodeURIComponent(cleanCa)}`)
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
-          if (active && data?.imageUrl) {
-            setTokenLogo({ tradeId: trade.id, url: data.imageUrl });
+          const pairs: Array<{ liquidity?: { usd?: number }; info?: { imageUrl?: string } }> =
+            Array.isArray(data?.pairs) ? data.pairs : [];
+          const bestPair = pairs
+            .slice(0, 100)
+            .sort((first, second) => (second.liquidity?.usd || 0) - (first.liquidity?.usd || 0))[0];
+          const imageUrl = bestPair?.info?.imageUrl;
+          if (active && typeof imageUrl === "string") {
+            setTokenLogo({ tradeId: trade.id, url: imageUrl });
           }
         })
         .catch((e) => console.warn("Failed to fetch token logo:", e));
