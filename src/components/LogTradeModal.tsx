@@ -459,10 +459,6 @@ export default function LogTradeModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (solPrice <= 0) {
-      showToast("Trade cannot be saved yet", "error", "Wait for the live SOL price to load, then try again.");
-      return;
-    }
     if (!tokenData && !ca) {
       showToast("Please enter a valid Contract Address or Token Name.", "error");
       return;
@@ -536,6 +532,10 @@ export default function LogTradeModal({
         exitMarketCapUsd: parsedExitMcap,
         slippagePct: parsedSlippage,
         entryTimezoneOffset: new Date().getTimezoneOffset(),
+        tradedAt: Date.now(),
+        solUsdRate: solPrice > 0 ? solPrice : null,
+        solUsdRateSource: solPrice > 0 ? "live-at-entry" : "unknown",
+        tradeMode: wallet === "Paper" ? "paper" : "real",
         goodTags: selectedGoodTags,
         mistakes: selectedMistakes,
         notes: notes.trim(),

@@ -1,6 +1,8 @@
 import type { Timestamp } from "firebase/firestore";
 
 export type TradeDate = Timestamp | Date | number | string | null | undefined;
+export type SolUsdRateSource = "user" | "live-at-entry" | "imported" | "unknown";
+export type TradeMode = "real" | "paper";
 
 export interface Trade {
   id: string;
@@ -40,6 +42,10 @@ export interface Trade {
   stopPrice?: number;
   feesSol?: number;
   entryTimezoneOffset?: number;
+  tradedAt?: number;
+  solUsdRate?: number;
+  solUsdRateSource?: SolUsdRateSource;
+  tradeMode?: TradeMode;
   date?: TradeDate;
   createdAt?: number;
 }
