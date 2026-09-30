@@ -204,56 +204,36 @@ export default function LogTradeModal({
     setLoadingToken(true);
     setFetchError("");
 
-    let found = false;
-
-    // 1. Try server API route
+    // Token details are public market data. Looking them up directly keeps the
+    // trade form responsive even if an optional server-side service is offline.
     try {
-      const token = await user?.getIdToken();
-      const res = await fetch(`/api/token/${encodeURIComponent(cleanCa)}`, {
-        headers: token ? { Authorization: "Bearer " + token } : {},
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setTokenData(data);
-        showToast("Token found", "info", `${data.name} ($${data.symbol})`);
-        found = true;
-      }
-    } catch (e) {
-      console.warn("Server token fetch failed, trying direct client fetch:", e);
-    }
-
-    // 2. Direct client-side DexScreener fallback
-    if (!found) {
-      try {
-        const directRes = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${cleanCa}`);
-        if (directRes.ok) {
-          const directData = await directRes.json();
-          if (directData.pairs && directData.pairs.length > 0) {
-            const sorted = [...directData.pairs].sort(
-              (a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0)
-            );
-            const best = sorted[0];
-            const directObj = {
-              name: best.baseToken.name || "Unknown Token",
-              symbol: best.baseToken.symbol || "MEME",
-              priceUsd: best.priceUsd || "0",
-              marketCap: best.marketCap || best.fdv || 0,
-              liquidity: best.liquidity?.usd || 0,
-              imageUrl: best.info?.imageUrl || null,
-            };
-            setTokenData(directObj);
-            showToast("Token found via DexScreener", "info", `${directObj.name} ($${directObj.symbol})`);
-            found = true;
-          }
+      const directRes = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${cleanCa}`);
+      if (directRes.ok) {
+        const directData = await directRes.json();
+        if (directData.pairs && directData.pairs.length > 0) {
+          const sorted = [...directData.pairs].sort(
+            (a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0)
+          );
+          const best = sorted[0];
+          const directObj = {
+            name: best.baseToken.name || "Unknown Token",
+            symbol: best.baseToken.symbol || "MEME",
+            priceUsd: best.priceUsd || "0",
+            marketCap: best.marketCap || best.fdv || 0,
+            liquidity: best.liquidity?.usd || 0,
+            imageUrl: best.info?.imageUrl || null,
+          };
+          setTokenData(directObj);
+          showToast("Token found", "info", `${directObj.name} ($${directObj.symbol})`);
+          setLoadingToken(false);
+          return;
         }
-      } catch (clientErr) {
-        console.error("Client direct fetch failed:", clientErr);
       }
+    } catch (clientErr) {
+      console.error("Token lookup failed:", clientErr);
     }
 
-    if (!found) {
-      setFetchError("Token not found on DexScreener. Check contract address or paste name manually.");
-    }
+    setFetchError("Token not found on DexScreener. Check contract address or paste name manually.");
     setLoadingToken(false);
   };
 
