@@ -22,6 +22,7 @@ import { Trade } from "../lib/types";
 import { useToast } from "./Toast";
 import { COMMON_SETUPS, DURATION_PRESETS, DEFAULT_GOOD_TAGS, DEFAULT_MISTAKE_TAGS } from "../lib/constants";
 import { compressImage } from "../lib/utils";
+import { buildTradeAmounts } from "../lib/tradeInput";
 
 interface EditTradeModalProps {
   trade: Trade | null;
@@ -314,12 +315,23 @@ export default function EditTradeModal({
 
     setSaving(true);
     try {
-      const parsedPnlSol = parseFloat(pnlSol) || 0;
-      const parsedPnlUsd = pnlUsd.trim() ? Number.parseFloat(pnlUsd) || 0 : parsedPnlSol * solPrice;
-      const parsedBoughtSol = parseFloat(boughtSol) || 0;
-      const parsedBoughtUsd = boughtUsd.trim() ? Number.parseFloat(boughtUsd) || 0 : parsedBoughtSol * solPrice;
-      const parsedSoldSol = parseFloat(soldSol) || parsedBoughtSol + parsedPnlSol;
-      const parsedSoldUsd = soldUsd.trim() ? Number.parseFloat(soldUsd) || 0 : parsedSoldSol * solPrice;
+      const amounts = buildTradeAmounts({
+        boughtSol,
+        soldSol,
+        pnlSol,
+        boughtUsd,
+        soldUsd,
+        pnlUsd,
+        solPrice,
+      });
+      const { parsedPnlSol, parsedPnlUsd, parsedBoughtSol, parsedBoughtUsd, parsedSoldSol, parsedSoldUsd } = {
+        parsedPnlSol: amounts.pnlSol,
+        parsedPnlUsd: amounts.pnlUsd,
+        parsedBoughtSol: amounts.boughtSol,
+        parsedBoughtUsd: amounts.boughtUsd,
+        parsedSoldSol: amounts.soldSol,
+        parsedSoldUsd: amounts.soldUsd,
+      };
       const parsedInitialRiskSol = parseFloat(initialRiskSol) || null;
       const parsedFeesSol = parseFloat(feesSol) || null;
       const parsedStopPrice = parseFloat(stopPrice) || null;

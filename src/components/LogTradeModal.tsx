@@ -29,6 +29,7 @@ import {
   DURATION_PRESETS,
 } from "../lib/constants";
 import { compressImage } from "../lib/utils";
+import { buildTradeAmounts, parseQuickTradePaste } from "../lib/tradeInput";
 import { useAuth } from "../context/AuthContext";
 import { parseLocalStorageValue, useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
 
@@ -122,15 +123,10 @@ export default function LogTradeModal({
 
   const parseQuickPaste = (value: string) => {
     setQuickPaste(value);
-    const address = value.match(/[1-9A-HJ-NP-Za-km-z]{32,44}/)?.[0];
-    if (address) setCa(address);
-    const labelledBought = value.match(/(?:bought|buy|spent|entry)\s*[:=]?\s*([0-9]+(?:\.[0-9]+)?)/i)?.[1];
-    const labelledSold = value.match(/(?:sold|sell|received|exit)\s*[:=]?\s*([0-9]+(?:\.[0-9]+)?)/i)?.[1];
-    const numbers = [...value.matchAll(/(?<![A-Za-z])[0-9]+(?:\.[0-9]+)?/g)].map((m) => m[0]);
-    const bought = labelledBought || numbers[0];
-    const sold = labelledSold || numbers[1];
-    if (bought) handleBoughtChange(bought, true);
-    if (sold) handleSoldChange(sold, true);
+    const parsed = parseQuickTradePaste(value);
+    if (parsed.contractAddress) setCa(parsed.contractAddress);
+    if (parsed.bought) handleBoughtChange(parsed.bought, true);
+    if (parsed.sold) handleSoldChange(parsed.sold, true);
   };
 
   const attachImage = useCallback(async (rawUrl: string) => {
@@ -482,12 +478,23 @@ export default function LogTradeModal({
 
     setSaving(true);
     try {
-      const parsedPnlSol = parseFloat(pnlSol) || 0;
-      const parsedPnlUsd = pnlUsd.trim() ? Number.parseFloat(pnlUsd) || 0 : parsedPnlSol * solPrice;
-      const parsedBoughtSol = parseFloat(boughtSol) || 0;
-      const parsedBoughtUsd = boughtUsd.trim() ? Number.parseFloat(boughtUsd) || 0 : parsedBoughtSol * solPrice;
-      const parsedSoldSol = parseFloat(soldSol) || parsedBoughtSol + parsedPnlSol;
-      const parsedSoldUsd = soldUsd.trim() ? Number.parseFloat(soldUsd) || 0 : parsedSoldSol * solPrice;
+      const amounts = buildTradeAmounts({
+        boughtSol,
+        soldSol,
+        pnlSol,
+        boughtUsd,
+        soldUsd,
+        pnlUsd,
+        solPrice,
+      });
+      const { parsedPnlSol, parsedPnlUsd, parsedBoughtSol, parsedBoughtUsd, parsedSoldSol, parsedSoldUsd } = {
+        parsedPnlSol: amounts.pnlSol,
+        parsedPnlUsd: amounts.pnlUsd,
+        parsedBoughtSol: amounts.boughtSol,
+        parsedBoughtUsd: amounts.boughtUsd,
+        parsedSoldSol: amounts.soldSol,
+        parsedSoldUsd: amounts.soldUsd,
+      };
       const parsedInitialRiskSol = parseFloat(initialRiskSol) || null;
       const parsedFeesSol = parseFloat(feesSol) || null;
       const parsedStopPrice = parseFloat(stopPrice) || null;
@@ -545,7 +552,10 @@ export default function LogTradeModal({
       onClose();
     } catch (error: unknown) {
       console.error("Error adding trade document:", error);
-      showToast("Error saving trade to Firestore", "error");
+      const description = error instanceof Error && error.message
+        ? error.message
+        : "Check required fields and try again.";
+      showToast("Could not save trade", "error", description);
     }
     setSaving(false);
   };
