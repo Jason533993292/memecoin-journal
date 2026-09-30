@@ -4,6 +4,12 @@ export type PreviewTheme = (typeof PREVIEW_THEMES)[number];
 
 export const DEFAULT_PREVIEW_THEME: PreviewTheme = "modern-platform";
 
+export const PREVIEW_THEME_OPTIONS: Array<{ id: PreviewTheme; label: string }> = [
+  { id: "terminal", label: "Terminal" },
+  { id: "premium-journal", label: "Journal" },
+  { id: "modern-platform", label: "Platform" },
+];
+
 export function isThemePreviewEnabled(search: string): boolean {
   return new URLSearchParams(search).get("theme-preview") === "1";
 }

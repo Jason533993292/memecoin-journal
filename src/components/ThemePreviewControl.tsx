@@ -3,6 +3,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 import {
   DEFAULT_PREVIEW_THEME,
+  PREVIEW_THEME_OPTIONS,
   getPreviewThemeFromSearch,
   isThemePreviewEnabled,
   type PreviewTheme,
@@ -10,14 +11,8 @@ import {
 
 const PREVIEW_STORAGE_KEY = "memecoin-journal:theme-preview";
 
-const themes: Array<{ id: PreviewTheme; label: string }> = [
-  { id: "terminal", label: "Terminal" },
-  { id: "premium-journal", label: "Journal" },
-  { id: "modern-platform", label: "Platform" },
-];
-
 function isPreviewTheme(value: string | null): value is PreviewTheme {
-  return themes.some((theme) => theme.id === value);
+  return PREVIEW_THEME_OPTIONS.some((theme) => theme.id === value);
 }
 
 const subscribeToPreviewChanges = (onStoreChange: () => void) => {
@@ -65,23 +60,31 @@ export default function ThemePreviewControl() {
 
   if (!enabled) return null;
 
+  const activeThemeLabel = PREVIEW_THEME_OPTIONS.find((option) => option.id === theme)?.label;
+
   return (
-    <div className="theme-preview-control" role="group" aria-label="Private design preview">
-      <span className="theme-preview-label">Preview</span>
-      {themes.map((option) => (
-        <button
-          type="button"
-          key={option.id}
-          onClick={() => {
-            window.localStorage.setItem(PREVIEW_STORAGE_KEY, option.id);
-            window.dispatchEvent(new Event("theme-preview-change"));
-          }}
-          aria-pressed={theme === option.id}
-          className={theme === option.id ? "is-active" : undefined}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
+    <details className="theme-preview-control">
+      <summary aria-label="Choose private preview theme">
+        <span className="theme-preview-label">Theme</span>
+        <span className="theme-preview-value">{activeThemeLabel}</span>
+      </summary>
+      <div className="theme-preview-options" role="group" aria-label="Private design preview">
+        {PREVIEW_THEME_OPTIONS.map((option) => (
+          <button
+            type="button"
+            key={option.id}
+            onClick={(event) => {
+              window.localStorage.setItem(PREVIEW_STORAGE_KEY, option.id);
+              window.dispatchEvent(new Event("theme-preview-change"));
+              event.currentTarget.closest("details")?.removeAttribute("open");
+            }}
+            aria-pressed={theme === option.id}
+            className={theme === option.id ? "is-active" : undefined}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </details>
   );
 }
