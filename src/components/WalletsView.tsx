@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Trade, Wallet, WalletTransaction } from "../lib/types";
 import {
-  Lock,
   Plus,
   Wallet as WalletIcon,
   Copy,
@@ -13,10 +12,7 @@ import {
   Trash2,
   Edit2,
   Calendar,
-  DollarSign,
-  Search,
   Loader2,
-  RefreshCw,
   Sparkles,
   Zap
 } from "lucide-react";
@@ -56,7 +52,7 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
 
   // Live On-Chain Address Checker
   const [lookupAddress, setLookupAddress] = useState("");
-  const [lookupName, setLookupName] = useState("Phantom Live");
+  const lookupName = "Phantom Live";
   const [loadingLookup, setLoadingLookup] = useState(false);
   const [lookupResult, setLookupResult] = useState<{ address: string; balanceSol: number } | null>(null);
 
@@ -122,7 +118,7 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
       } else {
         showToast("Address lookup failed. Check address format.", "error");
       }
-    } catch (e) {
+    } catch {
       showToast("Network error checking Solana balance", "error");
     }
     setLoadingLookup(false);
@@ -247,10 +243,7 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
         <div className="flex items-center gap-2 text-xs text-[#787774] mb-2">
           <span>Journal</span>
           <span>/</span>
-          <span className="text-[#37352f] font-medium flex items-center gap-1">
-            <span>💼</span>
-            <span>Wallets</span>
-          </span>
+          <span className="text-[#37352f] font-medium">Wallets</span>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -392,10 +385,10 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
         </div>
       </div>
 
-      {/* Summary Banner */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      {/* Real-wallet summary */}
+      {(wallets.length > 0 || transactions.length > 0) && <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl p-4">
-          <span className="text-xs text-[#787774] block">Total Combined Real Balance</span>
+          <span className="text-xs text-[#787774] block">Total Wallet Balance</span>
           <div className="text-xl font-bold text-[#37352f] mt-1 font-mono">
             {totalPortfolioSol.toFixed(2)} SOL
           </div>
@@ -403,24 +396,24 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
         </div>
 
         <div className="bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl p-4">
-          <span className="text-xs text-[#787774] block">Active Trading Wallets</span>
+          <span className="text-xs text-[#787774] block">Tracked Wallets</span>
           <div className="text-xl font-bold text-[#37352f] mt-1">
             {wallets.length} Wallets
           </div>
-          <span className="text-[11px] text-[#9b9a97]">Phantom, BullX, Photon, Trojan</span>
+          <span className="text-[11px] text-[#9b9a97]">Wallets with live or manually tracked balances</span>
         </div>
 
         <div className="bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl p-4">
-          <span className="text-xs text-[#787774] block">Total Realized Paychecks Cashed</span>
+          <span className="text-xs text-[#787774] block">Profit Withdrawn</span>
           <div className="text-xl font-bold text-emerald-600 mt-1 font-mono">
             {transactions.filter((t) => t.type === "paycheck").reduce((acc, t) => acc + t.amountSol, 0).toFixed(2)} SOL
           </div>
           <span className="text-[11px] text-[#9b9a97]">Withdrawn profit</span>
         </div>
-      </div>
+      </div>}
 
-      {/* Notion Toolbar */}
-      <div className="flex items-center justify-between border-b border-[#e9e9e7] pb-3 text-xs text-[#787774]">
+      {/* Wallet data toolbar */}
+      {(wallets.length > 0 || transactions.length > 0) && <div className="flex items-center justify-between border-b border-[#e9e9e7] pb-3 text-xs text-[#787774]">
         <div className="flex items-center gap-2">
           <button
             onClick={() => setActiveTab("wallets")}
@@ -445,7 +438,7 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
             <span>Deposit & Paycheck History ({transactions.length})</span>
           </button>
         </div>
-      </div>
+      </div>}
 
       {/* Add / Edit Wallet Inline Form */}
       {isAddingWallet && (
@@ -499,23 +492,38 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
         </form>
       )}
 
-      {activeTab === "wallets" ? (
+      {wallets.length === 0 && transactions.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-[#d8d7d3] bg-[#fbfbfa] px-6 py-10 text-center">
+          <WalletIcon size={24} className="mx-auto text-[#9b9a97]" />
+          <h3 className="mt-3 text-sm font-semibold text-[#37352f]">No real wallets tracked yet</h3>
+          <p className="mx-auto mt-1 max-w-md text-xs text-[#787774]">
+            Paper trading remains available above. Add a wallet only when you want to track a real Solana address, deposits, and profit withdrawals.
+          </p>
+          <button
+            type="button"
+            onClick={() => setIsAddingWallet(true)}
+            className="mt-4 rounded-lg bg-[#2383e2] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[#1a73ca]"
+          >
+            Add a real wallet
+          </button>
+        </div>
+      ) : activeTab === "wallets" ? (
         /* Notion Database Table */
         <div className="border border-[#e9e9e7] rounded-lg overflow-hidden bg-white shadow-xs">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr>
-                  <th className="notion-table-th">Aa Name</th>
-                  <th className="notion-table-th">⭐ Balance</th>
-                  <th className="notion-table-th">✔️ WinRate</th>
-                  <th className="notion-table-th">⚫ Trades</th>
-                  <th className="notion-table-th">🏆 Wins</th>
-                  <th className="notion-table-th">💥 Losses</th>
-                  <th className="notion-table-th">💵 Total P&L (SOL)</th>
-                  <th className="notion-table-th">≡ Address</th>
-                  <th className="notion-table-th">📥 Deposit</th>
-                  <th className="notion-table-th">📤 Paycheck</th>
+                  <th className="notion-table-th">Name</th>
+                  <th className="notion-table-th">Balance</th>
+                  <th className="notion-table-th">Win Rate</th>
+                  <th className="notion-table-th">Trades</th>
+                  <th className="notion-table-th">Wins</th>
+                  <th className="notion-table-th">Losses</th>
+                  <th className="notion-table-th">Total P&amp;L (SOL)</th>
+                  <th className="notion-table-th">Address</th>
+                  <th className="notion-table-th">Deposit</th>
+                  <th className="notion-table-th">Withdraw</th>
                   <th className="notion-table-th text-center">Actions</th>
                 </tr>
               </thead>

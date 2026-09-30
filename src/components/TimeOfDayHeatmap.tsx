@@ -33,14 +33,6 @@ const HOUR_LABELS = [
   "12pm", "1pm", "2pm", "3pm", "4pm", "5pm", "6pm", "7pm", "8pm", "9pm", "10pm", "11pm",
 ];
 
-function formatUsd(val: number): string {
-  const abs = Math.abs(val);
-  if (abs >= 1000) {
-    return `${val >= 0 ? "+" : "-"}$${(abs / 1000).toFixed(2)}K`;
-  }
-  return `${val >= 0 ? "+" : "-"}$${abs.toFixed(2)}`;
-}
-
 function formatUsdSigned(val: number): string {
   if (val === 0) return "$0.00";
   const abs = Math.abs(val);
@@ -57,7 +49,7 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
   const [expandedDay, setExpandedDay] = useState<number | null>(null);
   const [expandedHour, setExpandedHour] = useState<number | null>(null);
   const [metric, setMetric] = useState<HeatmapMetric>("avgPnl");
-  const [minimumSample, setMinimumSample] = useState(1);
+  const [minimumSample, setMinimumSample] = useState(3);
 
   // Build the 7x24 grid
   const gridData = useMemo(() => {
@@ -119,7 +111,7 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
       })
     );
     return { globalMin: min, globalMax: max };
-  }, [gridData, metric, metricValue, minimumSample]);
+  }, [gridData, metricValue, minimumSample]);
 
   // Compute best/worst hour and average
   const summaryStats = useMemo(() => {
@@ -149,7 +141,7 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
       avgPerTrade: number;
       totalTrades: number;
     };
-  }, [gridData, metric, metricValue, minimumSample]);
+  }, [gridData, metricValue, minimumSample]);
 
   // Color for a cell
   const getCellColor = useCallback(
@@ -239,6 +231,9 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
   const currentDate = new Date(now);
   const currentDayIdx = now ? (currentDate.getDay() === 0 ? 6 : currentDate.getDay() - 1) : -1;
   const currentHour = now ? currentDate.getHours() : -1;
+
+  const worstValue = summaryStats.worstCell ? metricValue(summaryStats.worstCell) : 0;
+  const worstIsActualLoss = (metric === "avgPnl" || metric === "totalPnl") && worstValue < 0;
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
@@ -376,10 +371,12 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
       {summaryStats.totalTrades > 0 && (
         <div className="px-4 py-2.5 border-t border-gray-100 flex flex-wrap items-center gap-3 text-[11px]">
           {summaryStats.worstCell && (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-rose-50 border border-rose-100 rounded-md">
-              <TrendingDown size={12} className="text-rose-500" />
-              <span className="text-rose-700 font-medium">
-                Worst slot · {DAY_FULL[summaryStats.worstCell.dayIndex].slice(0, 3)}{" "}
+            <div className={`flex items-center gap-1.5 px-2.5 py-1 border rounded-md ${worstIsActualLoss ? "bg-rose-50 border-rose-100" : "bg-gray-50 border-gray-200"}`}>
+              {worstIsActualLoss
+                ? <TrendingDown size={12} className="text-rose-500" />
+                : <Activity size={12} className="text-gray-500" />}
+              <span className={`font-medium ${worstIsActualLoss ? "text-rose-700" : "text-gray-700"}`}>
+                {worstIsActualLoss ? "Worst slot" : "Lowest slot"} · {DAY_FULL[summaryStats.worstCell.dayIndex].slice(0, 3)}{" "}
                 {summaryStats.worstCell.hour === 0
                   ? "12 AM"
                   : summaryStats.worstCell.hour < 12

@@ -140,7 +140,7 @@ export default function EquityCurveCard({ trades, solPrice = 150 }: EquityCurveC
       });
     }
 
-    const winsCount = filtered.filter((t) => (t.pnlSol || 0) > 0).length;
+    const winsCount = filtered.filter((t) => t.result === "Win").length;
     const wr = filtered.length > 0 ? ((winsCount / filtered.length) * 100).toFixed(0) : "0";
 
     return {
@@ -220,7 +220,7 @@ export default function EquityCurveCard({ trades, solPrice = 150 }: EquityCurveC
                     curveType === "pnl" ? "bg-white text-[#37352f] shadow-xs font-semibold" : "text-[#787774]"
                   }`}
                 >
-                  PnL (0)
+                  Realized P&amp;L
                 </button>
                 <button
                   type="button"
@@ -312,8 +312,8 @@ export default function EquityCurveCard({ trades, solPrice = 150 }: EquityCurveC
 
         <div className="p-2.5 bg-white border border-[#e9e9e7] rounded-lg">
           <span className="text-[10px] text-[#787774] block">Max Drawdown</span>
-          <div className="text-sm font-mono font-semibold tabular-nums text-rose-600 mt-0.5">
-            -{maxDrawdown} {currency}
+          <div className={`text-sm font-mono font-semibold tabular-nums mt-0.5 ${maxDrawdown > 0 ? "text-rose-600" : "text-[#787774]"}`}>
+            {maxDrawdown > 0 ? `-${maxDrawdown}` : "0"} {currency}
           </div>
         </div>
 

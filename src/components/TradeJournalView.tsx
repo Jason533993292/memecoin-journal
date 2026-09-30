@@ -5,34 +5,18 @@ import { Trade } from "../lib/types";
 import { db, auth } from "../lib/firebase";
 import { doc, deleteDoc, addDoc, collection, serverTimestamp } from "firebase/firestore";
 import {
-  Lock,
-  ArrowUpDown,
-  Filter,
   Search,
-  Maximize2,
   Trash2,
   Edit2,
-  ExternalLink,
-  ChevronRight,
-  Sparkles,
-  Copy,
-  Check,
-  Download,
   Upload,
   LayoutGrid,
   Table as TableIcon,
-  Calendar,
-  Wallet as WalletIcon,
-  BookOpen,
-  TrendingUp,
-  TrendingDown,
   FileSpreadsheet,
   Image as ImageIcon,
   Clock,
-  Layers,
 } from "lucide-react";
-import { exportTradesToCSV, exportTradesToJSON, parseCSV } from "../lib/exportImport";
-import { getTradeTimestamp, getTradeDate } from "../lib/utils";
+import { exportTradesToCSV, parseCSV } from "../lib/exportImport";
+import { getTradeTimestamp } from "../lib/utils";
 import { useCurrentTime } from "../lib/useLocalStorage";
 import { useToast } from "./Toast";
 import ImageLightboxModal from "./ImageLightboxModal";
@@ -68,8 +52,6 @@ export default function TradeJournalView({
   const [tradeToDelete, setTradeToDelete] = useState<string | null>(null);
   const [deletedIds, setDeletedIds] = useState<string[]>([]);
 
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [lightboxImage, setLightboxImage] = useState<{ url: string; title: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -91,14 +73,12 @@ export default function TradeJournalView({
     return Array.from(set);
   }, [trades]);
 
-  // Copy CA helper
-  const copyToClipboard = (e: React.MouseEvent, text: string, id: string) => {
-    e.stopPropagation();
-    navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    showToast("CA copied to clipboard", "success");
-    setTimeout(() => setCopiedId(null), 1500);
-  };
+  const resultCounts = useMemo(() => ({
+    All: trades.length,
+    Win: trades.filter((trade) => trade.result === "Win").length,
+    Loss: trades.filter((trade) => trade.result === "Loss").length,
+    BE: trades.filter((trade) => trade.result === "BE").length,
+  }), [trades]);
 
   // Delete trade
   const requestDelete = (e: React.MouseEvent, id: string) => {
@@ -110,7 +90,6 @@ export default function TradeJournalView({
     if (!tradeToDelete) return;
     const id = tradeToDelete;
     setTradeToDelete(null);
-    setDeletingId(id);
     setDeletedIds((prev) => [...prev, id]);
     
     try {
@@ -125,7 +104,6 @@ export default function TradeJournalView({
       showToast("Failed to delete trade", "error");
       setDeletedIds((prev) => prev.filter((pid) => pid !== id));
     }
-    setDeletingId(null);
   };
 
   // Handle JSON/CSV Import
@@ -268,9 +246,7 @@ export default function TradeJournalView({
         if (sortBy === "size-desc") return (b.boughtSol || 0) - (a.boughtSol || 0);
         return 0;
       });
-  }, [trades, searchQuery, filterResult, filterWallet, filterSetup, filterMistake, dateRange, sortBy, now]);
-
-  const totalFilteredPnl = filteredTrades.reduce((acc, t) => acc + (t.pnlSol || 0), 0);
+  }, [trades, deletedIds, searchQuery, filterResult, filterWallet, filterSetup, filterMistake, dateRange, sortBy, now]);
 
   const formatDuration = (mins?: number) => {
     if (!mins) return null;
@@ -296,10 +272,7 @@ export default function TradeJournalView({
         <div className="flex items-center gap-2 text-xs text-[#787774] mb-2">
           <span>Journal</span>
           <span>/</span>
-          <span className="text-[#37352f] font-medium flex items-center gap-1">
-            <span>📓</span>
-            <span>Trade Journal</span>
-          </span>
+          <span className="text-[#37352f] font-medium">Trade Journal</span>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -384,16 +357,23 @@ export default function TradeJournalView({
                     : "text-[#787774] hover:text-[#37352f]"
                 }`}
               >
-                {tab === "All" ? `All (${trades.length})` : tab}
+                {tab} ({resultCounts[tab as keyof typeof resultCounts]})
               </button>
             ))}
           </div>
 
-          {/* Setup Strategy Filter Dropdown */}
+          {/* Less-used filters */}
+          <details className="relative">
+            <summary className="cursor-pointer list-none bg-[#f7f6f3] border border-[#e9e9e7] rounded-md px-2.5 py-1 text-[11px] text-[#37352f]">
+              More filters{[filterSetup, filterWallet, filterMistake].filter((value) => value !== "All").length > 0
+                ? ` (${[filterSetup, filterWallet, filterMistake].filter((value) => value !== "All").length})`
+                : ""}
+            </summary>
+            <div className="absolute left-0 top-full z-30 mt-2 w-64 space-y-2 rounded-xl border border-[#e3e2de] bg-white p-3 shadow-xl">
           <select
             value={filterSetup}
             onChange={(e) => setFilterSetup(e.target.value)}
-            className="bg-[#f7f6f3] border border-[#e9e9e7] rounded-md px-2 py-1 text-[11px] text-[#37352f] focus:outline-none"
+            className="w-full bg-[#f7f6f3] border border-[#e9e9e7] rounded-md px-2 py-1.5 text-[11px] text-[#37352f] focus:outline-none"
           >
             <option value="All">All Setups</option>
             {uniqueSetups.map((s) => (
@@ -407,7 +387,7 @@ export default function TradeJournalView({
           <select
             value={filterWallet}
             onChange={(e) => setFilterWallet(e.target.value)}
-            className="bg-[#f7f6f3] border border-[#e9e9e7] rounded-md px-2 py-1 text-[11px] text-[#37352f] focus:outline-none"
+            className="w-full bg-[#f7f6f3] border border-[#e9e9e7] rounded-md px-2 py-1.5 text-[11px] text-[#37352f] focus:outline-none"
           >
             <option value="All">All Wallets</option>
             <option value="Main">Main (Phantom)</option>
@@ -421,7 +401,7 @@ export default function TradeJournalView({
             <select
               value={filterMistake}
               onChange={(e) => setFilterMistake(e.target.value)}
-              className="bg-[#f7f6f3] border border-[#e9e9e7] rounded-md px-2 py-1 text-[11px] text-[#37352f] focus:outline-none"
+              className="w-full bg-[#f7f6f3] border border-[#e9e9e7] rounded-md px-2 py-1.5 text-[11px] text-[#37352f] focus:outline-none"
             >
               <option value="All">All Emotion Tags</option>
               {uniqueMistakes.map((m) => (
@@ -431,6 +411,8 @@ export default function TradeJournalView({
               ))}
             </select>
           )}
+            </div>
+          </details>
 
           {/* Currency Toggle */}
           <div className="flex items-center gap-0.5 bg-[#f7f6f3] p-0.5 rounded-md border border-[#e9e9e7]">

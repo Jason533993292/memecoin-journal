@@ -51,6 +51,8 @@ export default function AiCoachView({
   const providerChanged = Boolean(savedApiKey && effectiveSavedProvider !== provider);
   const apiKey = apiKeyDraft || (providerChanged ? "" : savedApiKey || "");
   const isApiKeySet = Boolean(savedApiKey);
+  const isProviderReady = isApiKeySet && !providerChanged;
+  const providerLabel = provider === "deepseek" ? "DeepSeek" : provider === "gemini" ? "Google Gemini" : "OpenAI";
 
   const saveProviderSettings = () => {
     const nextKey = apiKeyDraft.trim();
@@ -170,10 +172,7 @@ export default function AiCoachView({
         <div className="flex items-center gap-2 text-xs text-[#787774] mb-2">
           <span>Journal</span>
           <span>/</span>
-          <span className="text-[#37352f] font-medium flex items-center gap-1">
-            <span>🧠</span>
-            <span>Trade Review & AI Coach</span>
-          </span>
+          <span className="text-[#37352f] font-medium">Trade Review &amp; AI Coach</span>
         </div>
 
         <div className="flex items-center justify-between">
@@ -191,7 +190,8 @@ export default function AiCoachView({
 
           <button
             onClick={onRefreshAiBrief}
-            disabled={loadingAi || trades.length === 0}
+            disabled={loadingAi || trades.length === 0 || !isProviderReady}
+            title={!isProviderReady ? "Save a provider API key before requesting a review" : undefined}
             className="bg-[#2383e2] hover:bg-[#1a73ca] text-white px-3.5 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 shadow-xs transition-colors disabled:opacity-50"
           >
             <RefreshCw size={13} className={loadingAi ? "animate-spin" : ""} />
@@ -205,7 +205,7 @@ export default function AiCoachView({
         <div className="bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl p-4">
           <div className="flex items-center gap-2 text-xs text-[#787774] mb-1">
             <Target size={14} className="text-[#2383e2]" />
-            <span>Discipline Win Rate</span>
+            <span>Win Rate</span>
           </div>
           <div className="text-2xl font-bold text-[#37352f]">{winRate}%</div>
           <span className="text-[11px] text-[#9b9a97]">Across {totalTrades} logged trades</span>
@@ -225,10 +225,12 @@ export default function AiCoachView({
         <div className="bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl p-4 flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-2 text-xs text-[#787774] mb-1">
-              <ShieldCheck size={14} className="text-emerald-600" />
+              <ShieldCheck size={14} className={isProviderReady ? "text-emerald-600" : "text-[#9b9a97]"} />
               <span>AI Status</span>
             </div>
-            <div className="text-base font-semibold text-emerald-700">{provider === "deepseek" ? "DeepSeek Chat" : provider === "gemini" ? "Google Gemini" : "OpenAI"}</div>
+            <div className={`text-base font-semibold ${isProviderReady ? "text-emerald-700" : "text-[#787774]"}`}>
+              {isProviderReady ? `${providerLabel} configured` : "Not configured"}
+            </div>
           </div>
           {isApiKeySet && (
             <button
@@ -244,12 +246,12 @@ export default function AiCoachView({
 
       {/* API Key Setup Box */}
       {(
-        <div className="bg-rose-50 border border-rose-200 rounded-xl p-6 shadow-xs space-y-3">
-          <div className="flex items-center gap-2 font-semibold text-sm text-rose-900">
+        <div className={`border rounded-xl p-6 shadow-xs space-y-3 ${isProviderReady ? "bg-[#fbfbfa] border-[#e9e9e7]" : "bg-rose-50 border-rose-200"}`}>
+          <div className={`flex items-center gap-2 font-semibold text-sm ${isProviderReady ? "text-[#37352f]" : "text-rose-900"}`}>
             <AlertTriangle size={18} />
             <span>{isApiKeySet ? "AI provider settings" : "Set up an AI provider API key"}</span>
           </div>
-          <p className="text-xs text-rose-700 leading-relaxed">
+          <p className={`text-xs leading-relaxed ${isProviderReady ? "text-[#787774]" : "text-rose-700"}`}>
               Choose a provider and matching API key. It stays in this browser and is sent only when you request an analysis. Supported providers: DeepSeek, Google Gemini, and OpenAI.
           </p>
           <div className="flex gap-2 pt-2">
@@ -299,8 +301,8 @@ export default function AiCoachView({
             <Bot size={18} className="text-[#2383e2]" />
             <span>Coach&apos;s Direct Evaluation</span>
           </div>
-          <span className="text-[11px] px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-            Live AI Analysis
+          <span className={`text-[11px] px-2 py-0.5 rounded border ${aiBrief?.advice ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-neutral-50 text-[#787774] border-[#e3e2de]"}`}>
+            {aiBrief?.advice ? "Latest AI Analysis" : "No analysis yet"}
           </span>
         </div>
 

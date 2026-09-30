@@ -2,20 +2,9 @@
 
 import { useMemo } from "react";
 import { Trade } from "../lib/types";
-import { getTradeDate, getTradeTimestamp } from "../lib/utils";
+import { getTradeDate } from "../lib/utils";
 import { DEFAULT_GOOD_TAGS } from "../lib/constants";
-import { Lock, BarChart3, TrendingUp, Calendar, AlertTriangle, Layers, Target, ArrowUpRight, Clock, ShieldCheck, Zap, Tag } from "lucide-react";
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-  Area,
-  AreaChart,
-} from "recharts";
+import { Layers, Target, Clock, Zap, Tag } from "lucide-react";
 import TiltStreakHeatmap from "./TiltStreakHeatmap";
 import TimeOfDayHeatmap from "./TimeOfDayHeatmap";
 
@@ -28,8 +17,8 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
   // Quant & Strategy Expectancy Metrics
   const quantMetrics = useMemo(() => {
     const total = trades.length;
-    const wins = trades.filter((t) => t.result === "Win");
-    const losses = trades.filter((t) => t.result === "Loss");
+    const wins = trades.filter((t) => (t.pnlSol || 0) > 0);
+    const losses = trades.filter((t) => (t.pnlSol || 0) < 0);
     const winRate = total > 0 ? wins.length / total : 0;
     const lossRate = total > 0 ? losses.length / total : 0;
 
@@ -61,7 +50,7 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
       profitFactor: profitFactor.toFixed(2),
       payoffRatio: payoffRatio.toFixed(2),
       expectancySol: expectancySol.toFixed(3),
-      expectancyUsd: (expectancySol * solPrice).toFixed(2),
+      expectancyUsd: solPrice > 0 ? (expectancySol * solPrice).toFixed(2) : null,
       avgR: avgR !== null ? (avgR >= 0 ? `+${avgR.toFixed(2)}R` : `${avgR.toFixed(2)}R`) : null,
       totalFeesSol: totalFeesSol.toFixed(3),
       hasRData: rTrades.length > 0,
@@ -140,53 +129,11 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
       avgLossDuration,
       avgWinFormatted: formatMins(avgWinDuration),
       avgLossFormatted: formatMins(avgLossDuration),
-      hasDurationData: (winners.length + losers.length) > 0,
+      hasDurationData: winners.length > 0 && losers.length > 0,
     };
   }, [trades]);
 
-  // 4. Day of Week Breakdown
-  const dailyStats = useMemo(() => {
-    const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-    const ordered = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-
-    const map: Record<string, { count: number; pnl: number }> = {};
-    ordered.forEach((d) => (map[d] = { count: 0, pnl: 0 }));
-
-    trades.forEach((t) => {
-      const date = getTradeDate(t);
-      const dayName = days[date.getDay()];
-      if (map[dayName]) {
-        map[dayName].count += 1;
-        map[dayName].pnl += t.pnlUsd !== undefined ? t.pnlUsd : (t.pnlSol || 0) * solPrice;
-      }
-    });
-
-    return ordered.map((name) => ({ name, ...map[name] }));
-  }, [trades, solPrice]);
-
-  // 5. Monthly Breakdown
-  const monthlyStats = useMemo(() => {
-    const months = [
-      "January", "February", "March", "April", "May", "June",
-      "July", "August", "September", "October", "November", "December"
-    ];
-
-    const map: Record<string, { count: number; pnl: number }> = {};
-    months.forEach((m) => (map[m] = { count: 0, pnl: 0 }));
-
-    trades.forEach((t) => {
-      const date = getTradeDate(t);
-      const monthName = months[date.getMonth()];
-      if (map[monthName]) {
-        map[monthName].count += 1;
-        map[monthName].pnl += t.pnlUsd !== undefined ? t.pnlUsd : (t.pnlSol || 0) * solPrice;
-      }
-    });
-
-    return months.map((name) => ({ name, ...map[name] }));
-  }, [trades, solPrice]);
-
-  // 6. Yearly Breakdown
+  // Yearly Breakdown
   const yearlyStats = useMemo(() => {
     const currentYear = new Date().getFullYear();
     const discoveredYears = trades.map((t) => getTradeDate(t).getFullYear());
@@ -207,31 +154,7 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
     return years.map((name) => ({ name, ...map[name] }));
   }, [trades, solPrice]);
 
-  // 7. Equity Curve
-  const equityCurve = useMemo(() => {
-    const sorted = [...trades].sort((a, b) => {
-      const timeA = getTradeTimestamp(a);
-      const timeB = getTradeTimestamp(b);
-      return timeA - timeB;
-    });
-
-    let runningPnl = 0;
-    const curve = [{ index: 0, date: "Start", pnl: 0 }];
-
-    sorted.forEach((t, i) => {
-      runningPnl += t.pnlSol || 0;
-      const label = getTradeDate(t).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-      curve.push({
-        index: i + 1,
-        date: label,
-        pnl: parseFloat(runningPnl.toFixed(2)),
-      });
-    });
-
-    return curve;
-  }, [trades]);
-
-  // 8. Tag Impact
+  // Tag performance
   const tagImpact = useMemo(() => {
     const map: Record<string, { count: number; pnlSol: number; isGood: boolean }> = {};
     trades.forEach((t) => {
@@ -247,6 +170,7 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
 
     return Object.entries(map)
       .map(([tag, data]) => ({ tag, ...data }))
+      .filter((item) => item.count >= 2 && Math.abs(item.pnlSol) >= 0.005)
       .sort((a, b) => Math.abs(b.pnlSol) - Math.abs(a.pnlSol));
   }, [trades]);
 
@@ -256,10 +180,7 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
         <div className="flex items-center gap-2 text-xs text-[#787774] mb-2">
           <span>Journal</span>
           <span>/</span>
-          <span className="text-[#37352f] font-medium flex items-center gap-1">
-            <span>📈</span>
-            <span>Statistics</span>
-          </span>
+          <span className="text-[#37352f] font-medium">Statistics</span>
         </div>
 
         <div className="flex items-center gap-3">
@@ -294,10 +215,7 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
         <div className="flex items-center gap-2 text-xs text-[#787774] mb-2">
           <span>Journal</span>
           <span>/</span>
-          <span className="text-[#37352f] font-medium flex items-center gap-1">
-            <span>📈</span>
-            <span>Statistics</span>
-          </span>
+          <span className="text-[#37352f] font-medium">Statistics</span>
         </div>
 
         <div className="flex items-center gap-3">
@@ -331,12 +249,9 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
               </p>
             </div>
           </div>
-          <span className="text-[11px] font-semibold text-[#2383e2] bg-blue-50 px-2.5 py-0.5 rounded border border-blue-200">
-            Strategy Edge
-          </span>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+        <div className={`grid grid-cols-2 gap-3 sm:gap-4 ${quantMetrics.hasRData || parseFloat(quantMetrics.totalFeesSol) > 0 ? "md:grid-cols-4" : "md:grid-cols-3"}`}>
           {/* Mathematical Expectancy */}
           <div className="p-3.5 bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl">
             <div className="text-[11px] uppercase tracking-wider text-[#787774] font-semibold">
@@ -348,7 +263,7 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
               {parseFloat(quantMetrics.expectancySol) >= 0 ? `+${quantMetrics.expectancySol}` : quantMetrics.expectancySol} SOL
             </div>
             <div className="text-[10px] text-[#9b9a97] mt-0.5">
-              ≈ ${quantMetrics.expectancyUsd} / execution
+              {quantMetrics.expectancyUsd === null ? "USD conversion unavailable" : `≈ $${quantMetrics.expectancyUsd} / trade`}
             </div>
           </div>
 
@@ -379,7 +294,7 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
           </div>
 
           {/* Execution Fees / R-Multiple */}
-          <div className="p-3.5 bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl">
+          {(quantMetrics.hasRData || parseFloat(quantMetrics.totalFeesSol) > 0) && <div className="p-3.5 bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl">
             <div className="text-[11px] uppercase tracking-wider text-[#787774] font-semibold">
               {quantMetrics.hasRData ? "Average R-Multiple" : "Solana Fees Drag"}
             </div>
@@ -387,9 +302,13 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
               {quantMetrics.hasRData ? quantMetrics.avgR : `${quantMetrics.totalFeesSol} SOL`}
             </div>
             <div className="text-[10px] text-[#9b9a97] mt-0.5">
-              {quantMetrics.hasRData ? `Fees: ${quantMetrics.totalFeesSol} SOL` : "Jito tips + priority fees"}
+              {quantMetrics.hasRData && parseFloat(quantMetrics.totalFeesSol) > 0
+                ? `Fees paid: ${quantMetrics.totalFeesSol} SOL`
+                : quantMetrics.hasRData
+                  ? "Average return relative to initial risk"
+                  : "Jito tips + priority fees"}
             </div>
-          </div>
+          </div>}
         </div>
       </div>
 
@@ -405,9 +324,6 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
               </p>
             </div>
           </div>
-          <span className="text-[11px] text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-            Psychology Metric
-          </span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -450,9 +366,13 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
                 <span>
                   <strong>Insight:</strong> You are holding losing trades longer than winners ({durationStats.avgLossFormatted} vs {durationStats.avgWinFormatted}). Respect your stop loss faster!
                 </span>
+              ) : durationStats.avgLossDuration === durationStats.avgWinDuration ? (
+                <span>
+                  <strong>Insight:</strong> Winner and loser holding times are currently the same. More varied trade data is needed before drawing a conclusion.
+                </span>
               ) : (
                 <span>
-                  <strong>Insight:</strong> Great discipline! You cut losing trades quickly and let your winners run.
+                  <strong>Insight:</strong> Winners are being held longer than losing trades ({durationStats.avgWinFormatted} vs {durationStats.avgLossFormatted}).
                 </span>
               )}
             </span>
@@ -520,14 +440,10 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* 1. Results Card */}
         <div className="bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl p-5 shadow-xs">
-          <div className="flex items-center justify-between pb-3 border-b border-[#e9e9e7]">
+          <div className="pb-3 border-b border-[#e9e9e7]">
             <div className="flex items-center gap-1.5 font-semibold text-xs text-[#37352f]">
               <span className="p-1 rounded bg-neutral-100 text-neutral-600">📊</span>
               <span>Results Breakdown</span>
-            </div>
-            <div className="flex items-center gap-1 text-[#9b9a97] text-xs">
-              <Lock size={12} />
-              <span>Locked</span>
             </div>
           </div>
 
@@ -572,14 +488,10 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
 
         {/* 2. Yearly Statistics Card */}
         <div className="bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl p-5 shadow-xs">
-          <div className="flex items-center justify-between pb-3 border-b border-[#e9e9e7]">
+          <div className="pb-3 border-b border-[#e9e9e7]">
             <div className="flex items-center gap-1.5 font-semibold text-xs text-[#37352f]">
               <span className="p-1 rounded bg-neutral-100 text-neutral-600">📅</span>
               <span>Yearly Statistics</span>
-            </div>
-            <div className="flex items-center gap-1 text-[#9b9a97] text-xs">
-              <Lock size={12} />
-              <span>Locked</span>
             </div>
           </div>
 
@@ -602,15 +514,15 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
         </div>
       </div>
 
-      {/* Tag Frequency & Impact Card */}
+      {/* Tag performance card */}
       {tagImpact.length > 0 && (
         <div className="bg-white border border-[#e9e9e7] rounded-xl p-5 shadow-xs">
           <h2 className="text-sm font-semibold text-[#37352f] flex items-center gap-2 mb-1">
             <Tag size={15} className="text-[#2383e2]" />
-            <span>Tag Frequency & Execution Impact</span>
+            <span>P&amp;L by Trade Tag</span>
           </h2>
           <p className="text-xs text-[#787774] mb-4">
-            Total Solana won or lost per tag across your historical trades.
+            Net P&amp;L for tags used on at least two trades. This shows correlation, not causation.
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
@@ -630,7 +542,7 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
                   <span className={`text-xs font-mono font-semibold block ${item.pnlSol >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
                     {item.pnlSol >= 0 ? `+${item.pnlSol.toFixed(2)}` : item.pnlSol.toFixed(2)} SOL
                   </span>
-                  <span className="text-[10px] text-[#9b9a97]">net impact</span>
+                  <span className="text-[10px] text-[#9b9a97]">net P&amp;L on tagged trades</span>
                 </div>
               </div>
             ))}

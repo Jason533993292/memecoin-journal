@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { db } from "../lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import {
@@ -72,10 +72,12 @@ export default function LogTradeModal({
   } | null>(null);
 
   // Trade fields
-  const [wallet, setWallet] = useState(initialData?.wallet || "Main");
-  const [result, setResult] = useState<"Win" | "Loss" | "BE">(initialData?.result || "Win");
-  const [setupType, setSetupType] = useState<string>(initialData?.setupType || "Breakout / ATH Push");
-  const [customSetup, setCustomSetup] = useState("");
+  const initialSetup = initialData?.setupType || "Breakout / ATH Push";
+  const isKnownInitialSetup = COMMON_SETUPS.includes(initialSetup);
+  const [wallet, setWallet] = useState(initialData?.wallet || "Paper");
+  const [result, setResult] = useState<"Win" | "Loss" | "BE" | "">(initialData?.result || "");
+  const [setupType, setSetupType] = useState<string>(isKnownInitialSetup ? initialSetup : "Custom");
+  const [customSetup, setCustomSetup] = useState(isKnownInitialSetup ? "" : initialSetup);
   const [durationMinutes, setDurationMinutes] = useState<number | undefined>(initialData?.durationMinutes || 15);
 
   // Financial fields
@@ -116,6 +118,7 @@ export default function LogTradeModal({
   const [showAdvanced, setShowAdvanced] = useState(
     Boolean(initialData?.initialRiskSol || initialData?.feesSol || initialData?.stopPrice)
   );
+  const [showAllTags, setShowAllTags] = useState(false);
 
   const parseQuickPaste = (value: string) => {
     setQuickPaste(value);
@@ -130,7 +133,7 @@ export default function LogTradeModal({
     if (sold) handleSoldChange(sold, true);
   };
 
-  const attachImage = async (rawUrl: string) => {
+  const attachImage = useCallback(async (rawUrl: string) => {
     try {
       const compressed = await compressImage(rawUrl);
       setScreenshotUrl(compressed);
@@ -138,7 +141,7 @@ export default function LogTradeModal({
     } catch {
       showToast("Screenshot could not be attached", "error", "Choose a smaller image or another file.");
     }
-  };
+  }, [showToast]);
 
   // Global Clipboard Paste Listener for screenshots with compression
   useEffect(() => {
@@ -172,7 +175,7 @@ export default function LogTradeModal({
 
     window.addEventListener("paste", handlePaste);
     return () => window.removeEventListener("paste", handlePaste);
-  }, [isOpen, showToast, user?.uid]);
+  }, [attachImage, isOpen, showToast]);
 
   // Clean up debounce on unmount
   useEffect(() => {
@@ -468,6 +471,14 @@ export default function LogTradeModal({
       showToast("Please enter a valid Contract Address or Token Name.", "error");
       return;
     }
+    if (!result) {
+      showToast("Choose the trade result", "error", "Select Win, Loss, or Break-Even before saving.");
+      return;
+    }
+    if (setupType === "Custom" && !customSetup.trim()) {
+      showToast("Describe the custom setup", "error", "Add a short setup name before saving.");
+      return;
+    }
 
     setSaving(true);
     try {
@@ -665,14 +676,25 @@ export default function LogTradeModal({
                     {s}
                   </button>
                 ))}
+                <button
+                  type="button"
+                  onClick={() => setSetupType("Custom")}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-all border ${
+                    setupType === "Custom"
+                      ? "bg-blue-50 border-[#2383e2] text-[#2383e2] font-semibold shadow-xs"
+                      : "bg-[#fbfbfa] border-[#e3e2de] text-[#5a5957] hover:bg-[#f1f1ef]"
+                  }`}
+                >
+                  Custom
+                </button>
               </div>
-              <input
-                type="text"
-                value={customSetup}
-                onChange={(e) => setCustomSetup(e.target.value)}
-                placeholder="Or custom setup..."
-                className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]"
-              />
+              {setupType === "Custom" && <input
+                  type="text"
+                  value={customSetup}
+                  onChange={(e) => setCustomSetup(e.target.value)}
+                  placeholder="Describe your custom setup..."
+                  className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]"
+                />}
             </div>
 
             {/* Trade Duration */}
@@ -704,15 +726,17 @@ export default function LogTradeModal({
               </div>
             </div>
 
-            {/* Chart Screenshot */}
-            <div>
-              <label className="block font-medium text-[#787774] mb-1.5 flex items-center justify-between">
+            {/* Optional chart screenshot */}
+            <details className="rounded-xl border border-[#e9e9e7] bg-[#fbfbfa] p-3" open={screenshotUrl ? true : undefined}>
+              <summary className="cursor-pointer list-none font-medium text-[#787774] flex items-center justify-between">
                 <span className="flex items-center gap-1">
                   <ImageIcon size={12} className="text-purple-600" />
-                  <span>Chart Screenshot</span>
+                  <span>Chart Screenshot <span className="text-[#9b9a97]">(optional)</span></span>
                 </span>
-                <span className="text-[10px] text-purple-600 font-medium">Cmd+V to paste screenshot</span>
-              </label>
+                <span className="text-[10px] text-purple-600 font-medium">Add image</span>
+              </summary>
+
+              <div className="mt-3">
 
               <input
                 type="file"
@@ -749,7 +773,8 @@ export default function LogTradeModal({
                   <p className="text-[10px] text-[#9b9a97] mt-0.5">Supports PNG, JPG, WebP (auto-compressed)</p>
                 </div>
               )}
-            </div>
+              </div>
+            </details>
 
             {/* Trade Result (Win/Loss/BE) */}
             <div>
@@ -968,7 +993,7 @@ export default function LogTradeModal({
                   <span>Good Execution & Discipline (Things you did right)</span>
                 </div>
                 <div className="flex flex-wrap gap-1.5 p-2 bg-emerald-50/40 border border-emerald-200/60 rounded-lg">
-                  {DEFAULT_GOOD_TAGS.map((tag) => {
+                  {DEFAULT_GOOD_TAGS.filter((tag, index) => showAllTags || index < 4 || selectedGoodTags.includes(tag)).map((tag) => {
                     const isSelected = selectedGoodTags.includes(tag);
                     return (
                       <button
@@ -996,7 +1021,7 @@ export default function LogTradeModal({
                   <span>Mistakes & Psychological Traps</span>
                 </div>
                 <div className="flex flex-wrap gap-1.5 p-2 bg-rose-50/40 border border-rose-200/60 rounded-lg">
-                  {DEFAULT_MISTAKE_TAGS.map((tag) => {
+                  {DEFAULT_MISTAKE_TAGS.filter((tag, index) => showAllTags || index < 5 || selectedMistakes.includes(tag)).map((tag) => {
                     const isSelected = selectedMistakes.includes(tag);
                     return (
                       <button
@@ -1017,8 +1042,16 @@ export default function LogTradeModal({
                 </div>
               </div>
 
+              <button
+                type="button"
+                onClick={() => setShowAllTags((visible) => !visible)}
+                className="text-[11px] font-medium text-[#2383e2] hover:underline"
+              >
+                {showAllTags ? "Show fewer tags" : "Show all tags and custom tags"}
+              </button>
+
               {/* Custom Tag Input with explicit Good vs Mistake selection */}
-              <div className="flex flex-wrap gap-2 pt-1 items-center">
+              {showAllTags && <div className="flex flex-wrap gap-2 pt-1 items-center">
                 <div className="flex items-center gap-1 bg-[#f1f1ef] p-0.5 rounded-lg border border-[#e3e2de] text-[11px]">
                   <button
                     type="button"
@@ -1064,7 +1097,7 @@ export default function LogTradeModal({
                   <Plus size={13} />
                   <span>Add Tag</span>
                 </button>
-              </div>
+              </div>}
             </div>
 
             {/* Trade Notes */}
