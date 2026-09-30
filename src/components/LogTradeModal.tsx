@@ -29,7 +29,7 @@ import {
   DURATION_PRESETS,
 } from "../lib/constants";
 import { compressImage } from "../lib/utils";
-import { buildTradeAmounts, parseQuickTradePaste } from "../lib/tradeInput";
+import { buildTradeAmounts, getTradeCreateValidationError, parseQuickTradePaste } from "../lib/tradeInput";
 import { useAuth } from "../context/AuthContext";
 import { parseLocalStorageValue, useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
 
@@ -505,7 +505,7 @@ export default function LogTradeModal({
       if (!user) throw new Error("Please sign in before saving a trade.");
       const tradesCol = collection(db, "users", user.uid, "trades");
 
-      await addDoc(tradesCol, {
+      const tradeDocument = {
         ca: ca.trim(),
         name: tokenData?.name || "Custom Token",
         symbol: tokenData?.symbol || "MEME",
@@ -541,7 +541,11 @@ export default function LogTradeModal({
         notes: notes.trim(),
         date: serverTimestamp(),
         createdAt: Date.now(),
-      });
+      };
+      const validationError = getTradeCreateValidationError(tradeDocument);
+      if (validationError) throw new RangeError(validationError);
+
+      await addDoc(tradesCol, tradeDocument);
 
       showToast(
         "Trade saved to Cloud",
