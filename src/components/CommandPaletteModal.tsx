@@ -9,12 +9,6 @@ import {
   BarChart3,
   Bot,
   Plus,
-  FileSpreadsheet,
-  Zap,
-  ArrowRight,
-  Sparkles,
-  Command,
-  X
 } from "lucide-react";
 import { Trade } from "../lib/types";
 

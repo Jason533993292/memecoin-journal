@@ -4,7 +4,8 @@ import { useMemo, useState } from "react";
 import { Trade } from "../lib/types";
 import { getTradeTimestamp } from "../lib/utils";
 import { DEFAULT_GOOD_TAGS } from "../lib/constants";
-import { X, Calendar, Trophy, AlertTriangle, Sparkles, Copy, Check, TrendingUp, TrendingDown, Share2 } from "lucide-react";
+import { getUsdValueStatus } from "../lib/tradeCalculations";
+import { X, Calendar, Trophy, AlertTriangle, Sparkles, Copy, Check } from "lucide-react";
 import { useToast } from "./Toast";
 
 interface DailyRecapModalProps {
@@ -38,10 +39,7 @@ export default function DailyRecapModal({
     const be = todayTrades.filter((t) => t.result === "BE");
 
     const netPnlSol = todayTrades.reduce((acc, t) => acc + (t.pnlSol || 0), 0);
-    const netPnlUsd = todayTrades.reduce(
-      (acc, t) => acc + (t.pnlUsd || (t.pnlSol || 0) * solPrice),
-      0
-    );
+    const netPnlUsd = todayTrades.reduce((acc, trade) => acc + (getUsdValueStatus(trade, solPrice).value ?? 0), 0);
 
     const winRate = total > 0 ? ((wins.length / total) * 100).toFixed(0) : "0";
 
@@ -58,6 +56,9 @@ export default function DailyRecapModal({
     const goodTagMap: Record<string, number> = {};
 
     todayTrades.forEach((t) => {
+      t.goodTags?.forEach((tag) => {
+        goodTagMap[tag] = (goodTagMap[tag] || 0) + 1;
+      });
       t.mistakes?.forEach((m) => {
         if (DEFAULT_GOOD_TAGS.includes(m)) {
           goodTagMap[m] = (goodTagMap[m] || 0) + 1;

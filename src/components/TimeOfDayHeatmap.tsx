@@ -5,6 +5,7 @@ import { Trade } from "../lib/types";
 import { Clock, X, TrendingUp, TrendingDown, Activity, Info } from "lucide-react";
 import { getTradeDate, getTradeTimestamp } from "../lib/utils";
 import { useCurrentTime } from "../lib/useLocalStorage";
+import { getUsdValueStatus } from "../lib/tradeCalculations";
 
 interface TimeOfDayHeatmapProps {
   trades: Trade[];
@@ -75,7 +76,7 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
       const dayIdx = jsDay === 0 ? 6 : jsDay - 1; // Mon=0, Tue=1, ... Sun=6
       const hour = tradeDate.getHours();
 
-      const pnlUsd = t.pnlUsd || (t.pnlSol || 0) * solPrice;
+      const pnlUsd = getUsdValueStatus(t, solPrice).value ?? 0;
 
       grid[dayIdx][hour].totalPnlUsd += pnlUsd;
       grid[dayIdx][hour].totalPnlSol += t.pnlSol || 0;
@@ -290,7 +291,10 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
             <div key={dayIdx} className="flex items-center mb-[2px]">
               {/* Day label */}
               <button
+                type="button"
                 onClick={() => handleDayClick(dayIdx)}
+                aria-label={`Show all ${DAY_FULL[dayIdx]} trades`}
+                aria-pressed={expandedDay === dayIdx && expandedHour === null}
                 className={`w-6 shrink-0 text-[10px] font-bold text-center cursor-pointer transition-colors ${
                   expandedDay === dayIdx && expandedHour === null
                     ? "text-emerald-600"
@@ -302,7 +306,8 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
 
               {/* Hour cells */}
               {row.map((cell, hour) => (
-                <div
+                <button
+                  type="button"
                   key={hour}
                   className={`flex-1 h-7 mx-[1px] rounded-[3px] flex items-center justify-center cursor-pointer transition-all relative ${
                     expandedDay === dayIdx && (expandedHour === null || expandedHour === hour)
@@ -315,6 +320,8 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
                   onMouseEnter={(e) => handleMouseEnter(dayIdx, hour, e)}
                   onMouseLeave={() => setHoveredCell(null)}
                   onClick={() => handleCellClick(dayIdx, hour)}
+                  aria-label={`${DAY_FULL[dayIdx]} ${formatHourRange(hour)}: ${cell.tradeCount} trade${cell.tradeCount === 1 ? "" : "s"}, ${formatMetric(cell)}`}
+                  aria-pressed={expandedDay === dayIdx && expandedHour === hour}
                 >
                   {cell.tradeCount >= minimumSample && (
                     <span
@@ -325,7 +332,7 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
                       {formatMetric(cell)}
                     </span>
                   )}
-                </div>
+                </button>
               ))}
             </div>
           ))}
@@ -451,7 +458,7 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
                   hour: "numeric",
                   minute: "2-digit",
                 });
-                const pnlUsd = trade.pnlUsd || (trade.pnlSol || 0) * solPrice;
+                const pnlUsd = getUsdValueStatus(trade, solPrice).value ?? 0;
 
                 return (
                   <div

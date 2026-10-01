@@ -37,9 +37,13 @@ export default function AiCoachView({
   const [asking, setAsking] = useState(false);
   const [apiKeyDraft, setApiKeyDraft] = useState("");
   const [showKey, setShowKey] = useState(false);
+  const [rememberKey, setRememberKey] = useState(false);
   const apiKeyStorageKey = user ? "ai_" + user.uid + "_provider_api_key" : "ai_signed_out_provider_api_key";
   const providerStorageKey = user ? "ai_" + user.uid + "_provider" : "ai_signed_out_provider";
   const savedApiKey = useLocalStorageValue(apiKeyStorageKey);
+  const [sessionApiKey, setSessionApiKey] = useState(() =>
+    typeof window === "undefined" ? "" : window.sessionStorage.getItem(apiKeyStorageKey) || ""
+  );
   const savedProvider = useLocalStorageValue(providerStorageKey);
   const [providerOverride, setProviderOverride] = useState<AiProvider | null>(null);
   const provider: AiProvider =
@@ -48,16 +52,17 @@ export default function AiCoachView({
   const effectiveSavedProvider = savedProvider === "gemini" || savedProvider === "openai"
     ? savedProvider
     : "deepseek";
-  const providerChanged = Boolean(savedApiKey && effectiveSavedProvider !== provider);
-  const apiKey = apiKeyDraft || (providerChanged ? "" : savedApiKey || "");
-  const isApiKeySet = Boolean(savedApiKey);
+  const savedKeyForSession = sessionApiKey || savedApiKey || "";
+  const providerChanged = Boolean(savedKeyForSession && effectiveSavedProvider !== provider);
+  const apiKey = apiKeyDraft || (providerChanged ? "" : savedKeyForSession);
+  const isApiKeySet = Boolean(savedKeyForSession);
   const isProviderReady = isApiKeySet && !providerChanged;
   const providerLabel = provider === "deepseek" ? "DeepSeek" : provider === "gemini" ? "Google Gemini" : "OpenAI";
 
   const saveProviderSettings = () => {
     const nextKey = apiKeyDraft.trim();
     if (!user) return;
-    if ((providerChanged || !savedApiKey) && nextKey.length < 8) {
+    if ((providerChanged || !savedKeyForSession) && nextKey.length < 8) {
       showToast("Add a key for this provider", "error", "The key you saved for another provider cannot be reused.");
       return;
     }
@@ -65,7 +70,18 @@ export default function AiCoachView({
       showToast("That API key does not look valid", "error", "Check the key and try again.");
       return;
     }
-    const keySaved = nextKey ? writeLocalStorageValue(apiKeyStorageKey, nextKey) : true;
+    let keySaved = true;
+    if (nextKey) {
+      if (rememberKey) {
+        keySaved = writeLocalStorageValue(apiKeyStorageKey, nextKey);
+        window.sessionStorage.removeItem(apiKeyStorageKey);
+        setSessionApiKey("");
+      } else {
+        window.sessionStorage.setItem(apiKeyStorageKey, nextKey);
+        setSessionApiKey(nextKey);
+        writeLocalStorageValue(apiKeyStorageKey, null);
+      }
+    }
     const providerSaved = writeLocalStorageValue(providerStorageKey, provider);
     if (!keySaved || !providerSaved) {
       showToast("API key could not be saved", "error", "Browser storage may be disabled or full.");
@@ -73,12 +89,15 @@ export default function AiCoachView({
     }
     setApiKeyDraft("");
     setProviderOverride(null);
-    showToast("Provider settings saved on this device", "success");
+    showToast(rememberKey ? "Provider settings saved on this device" : "Provider key saved for this tab session", "success");
   };
 
   const resetApiKey = () => {
     writeLocalStorageValue(apiKeyStorageKey, null);
+    window.sessionStorage.removeItem(apiKeyStorageKey);
+    setSessionApiKey("");
     setApiKeyDraft("");
+    showToast("Saved API key removed", "success");
   };
 
   const handleAskQuestion = async (e: React.FormEvent) => {
@@ -268,7 +287,7 @@ export default function AiCoachView({
               <input
                 aria-label="Provider API key"
                 type={showKey ? "text" : "password"}
-                value={apiKeyDraft || (providerChanged ? "" : savedApiKey || "")}
+                value={apiKeyDraft || (providerChanged ? "" : savedKeyForSession)}
                 onChange={(e) => setApiKeyDraft(e.target.value)}
                 maxLength={300}
                 placeholder={provider === "gemini" ? "AIza..." : "sk-..."}
@@ -291,6 +310,15 @@ export default function AiCoachView({
               Save Provider Settings
             </button>
           </div>
+          <label className="flex items-center gap-2 text-[11px] text-[#787774]">
+            <input
+              type="checkbox"
+              checked={rememberKey}
+              onChange={(event) => setRememberKey(event.target.checked)}
+              className="h-3.5 w-3.5 rounded border-[#c9c7c2]"
+            />
+            Keep this key after I close the browser (off keeps it for this tab session only)
+          </label>
         </div>
       )}
 

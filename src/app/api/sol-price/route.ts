@@ -7,7 +7,7 @@ export async function GET() {
   const now = Date.now();
 
   if (cachedPrice && now - cachedPrice.timestamp < CACHE_DURATION_MS) {
-    return NextResponse.json(cachedPrice);
+    return NextResponse.json({ ...cachedPrice, status: "cached", ageMs: now - cachedPrice.timestamp });
   }
 
   try {
@@ -29,7 +29,7 @@ export async function GET() {
           change24h: data.solana.usd_24h_change || 0,
           timestamp: now,
         };
-        return NextResponse.json(cachedPrice);
+        return NextResponse.json({ ...cachedPrice, status: "live", ageMs: 0 });
       }
     }
   } catch (err) {
@@ -52,14 +52,19 @@ export async function GET() {
           change24h: 0,
           timestamp: now,
         };
-        return NextResponse.json(cachedPrice);
+        return NextResponse.json({ ...cachedPrice, status: "live", ageMs: 0 });
       }
     }
   } catch (err) {
     console.error("Jupiter fallback failed:", err);
   }
 
-  if (cachedPrice) return NextResponse.json(cachedPrice);
+  if (cachedPrice) {
+    return NextResponse.json(
+      { ...cachedPrice, status: "stale", ageMs: now - cachedPrice.timestamp },
+      { headers: { "Cache-Control": "no-store" } }
+    );
+  }
 
   return NextResponse.json(
     { error: "Live SOL price is temporarily unavailable." },

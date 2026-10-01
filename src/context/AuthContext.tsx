@@ -8,6 +8,8 @@ import {
   signInWithRedirect,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  sendEmailVerification,
+  sendPasswordResetEmail,
   signOut,
   onAuthStateChanged,
   User,
@@ -19,6 +21,8 @@ interface AuthContextType {
   loginWithGoogle: () => Promise<void>;
   loginWithEmail: (email: string, pass: string) => Promise<void>;
   signUpWithEmail: (email: string, pass: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  resendVerification: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -28,6 +32,8 @@ const AuthContext = createContext<AuthContextType>({
   loginWithGoogle: async () => {},
   loginWithEmail: async () => {},
   signUpWithEmail: async () => {},
+  resetPassword: async () => {},
+  resendVerification: async () => {},
   logout: async () => {},
 });
 
@@ -67,7 +73,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const signUpWithEmail = async (email: string, pass: string) => {
-    await createUserWithEmailAndPassword(auth, email, pass);
+    const credential = await createUserWithEmailAndPassword(auth, email, pass);
+    await sendEmailVerification(credential.user);
+  };
+
+  const resetPassword = async (email: string) => {
+    await sendPasswordResetEmail(auth, email);
+  };
+
+  const resendVerification = async () => {
+    if (!auth.currentUser) throw new Error("Sign in before requesting another verification email.");
+    await sendEmailVerification(auth.currentUser);
   };
 
   const logout = async () => {
@@ -86,6 +102,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         loginWithGoogle,
         loginWithEmail,
         signUpWithEmail,
+        resetPassword,
+        resendVerification,
         logout,
       }}
     >

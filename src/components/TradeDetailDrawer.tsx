@@ -12,7 +12,6 @@ import {
   ShieldAlert,
   Wallet,
   Calendar,
-  DollarSign,
   FileText,
   Share2,
   Image as ImageIcon,
@@ -23,6 +22,7 @@ import {
 import { useState, useEffect } from "react";
 import { useToast } from "./Toast";
 import ImageLightboxModal from "./ImageLightboxModal";
+import { getTradeBoughtUsd, getTradeSoldUsd, getUsdValueStatus } from "../lib/tradeCalculations";
 
 interface TradeDetailDrawerProps {
   trade: Trade | null;
@@ -32,6 +32,7 @@ interface TradeDetailDrawerProps {
   onDelete: (id: string) => void;
   onDuplicate?: (trade: Trade) => void;
   onShare?: (trade: Trade) => void;
+  solPrice?: number;
 }
 
 export default function TradeDetailDrawer({
@@ -42,6 +43,7 @@ export default function TradeDetailDrawer({
   onDelete,
   onDuplicate,
   onShare,
+  solPrice = 0,
 }: TradeDetailDrawerProps) {
   const { showToast } = useToast();
   const [copied, setCopied] = useState(false);
@@ -188,7 +190,7 @@ export default function TradeDetailDrawer({
                     {(trade.pnlSol || 0) > 0 ? `+${trade.pnlSol} SOL` : `${trade.pnlSol || 0} SOL`}
                   </div>
                   <div className="text-[11px] font-mono opacity-80">
-                    {(trade.pnlUsd || 0) >= 0 ? `+$${(trade.pnlUsd || 0).toFixed(2)}` : `-$${Math.abs(trade.pnlUsd || 0).toFixed(2)}`}
+                    {(getUsdValueStatus(trade, solPrice).value ?? 0) >= 0 ? `+$${(getUsdValueStatus(trade, solPrice).value ?? 0).toFixed(2)}` : `-$${Math.abs(getUsdValueStatus(trade, solPrice).value ?? 0).toFixed(2)}`}
                   </div>
                 </div>
               </div>
@@ -326,7 +328,7 @@ export default function TradeDetailDrawer({
                     <div className="font-mono font-semibold text-xs text-[#37352f] mt-0.5">
                       {trade.boughtSol || 0} SOL
                     </div>
-                    <span className="text-[10px] text-[#9b9a97]">${(trade.boughtUsd || (trade.boughtSol || 0) * 150).toFixed(2)}</span>
+                    <span className="text-[10px] text-[#9b9a97]">${(getTradeBoughtUsd(trade, solPrice).value ?? 0).toFixed(2)}</span>
                   </div>
 
                   <div className="p-2.5 bg-[#fbfbfa] border border-[#e9e9e7] rounded-lg">
@@ -334,7 +336,7 @@ export default function TradeDetailDrawer({
                     <div className="font-mono font-semibold text-xs text-[#37352f] mt-0.5">
                       {trade.soldSol || 0} SOL
                     </div>
-                    <span className="text-[10px] text-[#9b9a97]">${(trade.soldUsd || (trade.soldSol || 0) * 150).toFixed(2)}</span>
+                    <span className="text-[10px] text-[#9b9a97]">${(getTradeSoldUsd(trade, solPrice).value ?? 0).toFixed(2)}</span>
                   </div>
 
                   <div className="p-2.5 bg-[#fbfbfa] border border-[#e9e9e7] rounded-lg">

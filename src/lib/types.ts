@@ -29,7 +29,7 @@ export interface Trade {
   soldSol?: number;
   soldUsd?: number;
   pnlSol: number;
-  pnlUsd: number;
+  pnlUsd?: number;
   mistakes: string[];
   goodTags?: string[];
   isPaper?: boolean;

@@ -53,13 +53,39 @@ export function normalizeTrade(trade: Trade): Trade {
 }
 
 export function getUsdValueStatus(trade: Trade, currentSolPrice: number): UsdValueStatus {
-  if (typeof trade.pnlUsd === "number" && Number.isFinite(trade.pnlUsd)) {
+  const isUnknownPlaceholder = trade.pnlUsd === 0 && (trade.pnlSol || 0) !== 0 && trade.solUsdRateSource === "unknown";
+  if (typeof trade.pnlUsd === "number" && Number.isFinite(trade.pnlUsd) && !isUnknownPlaceholder) {
     return { value: trade.pnlUsd, source: "stored" };
+  }
+  if (typeof trade.solUsdRate === "number" && Number.isFinite(trade.solUsdRate) && trade.solUsdRate > 0) {
+    return { value: (trade.pnlSol || 0) * trade.solUsdRate, source: "stored" };
   }
   if (Number.isFinite(currentSolPrice) && currentSolPrice > 0) {
     return { value: (trade.pnlSol || 0) * currentSolPrice, source: "estimated" };
   }
   return { value: null, source: "unavailable" };
+}
+
+function getAmountUsdStatus(storedUsd: number | undefined, solAmount: number | undefined, trade: Trade, currentSolPrice: number): UsdValueStatus {
+  const isUnknownPlaceholder = storedUsd === 0 && (solAmount || 0) !== 0 && trade.solUsdRateSource === "unknown";
+  if (typeof storedUsd === "number" && Number.isFinite(storedUsd) && !isUnknownPlaceholder) {
+    return { value: storedUsd, source: "stored" };
+  }
+  if (typeof trade.solUsdRate === "number" && Number.isFinite(trade.solUsdRate) && trade.solUsdRate > 0) {
+    return { value: (solAmount || 0) * trade.solUsdRate, source: "stored" };
+  }
+  if (Number.isFinite(currentSolPrice) && currentSolPrice > 0) {
+    return { value: (solAmount || 0) * currentSolPrice, source: "estimated" };
+  }
+  return { value: null, source: "unavailable" };
+}
+
+export function getTradeBoughtUsd(trade: Trade, currentSolPrice: number): UsdValueStatus {
+  return getAmountUsdStatus(trade.boughtUsd, trade.boughtSol, trade, currentSolPrice);
+}
+
+export function getTradeSoldUsd(trade: Trade, currentSolPrice: number): UsdValueStatus {
+  return getAmountUsdStatus(trade.soldUsd, trade.soldSol, trade, currentSolPrice);
 }
 
 export function calculateTradeOutcome(trade: Trade, currentSolPrice: number): TradeOutcome {

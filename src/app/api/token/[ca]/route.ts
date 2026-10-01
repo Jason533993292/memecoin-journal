@@ -4,20 +4,9 @@ import {
   FirebaseAdminConfigurationError,
   verifyFirebaseUser,
 } from "../../../../lib/firebase-admin";
+import { selectSolanaTokenPair, type DexTokenPair } from "../../../../lib/tokenMarketData";
 
 export const maxDuration = 15;
-
-type Pair = {
-  baseToken?: { name?: unknown; symbol?: unknown };
-  priceUsd?: unknown;
-  marketCap?: unknown;
-  fdv?: unknown;
-  liquidity?: { usd?: unknown };
-  chainId?: unknown;
-  dexId?: unknown;
-  url?: unknown;
-  info?: { imageUrl?: unknown };
-};
 
 function finiteNumber(value: unknown) {
   const parsed = typeof value === "number" ? value : Number(value);
@@ -40,7 +29,7 @@ function safeHttpsUrl(value: unknown) {
   }
 }
 
-function tokenResponse(pair: Pair) {
+function tokenResponse(pair: DexTokenPair) {
   return {
     name: safeText(pair.baseToken?.name, "Unknown Token", 120),
     symbol: safeText(pair.baseToken?.symbol, "MEME", 40),
@@ -107,22 +96,13 @@ export async function GET(
     const latest = await fetchJson(
       "https://api.dexscreener.com/latest/dex/tokens/" + encodeURIComponent(cleanCa)
     );
-    const latestPairs =
-      latest && typeof latest === "object" && "pairs" in latest && Array.isArray(latest.pairs)
-        ? (latest.pairs as Pair[])
-        : [];
-    const bestLatest = latestPairs
-      .slice(0, 100)
-      .sort((first, second) => finiteNumber(second.liquidity?.usd) - finiteNumber(first.liquidity?.usd))[0];
+    const bestLatest = selectSolanaTokenPair(latest, cleanCa);
     if (bestLatest?.baseToken) return NextResponse.json(tokenResponse(bestLatest));
 
     const v1 = await fetchJson(
       "https://api.dexscreener.com/tokens/v1/solana/" + encodeURIComponent(cleanCa)
     );
-    const v1Pairs = Array.isArray(v1) ? (v1 as Pair[]) : [];
-    const bestV1 = v1Pairs
-      .slice(0, 100)
-      .sort((first, second) => finiteNumber(second.liquidity?.usd) - finiteNumber(first.liquidity?.usd))[0];
+    const bestV1 = selectSolanaTokenPair(v1, cleanCa);
     if (bestV1?.baseToken) return NextResponse.json(tokenResponse(bestV1));
 
     const jupiter = await fetchJson(

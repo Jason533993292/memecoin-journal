@@ -1,6 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import {
+  Timestamp,
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  orderBy,
+  query,
+  runTransaction,
+  setDoc,
+} from "firebase/firestore";
 import { Trade, Wallet, WalletTransaction } from "../lib/types";
 import {
   Plus,
@@ -19,7 +30,8 @@ import {
 import DepositPaycheckModal from "./DepositPaycheckModal";
 import { useToast } from "./Toast";
 import { useAuth } from "../context/AuthContext";
-import { parseLocalStorageValue, useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
+import { db } from "../lib/firebase";
+import { parseLocalStorageValue } from "../lib/useLocalStorage";
 import { getTradeTimestamp } from "../lib/utils";
 
 interface WalletsViewProps {
@@ -35,19 +47,13 @@ function createLocalId(prefix: string) {
 
 export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps) {
   const { user } = useAuth();
-  const storagePrefix = user ? `memecoin_journal_${user.uid}_` : "memecoin_journal_guest_";
   const { showToast } = useToast();
-  const storedWallets = useLocalStorageValue(`${storagePrefix}wallets`);
-  const storedTransactions = useLocalStorageValue(`${storagePrefix}wallet_txs`);
-  const storedPaperCapital = useLocalStorageValue(`${storagePrefix}paper_capital`);
-  const walletsValue = parseLocalStorageValue<unknown>(storedWallets, DEFAULT_WALLETS);
-  const wallets = Array.isArray(walletsValue) ? walletsValue as Wallet[] : DEFAULT_WALLETS;
-  const transactionsValue = parseLocalStorageValue<unknown>(storedTransactions, []);
-  const transactions = Array.isArray(transactionsValue) ? transactionsValue as WalletTransaction[] : [];
-  const parsedPaperCapital = Number.parseFloat(storedPaperCapital || "");
-  const paperCapitalSol = Number.isFinite(parsedPaperCapital) && parsedPaperCapital >= 0
-    ? parsedPaperCapital
-    : 25;
+  const storagePrefix = `memecoin_journal_${user?.uid || "guest"}_`;
+  const [wallets, setWallets] = useState<Wallet[]>(DEFAULT_WALLETS);
+  const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
+  const [paperCapitalSol, setPaperCapitalSol] = useState(25);
+  const [walletDataLoading, setWalletDataLoading] = useState(true);
+  const migrationAttempted = useRef(false);
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
 
   // Live On-Chain Address Checker
@@ -74,17 +80,106 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
   const [activeTab, setActiveTab] = useState<"wallets" | "txLog">("wallets");
   const [walletToDelete, setWalletToDelete] = useState<{ id: string; name: string } | null>(null);
 
-  const saveWalletsToStorage = (updated: Wallet[]) => {
-    if (!writeLocalStorageValue(`${storagePrefix}wallets`, JSON.stringify(updated))) {
-      showToast("Could not save wallets", "error", "Browser storage may be disabled or full.");
-    }
-  };
+  useEffect(() => {
+    if (!user) return;
+    let loadedWallets = false;
+    let loadedTransactions = false;
+    let loadedConfig = false;
+    const updateLoading = () => setWalletDataLoading(!(loadedWallets && loadedTransactions && loadedConfig));
 
-  const saveTxToStorage = (updated: WalletTransaction[]) => {
-    if (!writeLocalStorageValue(`${storagePrefix}wallet_txs`, JSON.stringify(updated))) {
-      showToast("Could not save wallet history", "error", "Browser storage may be disabled or full.");
+    const stopWallets = onSnapshot(
+      collection(db, "users", user.uid, "wallets"),
+      (snapshot) => {
+        setWallets(snapshot.docs.map((walletDoc) => walletDoc.data() as Wallet));
+        loadedWallets = true;
+        updateLoading();
+      },
+      () => {
+        loadedWallets = true;
+        updateLoading();
+        showToast("Could not load wallets", "error", "Check your connection and Firestore permissions.");
+      }
+    );
+    const stopTransactions = onSnapshot(
+      query(collection(db, "users", user.uid, "walletTransactions"), orderBy("date", "desc")),
+      (snapshot) => {
+        setTransactions(snapshot.docs.map((transactionDoc) => transactionDoc.data() as WalletTransaction));
+        loadedTransactions = true;
+        updateLoading();
+      },
+      () => {
+        loadedTransactions = true;
+        updateLoading();
+        showToast("Could not load wallet history", "error", "Check your connection and Firestore permissions.");
+      }
+    );
+    const stopConfig = onSnapshot(
+      doc(db, "users", user.uid, "settings", "walletConfig"),
+      (snapshot) => {
+        const value = snapshot.data()?.paperCapitalSol;
+        setPaperCapitalSol(typeof value === "number" && value >= 0 ? value : 25);
+        loadedConfig = true;
+        updateLoading();
+      },
+      () => {
+        loadedConfig = true;
+        updateLoading();
+        showToast("Could not load paper balance", "error", "Check your connection and Firestore permissions.");
+      }
+    );
+
+    return () => {
+      stopWallets();
+      stopTransactions();
+      stopConfig();
+    };
+  }, [showToast, user]);
+
+  // One-time migration for accounts that used the earlier browser-only wallet storage.
+  useEffect(() => {
+    if (!user || walletDataLoading || migrationAttempted.current) return;
+    migrationAttempted.current = true;
+
+    try {
+      const storedWallets = localStorage.getItem(`${storagePrefix}wallets`);
+      const storedTransactions = localStorage.getItem(`${storagePrefix}wallet_txs`);
+      const storedPaperCapital = localStorage.getItem(`${storagePrefix}paper_capital`);
+      const walletValue = parseLocalStorageValue<unknown>(storedWallets, []);
+      const transactionValue = parseLocalStorageValue<unknown>(storedTransactions, []);
+      const legacyWallets = Array.isArray(walletValue) ? walletValue.slice(0, 100) as Wallet[] : [];
+      const legacyTransactions = Array.isArray(transactionValue) ? transactionValue.slice(0, 1000) as WalletTransaction[] : [];
+      const legacyPaperCapital = Number.parseFloat(storedPaperCapital || "");
+      if (legacyWallets.length === 0 && legacyTransactions.length === 0 && !Number.isFinite(legacyPaperCapital)) return;
+
+      void Promise.all([
+        ...legacyWallets.map((wallet) => setDoc(doc(db, "users", user.uid, "wallets", wallet.id), {
+          ...wallet,
+          updatedAt: typeof wallet.updatedAt === "number" ? wallet.updatedAt : Date.now(),
+        })),
+        ...legacyTransactions.map((transaction) => setDoc(doc(db, "users", user.uid, "walletTransactions", transaction.id), {
+          ...transaction,
+          date: transaction.date || Timestamp.now(),
+          createdAt: typeof transaction.createdAt === "number" ? transaction.createdAt : Date.now(),
+        })),
+        ...(Number.isFinite(legacyPaperCapital) && legacyPaperCapital >= 0
+          ? [setDoc(doc(db, "users", user.uid, "settings", "walletConfig"), {
+              paperCapitalSol: legacyPaperCapital,
+              updatedAt: Date.now(),
+            })]
+          : []),
+      ]).then(() => {
+        localStorage.removeItem(`${storagePrefix}wallets`);
+        localStorage.removeItem(`${storagePrefix}wallet_txs`);
+        localStorage.removeItem(`${storagePrefix}paper_capital`);
+        showToast("Wallet data secured in your account", "success", "Your earlier browser-only data was migrated to Firestore.");
+      }).catch(() => {
+        migrationAttempted.current = false;
+        showToast("Wallet migration paused", "error", "Your browser copy is intact. We will retry after you reload.");
+      });
+    } catch {
+      // Browser storage may be unavailable; cloud wallet data remains usable.
     }
-  };
+  }, [showToast, storagePrefix, user, walletDataLoading]);
 
   const copyAddress = (addr: string) => {
     navigator.clipboard.writeText(addr);
@@ -124,7 +219,7 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
     setLoadingLookup(false);
   };
 
-  const handleAddVerifiedWallet = () => {
+  const handleAddVerifiedWallet = async () => {
     if (!lookupResult) return;
     const newW: Wallet = {
       id: createLocalId("w"),
@@ -132,52 +227,59 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
       balanceSol: lookupResult.balanceSol,
       address: lookupResult.address,
     };
-    saveWalletsToStorage([...wallets, newW]);
-    showToast(`Added ${newW.name} with ${newW.balanceSol} SOL`, "success");
-    setLookupAddress("");
-    setLookupResult(null);
+    try {
+      await setDoc(doc(db, "users", user!.uid, "wallets", newW.id), { ...newW, updatedAt: Date.now() });
+      showToast(`Added ${newW.name} with ${newW.balanceSol} SOL`, "success");
+      setLookupAddress("");
+      setLookupResult(null);
+    } catch {
+      showToast("Could not add wallet", "error", "Check your connection and try again.");
+    }
   };
 
   // Handle Paper Trading Capital Update
-  const handleSavePaperCapital = () => {
+  const handleSavePaperCapital = async () => {
     const num = parseFloat(tempPaperCapital);
     if (!isNaN(num) && num >= 0) {
-      if (writeLocalStorageValue(`${storagePrefix}paper_capital`, String(num))) {
+      try {
+        await setDoc(doc(db, "users", user!.uid, "settings", "walletConfig"), {
+          paperCapitalSol: num,
+          updatedAt: Date.now(),
+        });
         showToast("Paper trading capital updated", "success", `${num} SOL`);
-      } else {
-        showToast("Could not save paper balance", "error", "Browser storage may be disabled or full.");
+      } catch {
+        showToast("Could not save paper balance", "error", "Check your connection and try again.");
+        return;
       }
     }
     setIsEditingPaperCapital(false);
   };
 
-  const handleAddOrUpdateWallet = (e: React.FormEvent) => {
+  const handleAddOrUpdateWallet = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newWalletName.trim()) return;
 
-    if (editingWallet) {
-      const updated = wallets.map((w) =>
-        w.id === editingWallet.id
-          ? {
-              ...w,
-              name: newWalletName.trim(),
-              balanceSol: parseFloat(newWalletBalance) || 0,
-              address: newWalletAddress.trim() || w.address,
-            }
-          : w
-      );
-      saveWalletsToStorage(updated);
-      showToast("Wallet updated", "success", newWalletName);
+    const savedWallet: Wallet = editingWallet
+      ? {
+          ...editingWallet,
+          name: newWalletName.trim(),
+          balanceSol: Math.max(0, parseFloat(newWalletBalance) || 0),
+          address: newWalletAddress.trim() || editingWallet.address,
+        }
+      : {
+          id: createLocalId("w"),
+          name: newWalletName.trim(),
+          balanceSol: Math.max(0, parseFloat(newWalletBalance) || 0),
+          address: newWalletAddress.trim() || "Address not set",
+        };
+
+    try {
+      await setDoc(doc(db, "users", user!.uid, "wallets", savedWallet.id), { ...savedWallet, updatedAt: Date.now() });
+      showToast(editingWallet ? "Wallet updated" : "Wallet added", "success", savedWallet.name);
       setEditingWallet(null);
-    } else {
-      const newW: Wallet = {
-        id: createLocalId("w"),
-        name: newWalletName.trim(),
-        balanceSol: parseFloat(newWalletBalance) || 0,
-        address: newWalletAddress.trim() || "Address not set",
-      };
-      saveWalletsToStorage([...wallets, newW]);
-      showToast("Wallet added", "success", newW.name);
+    } catch {
+      showToast("Could not save wallet", "error", "Check your connection and try again.");
+      return;
     }
 
     setNewWalletName("");
@@ -190,13 +292,16 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
     setWalletToDelete({ id, name });
   };
 
-  const confirmDeleteWallet = () => {
+  const confirmDeleteWallet = async () => {
     if (!walletToDelete) return;
     const { id, name } = walletToDelete;
-    const updated = wallets.filter((w) => w.id !== id);
-    saveWalletsToStorage(updated);
-    showToast("Wallet deleted", "info", name);
-    setWalletToDelete(null);
+    try {
+      await deleteDoc(doc(db, "users", user!.uid, "wallets", id));
+      showToast("Wallet deleted", "info", name);
+      setWalletToDelete(null);
+    } catch {
+      showToast("Could not delete wallet", "error", "Check your connection and try again.");
+    }
   };
 
   const handleOpenTxModal = (wallet: Wallet, type: "deposit" | "paycheck") => {
@@ -209,12 +314,6 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
     const targetWallet = wallets.find((w) => w.id === walletId);
     if (!targetWallet) return;
 
-    const newBalance = Math.max(0, targetWallet.balanceSol + deltaSol);
-    const updatedWallets = wallets.map((w) =>
-      w.id === walletId ? { ...w, balanceSol: parseFloat(newBalance.toFixed(3)) } : w
-    );
-    saveWalletsToStorage(updatedWallets);
-
     const newTx: WalletTransaction = {
       id: createLocalId("tx"),
       walletId,
@@ -223,10 +322,22 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
       amountSol: Math.abs(deltaSol),
       ...(solPrice > 0 ? { amountUsd: Math.abs(deltaSol) * solPrice } : {}),
       notes,
-      date: new Date().toISOString(),
+      date: Timestamp.now(),
+      createdAt: Date.now(),
     };
-
-    saveTxToStorage([newTx, ...transactions]);
+    const walletRef = doc(db, "users", user!.uid, "wallets", walletId);
+    const transactionRef = doc(db, "users", user!.uid, "walletTransactions", newTx.id);
+    await runTransaction(db, async (transaction) => {
+      const walletSnapshot = await transaction.get(walletRef);
+      if (!walletSnapshot.exists()) throw new Error("Wallet no longer exists.");
+      const currentBalance = Number(walletSnapshot.data().balanceSol) || 0;
+      const newBalance = Math.max(0, currentBalance + deltaSol);
+      transaction.update(walletRef, {
+        balanceSol: parseFloat(newBalance.toFixed(3)),
+        updatedAt: Date.now(),
+      });
+      transaction.set(transactionRef, newTx);
+    });
   };
 
   const totalPortfolioSol = wallets.reduce((acc, w) => acc + w.balanceSol, 0);
@@ -276,6 +387,13 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
           </div>
         </div>
       </div>
+
+      {walletDataLoading && (
+        <div role="status" className="flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-xs text-blue-800">
+          <Loader2 size={14} className="animate-spin" />
+          Loading your private wallet data…
+        </div>
+      )}
 
       {/* Top 2 Action Banners: 1. Live On-Chain Address Scanner, 2. Paper Trading Sizer */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

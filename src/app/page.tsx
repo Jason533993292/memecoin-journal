@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { db, type User } from "../lib/firebase";
-import { collection, onSnapshot, query, orderBy, limit, doc, deleteDoc, setDoc } from "firebase/firestore";
+import { collection, onSnapshot, query, orderBy, doc, deleteDoc, setDoc } from "firebase/firestore";
 import { Trade, JournalRules, AiCoachBrief, GoalSettings } from "../lib/types";
 import TopBanner from "../components/TopBanner";
 import DashboardView from "../components/DashboardView";
@@ -79,6 +79,8 @@ function AuthenticatedApp({ user }: { user: User }) {
   // Live SOL Price State
   const [solPrice, setSolPrice] = useState<number>(0);
   const [solChange24h, setSolChange24h] = useState<number>(0);
+  const [solPriceStatus, setSolPriceStatus] = useState<"live" | "cached" | "stale" | "unavailable">("unavailable");
+  const [solPriceUpdatedAt, setSolPriceUpdatedAt] = useState<number | null>(null);
 
   // Modals & Drawers
   const [isNewTradeModalOpen, setIsNewTradeModalOpen] = useState(false);
@@ -118,6 +120,8 @@ function AuthenticatedApp({ user }: { user: User }) {
         const data = await response.json();
         if (typeof data.price === "number" && Number.isFinite(data.price) && data.price > 0) setSolPrice(data.price);
         if (data.change24h !== undefined) setSolChange24h(data.change24h);
+        setSolPriceStatus(data.status === "live" || data.status === "cached" || data.status === "stale" ? data.status : "unavailable");
+        setSolPriceUpdatedAt(typeof data.timestamp === "number" ? data.timestamp : null);
       } catch (error) {
         if (active) console.warn("Live SOL price is unavailable", error);
       }
@@ -140,8 +144,7 @@ function AuthenticatedApp({ user }: { user: User }) {
     const uid = user.uid;
     const tradeQuery = query(
       collection(db, "users", uid, "trades"),
-      orderBy("date", "desc"),
-      limit(1000)
+      orderBy("date", "desc")
     );
     const unsubscribeTrades = onSnapshot(
       tradeQuery,
@@ -325,6 +328,8 @@ function AuthenticatedApp({ user }: { user: User }) {
         onDeleteAccount={() => setIsAccountDeletionOpen(true)}
         solPrice={solPrice}
         solChange24h={solChange24h}
+        solPriceStatus={solPriceStatus}
+        solPriceUpdatedAt={solPriceUpdatedAt}
       />
 
       {/* Main Content View Container */}
@@ -436,6 +441,7 @@ function AuthenticatedApp({ user }: { user: User }) {
           setIsNewTradeModalOpen(true);
         }}
         onShare={(trade) => setSharingTrade(trade)}
+        solPrice={solPrice}
       />
 
       {/* Rule Editor Modal */}

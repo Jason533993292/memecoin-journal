@@ -191,6 +191,15 @@ html[data-theme-preview] .notion-table-td {
   color: var(--preview-text);
 }
 
+html[data-theme-preview] .notion-card {
+  background-color: var(--preview-surface);
+}
+
+html[data-theme-preview] .notion-table-th,
+html[data-theme-preview] .notion-table-td {
+  background-color: var(--preview-raised);
+}
+
 html[data-theme-preview="terminal"] {
   --preview-surface: #111619;
   --preview-raised: #182024;

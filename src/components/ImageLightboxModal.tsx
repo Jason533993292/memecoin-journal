@@ -1,6 +1,6 @@
 "use client";
 
-import { X, ExternalLink, Download } from "lucide-react";
+import { X, ExternalLink } from "lucide-react";
 import { useEffect } from "react";
 
 interface ImageLightboxModalProps {

@@ -2,17 +2,13 @@
 
 import { useState, useEffect, useRef } from "react";
 import { db, auth } from "../lib/firebase";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, Timestamp, updateDoc } from "firebase/firestore";
 import {
   X,
-  Search,
   Loader2,
   Check,
-  Plus,
-  AlertCircle,
   Trash2,
   Wallet as WalletIcon,
-  Tag,
   Image as ImageIcon,
   Clock,
   Upload,
@@ -21,7 +17,7 @@ import {
 import { Trade } from "../lib/types";
 import { useToast } from "./Toast";
 import { COMMON_SETUPS, DURATION_PRESETS, DEFAULT_GOOD_TAGS, DEFAULT_MISTAKE_TAGS } from "../lib/constants";
-import { compressImage } from "../lib/utils";
+import { compressImage, getTradeTimestamp } from "../lib/utils";
 import { buildTradeAmounts } from "../lib/tradeInput";
 
 interface EditTradeModalProps {
@@ -30,6 +26,11 @@ interface EditTradeModalProps {
   onClose: () => void;
   onTradeUpdated: () => void;
   solPrice?: number;
+}
+
+function toLocalDateTimeInput(timestamp: number): string {
+  const date = new Date(timestamp);
+  return new Date(timestamp - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
 }
 
 export default function EditTradeModal({
@@ -43,14 +44,14 @@ export default function EditTradeModal({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
 
-  const [ca, setCa] = useState(trade?.ca || "");
+  const [ca] = useState(trade?.ca || "");
   const [name, setName] = useState(trade?.name || "");
   const [symbol, setSymbol] = useState(trade?.symbol || "");
   const [saving, setSaving] = useState(false);
 
-  const [mcap, setMcap] = useState<number | undefined>(trade?.mcap);
-  const [liquidity, setLiquidity] = useState<number | undefined>(trade?.liquidity);
-  const [price, setPrice] = useState<number | undefined>(trade?.price);
+  const [mcap] = useState<number | undefined>(trade?.mcap);
+  const [liquidity] = useState<number | undefined>(trade?.liquidity);
+  const [price] = useState<number | undefined>(trade?.price);
 
   // Trade fields
   const [wallet, setWallet] = useState(trade?.wallet || "Main");
@@ -58,6 +59,7 @@ export default function EditTradeModal({
   const [setupType, setSetupType] = useState<string>(trade?.setupType || "Breakout / ATH Push");
   const [customSetup, setCustomSetup] = useState("");
   const [durationMinutes, setDurationMinutes] = useState<number | undefined>(trade?.durationMinutes || 15);
+  const [tradedAtInput, setTradedAtInput] = useState(() => toLocalDateTimeInput(trade ? getTradeTimestamp(trade) : Date.now()));
   const [screenshotUrl, setScreenshotUrl] = useState<string>(trade?.screenshotUrl || "");
 
   const [boughtSol, setBoughtSol] = useState(trade?.boughtSol != null ? String(trade.boughtSol) : "");
@@ -308,11 +310,6 @@ export default function EditTradeModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!trade) return;
-    if (solPrice <= 0 && (!boughtUsd.trim() || !soldUsd.trim() || !pnlUsd.trim())) {
-      showToast("Cannot calculate USD values yet", "error", "Wait for the live SOL price to load before editing this trade.");
-      return;
-    }
-
     setSaving(true);
     try {
       const amounts = buildTradeAmounts({
@@ -342,6 +339,8 @@ export default function EditTradeModal({
       const parsedSlippage = parseFloat(slippagePct) || null;
 
       const finalSetup = customSetup.trim() || setupType;
+      const tradedAt = new Date(tradedAtInput).getTime();
+      if (!Number.isFinite(tradedAt)) throw new RangeError("Choose a valid trade date and time.");
 
       const currentUser = auth.currentUser;
       if (!currentUser) throw new Error("Please sign in before editing a trade.");
@@ -373,8 +372,10 @@ export default function EditTradeModal({
         entryMarketCapUsd: parsedEntryMcap,
         exitMarketCapUsd: parsedExitMcap,
         slippagePct: parsedSlippage,
-        solUsdRate: solPrice > 0 ? solPrice : null,
-        solUsdRateSource: solPrice > 0 ? "live-at-entry" : "unknown",
+        tradedAt,
+        date: Timestamp.fromMillis(tradedAt),
+        solUsdRate: trade.solUsdRate ?? (solPrice > 0 ? solPrice : null),
+        solUsdRateSource: trade.solUsdRateSource ?? (solPrice > 0 ? "live-at-entry" : "unknown"),
         tradeMode: wallet === "Paper" ? "paper" : "real",
         goodTags: selectedGoodTags,
         mistakes: selectedMistakes,
@@ -503,6 +504,18 @@ export default function EditTradeModal({
                 </button>
               ))}
             </div>
+          </div>
+
+          <div>
+            <label htmlFor="edit-trade-date" className="mb-1.5 block font-medium text-[#787774]">Trade date and time</label>
+            <input
+              id="edit-trade-date"
+              type="datetime-local"
+              value={tradedAtInput}
+              onChange={(event) => setTradedAtInput(event.target.value)}
+              className="w-full rounded-lg border border-[#e3e2de] bg-[#fbfbfa] px-3 py-2 text-xs text-[#37352f] focus:border-[#2383e2] focus:outline-none"
+              required
+            />
           </div>
 
           {/* Chart Screenshot */}

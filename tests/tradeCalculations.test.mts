@@ -3,6 +3,8 @@ import test from "node:test";
 
 import {
   calculateTradeOutcome,
+  getTradeBoughtUsd,
+  getTradeSoldUsd,
   getUsdValueStatus,
   normalizeTrade,
   summarizeTrades,
@@ -60,6 +62,27 @@ test("labels a missing USD value as an estimate instead of historical fact", () 
   });
 
   assert.deepEqual(getUsdValueStatus(trade, 150), { value: 75, source: "estimated" });
+});
+
+test("uses the saved entry conversion rate for missing historical USD amounts", () => {
+  const trade = normalizeTrade({
+    id: "stored-rate",
+    ca: "ca",
+    name: "Stored Rate",
+    symbol: "RATE",
+    wallet: "Main",
+    result: "Win",
+    boughtSol: 1,
+    soldSol: 1.5,
+    pnlSol: 0.5,
+    mistakes: [],
+    solUsdRate: 80,
+    solUsdRateSource: "live-at-entry",
+  });
+
+  assert.deepEqual(getUsdValueStatus(trade, 150), { value: 40, source: "stored" });
+  assert.deepEqual(getTradeBoughtUsd(trade, 150), { value: 80, source: "stored" });
+  assert.deepEqual(getTradeSoldUsd(trade, 150), { value: 120, source: "stored" });
 });
 
 test("summaries keep zero USD values, calculate median, drawdown, and trade mode filters", () => {

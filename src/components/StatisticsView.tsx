@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { Trade } from "../lib/types";
 import { getTradeDate } from "../lib/utils";
 import { DEFAULT_GOOD_TAGS } from "../lib/constants";
+import { getUsdValueStatus } from "../lib/tradeCalculations";
 import { Layers, Target, Clock, Zap, Tag } from "lucide-react";
 import TiltStreakHeatmap from "./TiltStreakHeatmap";
 import TimeOfDayHeatmap from "./TimeOfDayHeatmap";
@@ -63,9 +64,9 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
     const be = trades.filter((t) => t.result === "BE");
     const losses = trades.filter((t) => t.result === "Loss");
 
-    const winPnlUsd = wins.reduce((acc, t) => acc + (t.pnlUsd !== undefined ? t.pnlUsd : (t.pnlSol || 0) * solPrice), 0);
-    const bePnlUsd = be.reduce((acc, t) => acc + (t.pnlUsd !== undefined ? t.pnlUsd : (t.pnlSol || 0) * solPrice), 0);
-    const lossPnlUsd = losses.reduce((acc, t) => acc + (t.pnlUsd !== undefined ? t.pnlUsd : (t.pnlSol || 0) * solPrice), 0);
+    const winPnlUsd = wins.reduce((acc, trade) => acc + (getUsdValueStatus(trade, solPrice).value ?? 0), 0);
+    const bePnlUsd = be.reduce((acc, trade) => acc + (getUsdValueStatus(trade, solPrice).value ?? 0), 0);
+    const lossPnlUsd = losses.reduce((acc, trade) => acc + (getUsdValueStatus(trade, solPrice).value ?? 0), 0);
 
     return {
       win: { count: wins.length, pnl: winPnlUsd },
@@ -86,7 +87,7 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
       map[setup].count += 1;
       if (t.result === "Win") map[setup].wins += 1;
       map[setup].pnlSol += t.pnlSol || 0;
-      map[setup].pnlUsd += t.pnlUsd !== undefined ? t.pnlUsd : (t.pnlSol || 0) * solPrice;
+      map[setup].pnlUsd += getUsdValueStatus(t, solPrice).value ?? 0;
     });
 
     return Object.entries(map)
@@ -147,7 +148,7 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
       const yearStr = String(date.getFullYear());
       if (map[yearStr]) {
         map[yearStr].count += 1;
-        map[yearStr].pnl += t.pnlUsd !== undefined ? t.pnlUsd : (t.pnlSol || 0) * solPrice;
+        map[yearStr].pnl += getUsdValueStatus(t, solPrice).value ?? 0;
       }
     });
 
@@ -158,6 +159,11 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
   const tagImpact = useMemo(() => {
     const map: Record<string, { count: number; pnlSol: number; isGood: boolean }> = {};
     trades.forEach((t) => {
+      t.goodTags?.forEach((tag) => {
+        if (!map[tag]) map[tag] = { count: 0, pnlSol: 0, isGood: true };
+        map[tag].count += 1;
+        map[tag].pnlSol += t.pnlSol || 0;
+      });
       if (t.mistakes && t.mistakes.length > 0) {
         t.mistakes.forEach((m) => {
           const isGood = DEFAULT_GOOD_TAGS.includes(m) || m.toLowerCase().includes("good") || m.toLowerCase().includes("profit") || m.toLowerCase().includes("win");

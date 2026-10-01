@@ -14,13 +14,14 @@ function getAuthError(error: unknown) {
 }
 
 export default function AuthModal() {
-  const { loginWithGoogle, loginWithEmail, signUpWithEmail } = useAuth();
+  const { loginWithGoogle, loginWithEmail, signUpWithEmail, resetPassword } = useAuth();
 
   const [mode, setMode] = useState<"signin" | "signup">("signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [statusMsg, setStatusMsg] = useState("");
 
   const handleSubmitEmail = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,6 +31,7 @@ export default function AuthModal() {
     }
     setLoading(true);
     setErrorMsg("");
+    setStatusMsg("");
     try {
       if (mode === "signup") {
         await signUpWithEmail(email.trim(), password);
@@ -57,6 +59,7 @@ export default function AuthModal() {
   const handleSocialLogin = async () => {
     setLoading(true);
     setErrorMsg("");
+    setStatusMsg("");
     try {
       await loginWithGoogle();
     } catch (err: unknown) {
@@ -73,6 +76,26 @@ export default function AuthModal() {
       }
     }
     setLoading(false);
+  };
+
+  const handlePasswordReset = async () => {
+    const cleanEmail = email.trim();
+    if (!cleanEmail) {
+      setErrorMsg("Enter your email address first, then choose Forgot password.");
+      return;
+    }
+    setLoading(true);
+    setErrorMsg("");
+    setStatusMsg("");
+    try {
+      await resetPassword(cleanEmail);
+      setStatusMsg("Password reset email sent. Check your inbox and spam folder.");
+    } catch (err: unknown) {
+      const { message } = getAuthError(err);
+      setErrorMsg(message || "The password reset email could not be sent.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -95,6 +118,12 @@ export default function AuthModal() {
           <div className="flex items-center gap-2 p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs rounded-xl">
             <AlertCircle size={14} className="shrink-0" />
             <span>{errorMsg}</span>
+          </div>
+        )}
+
+        {statusMsg && (
+          <div role="status" className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-xs text-emerald-300">
+            <span>{statusMsg}</span>
           </div>
         )}
 
@@ -154,7 +183,14 @@ export default function AuthModal() {
           </div>
 
           <div className="space-y-1">
-            <label className="text-[11px] text-neutral-400 font-medium">Password</label>
+            <div className="flex items-center justify-between">
+              <label className="text-[11px] text-neutral-400 font-medium">Password</label>
+              {mode === "signin" && (
+                <button type="button" onClick={handlePasswordReset} className="text-[11px] text-[#5ca8eb] hover:underline">
+                  Forgot password?
+                </button>
+              )}
+            </div>
             <div className="relative">
               <Key className="w-4 h-4 text-neutral-500 absolute left-3 top-2.5" />
               <input
@@ -194,6 +230,7 @@ export default function AuthModal() {
                 onClick={() => {
                   setMode("signin");
                   setErrorMsg("");
+                  setStatusMsg("");
                 }}
                 className="text-[#2383e2] font-semibold hover:underline cursor-pointer"
               >
@@ -208,6 +245,7 @@ export default function AuthModal() {
                 onClick={() => {
                   setMode("signup");
                   setErrorMsg("");
+                  setStatusMsg("");
                 }}
                 className="text-[#2383e2] font-semibold hover:underline cursor-pointer"
               >

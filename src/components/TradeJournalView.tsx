@@ -3,7 +3,7 @@
 import { useState, useMemo, useRef } from "react";
 import { Trade } from "../lib/types";
 import { db, auth } from "../lib/firebase";
-import { doc, deleteDoc, addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { doc, deleteDoc, collection, Timestamp, writeBatch } from "firebase/firestore";
 import {
   Search,
   Trash2,
@@ -15,10 +15,11 @@ import {
   Image as ImageIcon,
   Clock,
 } from "lucide-react";
-import { exportTradesToCSV, parseCSV } from "../lib/exportImport";
+import { exportTradesToCSV, exportTradesToJSON, parseTradeImport, tradeImportKey } from "../lib/exportImport";
 import { getTradeTimestamp } from "../lib/utils";
 import { useCurrentTime } from "../lib/useLocalStorage";
 import { useToast } from "./Toast";
+import { getTradeBoughtUsd, getTradeSoldUsd, getUsdValueStatus } from "../lib/tradeCalculations";
 import ImageLightboxModal from "./ImageLightboxModal";
 
 interface TradeJournalViewProps {
@@ -110,86 +111,38 @@ export default function TradeJournalView({
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      showToast("Import file is too large", "error", "Choose a CSV or JSON file smaller than 5 MB.");
+      e.target.value = "";
+      return;
+    }
 
     try {
       const text = await file.text();
-      let imported: Array<Record<string, unknown>> = [];
-      if (file.name.endsWith(".json")) {
-        const parsed: unknown = JSON.parse(text);
-        imported = Array.isArray(parsed)
-          ? parsed.filter((item): item is Record<string, unknown> =>
-              Boolean(item) && typeof item === "object" && !Array.isArray(item)
-            )
-          : [];
-      } else if (file.name.endsWith(".csv")) {
-        const rows = parseCSV(text);
-        if (rows.length <= 1) throw new Error("Empty CSV file");
-        for (let i = 1; i < rows.length; i++) {
-          const cols = rows[i];
-          if (cols.length >= 6) {
-            imported.push({
-              name: cols[1] || "Imported Token",
-              symbol: cols[2] || "MEME",
-              ca: cols[3] || "",
-              wallet: cols[4] || "Main",
-              result: cols[5] || "Win",
-              boughtSol: parseFloat(cols[6]) || 0,
-              soldSol: parseFloat(cols[7]) || 0,
-              pnlSol: parseFloat(cols[8]) || 0,
-              pnlUsd: parseFloat(cols[9]) || 0,
-              setupType: cols[10] || "General",
-              durationMinutes: parseFloat(cols[11]) || null,
-              mcap: parseFloat(cols[12]) || 0,
-              liquidity: parseFloat(cols[13]) || 0,
-              price: parseFloat(cols[14]) || 0,
-              mistakes: cols[15] ? cols[15].split(";").map((s) => s.trim()) : [],
-              notes: cols[16] || "Imported from CSV",
-              initialRiskSol: parseFloat(cols[17]) || null,
-              feesSol: parseFloat(cols[18]) || null,
-              createdAt: Date.now(),
-            });
-          }
-        }
-      }
+      const imported = parseTradeImport(text, file.name.toLowerCase().endsWith(".json") ? "json" : "csv");
+      const existingKeys = new Set(trades.map(tradeImportKey));
+      const uniqueImported = imported.filter((trade) => !existingKeys.has(tradeImportKey(trade)));
 
-      if (Array.isArray(imported) && imported.length > 0) {
+      if (uniqueImported.length > 0) {
         let count = 0;
         const currentUser = auth.currentUser;
         if (!currentUser) throw new Error("Please sign in to import trades.");
-        const tradesCol = collection(db, "users", currentUser.uid, "trades");
-
-        for (const item of imported) {
-          await addDoc(tradesCol, {
-            name: item.name || "Token",
-            symbol: item.symbol || "MEME",
-            ca: item.ca || "",
-            wallet: item.wallet || "Main",
-            result: item.result || "Win",
-            setupType: item.setupType || "General",
-            durationMinutes: item.durationMinutes || null,
-            screenshotUrl: item.screenshotUrl || null,
-            mcap: item.mcap || 0,
-            liquidity: item.liquidity || 0,
-            price: item.price || 0,
-            boughtSol: item.boughtSol || 0,
-            boughtUsd: item.boughtUsd || 0,
-            soldSol: item.soldSol || 0,
-            soldUsd: item.soldUsd || 0,
-            pnlSol: item.pnlSol || 0,
-            pnlUsd: item.pnlUsd || 0,
-            initialRiskSol: item.initialRiskSol || null,
-            feesSol: item.feesSol || null,
-            mistakes: item.mistakes || [],
-            notes: item.notes || "",
-            date: serverTimestamp(),
-            createdAt: Date.now(),
-          });
+        const batch = writeBatch(db);
+        for (const item of uniqueImported) {
+          const tradeRef = doc(collection(db, "users", currentUser.uid, "trades"));
+          batch.set(tradeRef, { ...item, date: Timestamp.fromMillis(item.tradedAt) });
           count++;
         }
-        showToast(`Imported ${count} trades successfully!`, "success");
+        await batch.commit();
+        const skipped = imported.length - uniqueImported.length;
+        showToast(
+          `Imported ${count} trade${count === 1 ? "" : "s"}.`,
+          "success",
+          skipped > 0 ? `${skipped} duplicate${skipped === 1 ? " was" : "s were"} skipped.` : undefined
+        );
         onTradeDeleted();
       } else {
-        showToast("No valid trades found in file", "error");
+        showToast("No new trades to import", "info", "Every trade in this file is already in the journal.");
       }
     } catch (err) {
       console.error(err);
@@ -215,7 +168,8 @@ export default function TradeJournalView({
           trade.ca?.toLowerCase().includes(searchQuery.toLowerCase()) ||
           (trade.setupType && trade.setupType.toLowerCase().includes(searchQuery.toLowerCase())) ||
           (trade.notes && trade.notes.toLowerCase().includes(searchQuery.toLowerCase())) ||
-          (trade.mistakes && trade.mistakes.some((m) => m.toLowerCase().includes(searchQuery.toLowerCase())));
+          (trade.mistakes && trade.mistakes.some((m) => m.toLowerCase().includes(searchQuery.toLowerCase()))) ||
+          (trade.goodTags && trade.goodTags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase())));
 
         const matchesResult = filterResult === "All" || trade.result === filterResult;
         const matchesWallet = filterWallet === "All" || trade.wallet === filterWallet;
@@ -291,12 +245,23 @@ export default function TradeJournalView({
           {/* Action Buttons */}
           <div className="flex items-center gap-2">
             <button
-              onClick={() => exportTradesToCSV(filteredTrades.length > 0 ? filteredTrades : trades)}
+              onClick={() => exportTradesToCSV(filteredTrades)}
+              disabled={filteredTrades.length === 0}
               title="Export filtered trades as CSV spreadsheet"
-              className="bg-[#f7f6f3] hover:bg-[#eeece8] border border-[#e3e2de] text-[#37352f] px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-colors"
+              className="bg-[#f7f6f3] hover:bg-[#eeece8] border border-[#e3e2de] text-[#37352f] px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-colors disabled:opacity-45 disabled:cursor-not-allowed"
             >
               <FileSpreadsheet size={13} />
               <span className="hidden sm:inline">Export CSV</span>
+            </button>
+
+            <button
+              onClick={() => exportTradesToJSON(filteredTrades)}
+              disabled={filteredTrades.length === 0}
+              title="Export a full-fidelity JSON backup of the current filtered trades"
+              className="bg-[#f7f6f3] hover:bg-[#eeece8] border border-[#e3e2de] text-[#37352f] px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-colors disabled:opacity-45 disabled:cursor-not-allowed"
+            >
+              <FileSpreadsheet size={13} />
+              <span className="hidden sm:inline">Backup JSON</span>
             </button>
 
             <button
@@ -608,7 +573,7 @@ export default function TradeJournalView({
                   <div className="grid grid-cols-2 gap-2 text-xs py-2 border-y border-[#f1f1ef]">
                     <div>
                       <span className="text-[10px] text-[#9b9a97] block">Size ({currencyMode})</span>
-                      <span className="font-mono font-medium">{currencyMode === "SOL" ? (trade.boughtSol || 0) : ((trade.boughtUsd) || ((trade.boughtSol || 0) * solPrice).toFixed(2))} {currencyMode}</span>
+                      <span className="font-mono font-medium">{currencyMode === "SOL" ? (trade.boughtSol || 0) : (getTradeBoughtUsd(trade, solPrice).value ?? 0).toFixed(2)} {currencyMode}</span>
                     </div>
                     <div>
                       <span className="text-[10px] text-[#9b9a97] block">Net P&L</span>
@@ -621,7 +586,7 @@ export default function TradeJournalView({
                             : "text-[#787774]"
                         }`}
                       >
-                        {currencyMode === "SOL" ? ((trade.pnlSol || 0) > 0 ? `+${trade.pnlSol} SOL` : `${trade.pnlSol || 0} SOL`) : ((trade.pnlUsd || (trade.pnlSol || 0) * solPrice) > 0 ? `+$${(trade.pnlUsd || (trade.pnlSol || 0) * solPrice).toFixed(2)}` : `-$${Math.abs(trade.pnlUsd || (trade.pnlSol || 0) * solPrice).toFixed(2)}`)}
+                        {currencyMode === "SOL" ? ((trade.pnlSol || 0) > 0 ? `+${trade.pnlSol} SOL` : `${trade.pnlSol || 0} SOL`) : (() => { const value = getUsdValueStatus(trade, solPrice).value ?? 0; return value > 0 ? `+$${value.toFixed(2)}` : value < 0 ? `-$${Math.abs(value).toFixed(2)}` : "$0.00"; })()}
                       </span>
                     </div>
                   </div>
@@ -812,12 +777,12 @@ export default function TradeJournalView({
 
                       {/* Bought SOL */}
                       <td className="notion-table-td font-mono text-[#37352f]">
-                        {currencyMode === "SOL" ? trade.boughtSol || 0 : "$" + (trade.boughtUsd || ((trade.boughtSol || 0) * solPrice)).toFixed(2)}
+                        {currencyMode === "SOL" ? trade.boughtSol || 0 : "$" + (getTradeBoughtUsd(trade, solPrice).value ?? 0).toFixed(2)}
                       </td>
 
                       {/* Sold SOL */}
                       <td className="notion-table-td font-mono text-[#37352f]">
-                        {currencyMode === "SOL" ? trade.soldSol || 0 : "$" + (trade.soldUsd || ((trade.soldSol || 0) * solPrice)).toFixed(2)}
+                        {currencyMode === "SOL" ? trade.soldSol || 0 : "$" + (getTradeSoldUsd(trade, solPrice).value ?? 0).toFixed(2)}
                       </td>
 
                       {/* Net PnL SOL */}
@@ -830,7 +795,7 @@ export default function TradeJournalView({
                             : "text-[#787774]"
                         }`}
                       >
-                        {currencyMode === "SOL" ? ((trade.pnlSol || 0) > 0 ? `+${trade.pnlSol}` : trade.pnlSol || 0) : ((trade.pnlUsd || (trade.pnlSol || 0) * solPrice) > 0 ? `+$${(trade.pnlUsd || (trade.pnlSol || 0) * solPrice).toFixed(2)}` : `-$${Math.abs((trade.pnlUsd || (trade.pnlSol || 0) * solPrice)).toFixed(2)}`)}
+                        {currencyMode === "SOL" ? ((trade.pnlSol || 0) > 0 ? `+${trade.pnlSol}` : trade.pnlSol || 0) : (() => { const value = getUsdValueStatus(trade, solPrice).value ?? 0; return value > 0 ? `+$${value.toFixed(2)}` : value < 0 ? `-$${Math.abs(value).toFixed(2)}` : "$0.00"; })()}
                       </td>
 
                       {/* Tags */}

@@ -15,6 +15,12 @@ service cloud.firestore {
     // users/{uid}/settings/preferences
     //   Owner-only rules and goals. A document may contain either or both.
     //   API keys and authentication credentials are never stored here.
+    // users/{uid}/settings/walletConfig
+    //   Owner-only paper-trading capital and its numeric update timestamp.
+    // users/{uid}/wallets/{walletId}
+    //   Owner-only wallet labels, public Solana addresses, and tracked balances.
+    // users/{uid}/walletTransactions/{transactionId}
+    //   Owner-only immutable deposit/withdrawal history.
     //
     // All other document paths are denied. The application currently stores
     // no screenshots in Firebase Storage; screenshots are small data URLs in
@@ -26,6 +32,17 @@ service cloud.firestore {
 
     function isOwner(uid) {
       return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    // Ownership is derived from the path. These helpers explicitly reject any
+    // future attempt to add or mutate a mismatched UID field in a document.
+    function uidUnchanged(data, uid) {
+      return !('uid' in data) || data.uid == uid;
+    }
+
+    function uidNotModified(data) {
+      return !('uid' in data)
+        || (('uid' in resource.data) && data.uid == resource.data.uid);
     }
 
     function validString(data, field, minLength, maxLength) {
@@ -157,6 +174,51 @@ service cloud.firestore {
         && (!('goals' in data) || validGoals(data.goals));
     }
 
+    function validWallet(data, walletId) {
+      return data.keys().hasOnly(['id', 'name', 'balanceSol', 'address', 'updatedAt'])
+        && data.keys().hasAll(['id', 'name', 'balanceSol', 'address', 'updatedAt'])
+        && data.id == walletId
+        && validString(data, 'id', 1, 100)
+        && validString(data, 'name', 1, 80)
+        && validString(data, 'address', 1, 128)
+        && data.balanceSol is number
+        && data.balanceSol >= 0 && data.balanceSol <= 100000000
+        && data.updatedAt is number
+        && data.updatedAt >= 0 && data.updatedAt <= 10000000000000;
+    }
+
+    function validWalletTransaction(data, transactionId) {
+      return data.keys().hasOnly([
+          'id', 'walletId', 'walletName', 'type', 'amountSol', 'amountUsd',
+          'notes', 'date', 'createdAt'
+        ])
+        && data.keys().hasAll([
+          'id', 'walletId', 'walletName', 'type', 'amountSol', 'date', 'createdAt'
+        ])
+        && data.id == transactionId
+        && validString(data, 'id', 1, 100)
+        && validString(data, 'walletId', 1, 100)
+        && validString(data, 'walletName', 1, 80)
+        && data.type in ['deposit', 'paycheck']
+        && data.amountSol is number
+        && data.amountSol > 0 && data.amountSol <= 100000000
+        && validOptionalNumber(data, 'amountUsd', 0, 100000000000)
+        && validOptionalString(data, 'notes', 500)
+        && (data.date is timestamp
+          || (data.date is string && data.date.size() >= 10 && data.date.size() <= 64))
+        && data.createdAt is number
+        && data.createdAt >= 0 && data.createdAt <= 10000000000000;
+    }
+
+    function validWalletConfig(data) {
+      return data.keys().hasOnly(['paperCapitalSol', 'updatedAt'])
+        && data.keys().hasAll(['paperCapitalSol', 'updatedAt'])
+        && data.paperCapitalSol is number
+        && data.paperCapitalSol >= 0 && data.paperCapitalSol <= 100000000
+        && data.updatedAt is number
+        && data.updatedAt >= 0 && data.updatedAt <= 10000000000000;
+    }
+
     match /users/{uid}/trades/{tradeId} {
       allow read, delete: if isOwner(uid);
       allow create: if isOwner(uid)
@@ -165,7 +227,6 @@ service cloud.firestore {
         && request.resource.data.createdAt is number;
       allow update: if isOwner(uid)
         && validTrade(request.resource.data)
-        && request.resource.data.date == resource.data.date
         && (!('createdAt' in resource.data)
           || request.resource.data.createdAt == resource.data.createdAt);
     }
@@ -175,6 +236,32 @@ service cloud.firestore {
       allow create, update: if isOwner(uid)
         && settingId == 'preferences'
         && validPreferences(request.resource.data);
+    }
+
+    match /users/{uid}/settings/{settingId} {
+      allow read, delete: if isOwner(uid) && settingId == 'walletConfig';
+      allow create, update: if isOwner(uid)
+        && settingId == 'walletConfig'
+        && validWalletConfig(request.resource.data);
+    }
+
+    match /users/{uid}/wallets/{walletId} {
+      allow read, delete: if isOwner(uid);
+      allow create: if isOwner(uid)
+        && uidUnchanged(request.resource.data, uid)
+        && validWallet(request.resource.data, walletId);
+      allow update: if isOwner(uid)
+        && uidNotModified(request.resource.data)
+        && validWallet(request.resource.data, walletId);
+    }
+
+    match /users/{uid}/walletTransactions/{transactionId} {
+      allow read, delete: if isOwner(uid);
+      allow create: if isOwner(uid)
+        && uidUnchanged(request.resource.data, uid)
+        && validWalletTransaction(request.resource.data, transactionId);
+      // Transaction history is append-only. Corrections are delete-and-recreate.
+      allow update: if false;
     }
 
     // Default deny for user roots, undeclared subcollections, and all other data.

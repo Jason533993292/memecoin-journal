@@ -41,6 +41,7 @@ export default function AccountDeletionModal({
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [phase, setPhase] = useState("");
 
   if (!isOpen || !user) return null;
 
@@ -53,6 +54,7 @@ export default function AccountDeletionModal({
     if (!ready) return;
     setLoading(true);
     setError("");
+    setPhase("Verifying your identity…");
 
     try {
       if (provider === "password") {
@@ -70,6 +72,7 @@ export default function AccountDeletionModal({
       }
 
       const token = await user.getIdToken(true);
+      setPhase("Deleting your journal data and sign-in account…");
       const response = await fetch("/api/account/delete", {
         method: "POST",
         headers: { Authorization: "Bearer " + token },
@@ -101,6 +104,7 @@ export default function AccountDeletionModal({
       }
     } finally {
       setLoading(false);
+      setPhase("");
     }
   };
 
@@ -127,7 +131,7 @@ export default function AccountDeletionModal({
                 Delete your account?
               </h2>
               <p className="mt-1 text-sm text-[#787774]">
-                This permanently deletes your Firebase sign-in, all cloud trades, and saved journal settings.
+                This permanently deletes your Firebase sign-in, trades, wallets, wallet history, and saved journal settings.
               </p>
             </div>
           </div>
@@ -143,12 +147,18 @@ export default function AccountDeletionModal({
         </div>
 
         <p className="rounded-lg bg-amber-50 p-3 text-xs leading-5 text-amber-900">
-          Your locally saved wallet details and AI provider key will also be removed from this browser. Export your trades first if you may need a copy.
+          Your locally saved AI provider key and any legacy browser data will also be removed from this browser. Export your trades first if you may need a copy.
         </p>
 
         {error && (
           <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
             {error}
+          </p>
+        )}
+
+        {loading && phase && (
+          <p role="status" className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800">
+            {phase} Keep this window open until deletion finishes.
           </p>
         )}
 

@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { Trade, JournalRules, AiCoachBrief, GoalSettings } from "../lib/types";
 import { getTradeTimestamp } from "../lib/utils";
+import { getUsdValueStatus } from "../lib/tradeCalculations";
 import {
   Banknote,
   PieChart,
@@ -67,10 +68,7 @@ export default function DashboardView({
       .reduce((acc, t) => acc + Math.abs(t.pnlSol || 0), 0);
 
     const netPnlSol = trades.reduce((acc, t) => acc + (t.pnlSol || 0), 0);
-    const netPnlUsd = trades.reduce(
-      (acc, t) => acc + (t.pnlUsd !== undefined ? t.pnlUsd : (t.pnlSol || 0) * solPrice),
-      0
-    );
+    const netPnlUsd = trades.reduce((acc, trade) => acc + (getUsdValueStatus(trade, solPrice).value ?? 0), 0);
 
     // Quant Expectancy & Profit Factor
     const grossProfitSol = solGained;
@@ -251,7 +249,6 @@ export default function DashboardView({
         trades={trades}
         goals={goals}
         onOpenGoalEditor={onOpenGoalEditor}
-        solPrice={solPrice}
       />
 
       {/* Tilt & Win/Loss Streak Heatmap Calendar */}

@@ -3,9 +3,10 @@
 import { useMemo } from "react";
 import { Trade } from "../lib/types";
 import { getTradeDate, getLocalDayKey } from "../lib/utils";
-import { Flame, Snowflake, AlertTriangle, ShieldCheck, Calendar } from "lucide-react";
+import { AlertTriangle, Calendar } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
+import { getUsdValueStatus } from "../lib/tradeCalculations";
 
 interface TiltStreakHeatmapProps {
   trades: Trade[];
@@ -16,10 +17,9 @@ export default function TiltStreakHeatmap({ trades, solPrice = 150 }: TiltStreak
   const { user } = useAuth();
   const currencyStorageKey = user ? "memecoin_journal_" + user.uid + "_calendar_currency" : "calendar_currency";
   const storedCurrency = useLocalStorageValue(currencyStorageKey);
-  const currency = storedCurrency === "USD" || storedCurrency === "EUR" ? storedCurrency : "SOL";
-  const USD_TO_EUR = 0.92; // Approx EUR/USD rate
+  const currency = storedCurrency === "USD" ? storedCurrency : "SOL";
 
-  const handleCurrencyChange = (c: "SOL" | "USD" | "EUR") => {
+  const handleCurrencyChange = (c: "SOL" | "USD") => {
     if (user) writeLocalStorageValue(currencyStorageKey, c);
   };
 
@@ -37,7 +37,7 @@ export default function TiltStreakHeatmap({ trades, solPrice = 150 }: TiltStreak
   }, [trades]);
 
   // Calculate 28-Day Breakdown & Streaks using calendar arithmetic (DST-safe)
-  const { heatmapData, streakInfo, monthlyProfitInfo, todayLosses, isTiltAlert } = useMemo(() => {
+  const { heatmapData, monthlyProfitInfo, todayLosses, isTiltAlert } = useMemo(() => {
     const days = [];
     const now = new Date();
     const currentMonth = now.getMonth();
@@ -54,9 +54,7 @@ export default function TiltStreakHeatmap({ trades, solPrice = 150 }: TiltStreak
       const wins = dayTrades.filter((t) => t.result === "Win").length;
       const losses = dayTrades.filter((t) => t.result === "Loss").length;
       const pnlSol = dayTrades.reduce((acc, t) => acc + (t.pnlSol || 0), 0);
-      const pnlUsd = dayTrades.reduce((acc, t) => acc + (t.pnlUsd || (t.pnlSol || 0) * solPrice), 0);
-      const pnlEur = pnlUsd * USD_TO_EUR;
-
+      const pnlUsd = dayTrades.reduce((acc, trade) => acc + (getUsdValueStatus(trade, solPrice).value ?? 0), 0);
       days.push({
         date: d,
         dayKey,
@@ -66,7 +64,6 @@ export default function TiltStreakHeatmap({ trades, solPrice = 150 }: TiltStreak
         losses,
         pnlSol: parseFloat(pnlSol.toFixed(2)),
         pnlUsd: parseFloat(pnlUsd.toFixed(2)),
-        pnlEur: parseFloat(pnlEur.toFixed(2)),
       });
     }
 
@@ -75,7 +72,7 @@ export default function TiltStreakHeatmap({ trades, solPrice = 150 }: TiltStreak
       const dateObj = getTradeDate(t);
       if (dateObj.getMonth() === currentMonth && dateObj.getFullYear() === currentYear) {
         monthPnlSol += t.pnlSol || 0;
-        monthPnlUsd += t.pnlUsd || (t.pnlSol || 0) * solPrice;
+        monthPnlUsd += getUsdValueStatus(t, solPrice).value ?? 0;
       }
     });
 
@@ -138,7 +135,6 @@ export default function TiltStreakHeatmap({ trades, solPrice = 150 }: TiltStreak
       monthlyProfitInfo: {
         pnlSol: monthPnlSol,
         pnlUsd: monthPnlUsd,
-        pnlEur: monthPnlUsd * USD_TO_EUR,
       },
       todayLosses: tLosses,
       isTiltAlert: tLosses >= 3,
@@ -146,7 +142,7 @@ export default function TiltStreakHeatmap({ trades, solPrice = 150 }: TiltStreak
   }, [trades, dailyBuckets, solPrice]);
 
   // Format value based on currency
-  const formatDayPnl = (day: { pnlSol: number; pnlUsd: number; pnlEur: number; tradeCount: number }) => {
+  const formatDayPnl = (day: { pnlSol: number; pnlUsd: number; tradeCount: number }) => {
     if (day.tradeCount === 0) return "—";
 
     if (currency === "SOL") {
@@ -156,10 +152,6 @@ export default function TiltStreakHeatmap({ trades, solPrice = 150 }: TiltStreak
     if (currency === "USD") {
       const val = day.pnlUsd;
       return val > 0 ? `+$${val.toFixed(2)}` : val < 0 ? `-$${Math.abs(val).toFixed(2)}` : `$0.00`;
-    }
-    if (currency === "EUR") {
-      const val = day.pnlEur;
-      return val > 0 ? `+€${val.toFixed(2)}` : val < 0 ? `-€${Math.abs(val).toFixed(2)}` : `€0.00`;
     }
     return "—";
   };
@@ -178,7 +170,7 @@ export default function TiltStreakHeatmap({ trades, solPrice = 150 }: TiltStreak
 
         {/* Currency Switcher & Monthly Profit */}
         <div className="flex items-center gap-3">
-          {/* Currency Toggle (SOL - USD - EUR) */}
+          {/* Currency Toggle */}
           <div className="flex items-center gap-0.5 bg-[#f1f1ef] p-0.5 rounded-lg border border-[#e3e2de] text-[11px]">
             <button
               type="button"
@@ -202,17 +194,6 @@ export default function TiltStreakHeatmap({ trades, solPrice = 150 }: TiltStreak
             >
               USD ($)
             </button>
-            <button
-              type="button"
-              onClick={() => handleCurrencyChange("EUR")}
-              className={`px-2.5 py-0.5 rounded-md font-semibold transition-all ${
-                currency === "EUR"
-                  ? "bg-white text-[#37352f] shadow-xs"
-                  : "text-[#787774] hover:text-[#37352f]"
-              }`}
-            >
-              ≈ EUR (€)
-            </button>
           </div>
 
           {/* Monthly Profit */}
@@ -222,16 +203,12 @@ export default function TiltStreakHeatmap({ trades, solPrice = 150 }: TiltStreak
               className={
                 currency === "SOL"
                   ? monthlyProfitInfo.pnlSol >= 0 ? "text-emerald-600" : "text-rose-600"
-                  : currency === "USD"
-                  ? monthlyProfitInfo.pnlUsd >= 0 ? "text-emerald-600" : "text-rose-600"
-                  : monthlyProfitInfo.pnlEur >= 0 ? "text-emerald-600" : "text-rose-600"
+                  : monthlyProfitInfo.pnlUsd >= 0 ? "text-emerald-600" : "text-rose-600"
               }
             >
               {currency === "SOL"
                 ? `${monthlyProfitInfo.pnlSol >= 0 ? "+" : ""}${monthlyProfitInfo.pnlSol.toFixed(2)} SOL`
-                : currency === "USD"
-                ? `${monthlyProfitInfo.pnlUsd >= 0 ? "+$" : "-$"}${Math.abs(monthlyProfitInfo.pnlUsd).toFixed(2)}`
-                : `${monthlyProfitInfo.pnlEur >= 0 ? "+€" : "-€"}${Math.abs(monthlyProfitInfo.pnlEur).toFixed(2)}`}
+                : `${monthlyProfitInfo.pnlUsd >= 0 ? "+$" : "-$"}${Math.abs(monthlyProfitInfo.pnlUsd).toFixed(2)}`}
             </span>
           </div>
         </div>
@@ -256,7 +233,7 @@ export default function TiltStreakHeatmap({ trades, solPrice = 150 }: TiltStreak
             const isGreen = day.pnlSol > 0;
             const isRed = day.pnlSol < 0;
 
-            const tooltipText = `${day.dayLabel}: ${day.tradeCount} trade${day.tradeCount > 1 ? "s" : ""} | ${day.pnlSol >= 0 ? `+${day.pnlSol}` : day.pnlSol} SOL ($${day.pnlUsd >= 0 ? `+${day.pnlUsd}` : day.pnlUsd} / €${day.pnlEur >= 0 ? `+${day.pnlEur}` : day.pnlEur})`;
+            const tooltipText = `${day.dayLabel}: ${day.tradeCount} trade${day.tradeCount > 1 ? "s" : ""} | ${day.pnlSol >= 0 ? `+${day.pnlSol}` : day.pnlSol} SOL (${day.pnlUsd >= 0 ? "+$" : "-$"}${Math.abs(day.pnlUsd).toFixed(2)})`;
 
             return (
               <div

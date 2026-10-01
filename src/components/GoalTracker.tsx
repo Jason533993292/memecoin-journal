@@ -3,20 +3,18 @@
 import { useMemo, useState, useEffect } from "react";
 import { Trade, GoalSettings } from "../lib/types";
 import { getTradeTimestamp } from "../lib/utils";
-import { Target, Trophy, AlertCircle, Edit2, TrendingUp, AlertTriangle } from "lucide-react";
+import { Target, Trophy, AlertCircle, Edit2 } from "lucide-react";
 
 interface GoalTrackerProps {
   trades: Trade[];
   goals: GoalSettings;
   onOpenGoalEditor: () => void;
-  solPrice?: number;
 }
 
 export default function GoalTracker({
   trades,
   goals,
   onOpenGoalEditor,
-  solPrice = 150,
 }: GoalTrackerProps) {
   // Periodically refresh date boundaries so tab open across midnight updates automatically
   const [tick, setTick] = useState(0);
@@ -26,6 +24,7 @@ export default function GoalTracker({
   }, []);
 
   const stats = useMemo(() => {
+    void tick;
     const nowObj = new Date();
     const currentMonth = nowObj.getMonth();
     const currentYear = nowObj.getFullYear();

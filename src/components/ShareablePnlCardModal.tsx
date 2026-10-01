@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 
 import { useState, useRef, useEffect } from "react";
 import { Trade } from "../lib/types";
@@ -7,20 +8,19 @@ import {
   Copy,
   Check,
   Download,
-  Sparkles,
   Image as ImageIcon,
   Upload,
   AtSign,
   TrendingUp,
   TrendingDown,
-  Layers,
   Smartphone,
   Monitor,
   Square,
-  Zap,
 } from "lucide-react";
 import { useToast } from "./Toast";
 import { useAuth } from "../context/AuthContext";
+import { getTradeBoughtUsd, getTradeSoldUsd, getUsdValueStatus } from "../lib/tradeCalculations";
+import { selectSolanaTokenPair } from "../lib/tokenMarketData";
 import { useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
 
 interface ShareablePnlCardModalProps {
@@ -176,11 +176,11 @@ export default function ShareablePnlCardModal({
     trade && (trade.pnlSol || 0) < 0 ? "loss" : trade ? "win" : "all"
   );
   const [customImageSrc, setCustomImageSrc] = useState<string | null>(null);
-  const [unit, setUnit] = useState<"SOL" | "USD" | "EUR">("SOL");
+  const [unit, setUnit] = useState<"SOL" | "USD">("SOL");
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>("16:9");
   const [tokenLogo, setTokenLogo] = useState<{ tradeId: string; url: string } | null>(null);
   const tokenLogoUrl = trade && tokenLogo?.tradeId === trade.id ? tokenLogo.url : null;
-  const [cyberFx, setCyberFx] = useState(true);
+  const [cyberFx] = useState(true);
   const traderHandleStorageKey = user ? "memecoin_journal_" + user.uid + "_trader_handle" : "trader_handle";
   const traderHandle = useLocalStorageValue(traderHandleStorageKey) || "";
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -213,11 +213,7 @@ export default function ShareablePnlCardModal({
       fetch(`https://api.dexscreener.com/latest/dex/tokens/${encodeURIComponent(cleanCa)}`)
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
-          const pairs: Array<{ liquidity?: { usd?: number }; info?: { imageUrl?: string } }> =
-            Array.isArray(data?.pairs) ? data.pairs : [];
-          const bestPair = pairs
-            .slice(0, 100)
-            .sort((first, second) => (second.liquidity?.usd || 0) - (first.liquidity?.usd || 0))[0];
+          const bestPair = selectSolanaTokenPair(data, cleanCa);
           const imageUrl = bestPair?.info?.imageUrl;
           if (active && typeof imageUrl === "string") {
             setTokenLogo({ tradeId: trade.id, url: imageUrl });
@@ -229,7 +225,7 @@ export default function ShareablePnlCardModal({
         active = false;
       };
     }
-  }, [trade?.id, trade?.ca, user?.uid]);
+  }, [trade, user]);
 
   if (!isOpen || !trade) return null;
 
@@ -247,33 +243,25 @@ export default function ShareablePnlCardModal({
       : null;
 
   // Currency values
-  const USD_TO_EUR = 0.92;
   const pnlSol = trade.pnlSol || 0;
-  const pnlUsd = trade.pnlUsd || pnlSol * solPrice;
-  const pnlEur = pnlUsd * USD_TO_EUR;
+  const pnlUsd = getUsdValueStatus(trade, solPrice).value ?? 0;
 
   const boughtSol = trade.boughtSol || 0;
-  const boughtUsd = trade.boughtUsd || boughtSol * solPrice;
-  const boughtEur = boughtUsd * USD_TO_EUR;
+  const boughtUsd = getTradeBoughtUsd(trade, solPrice).value ?? 0;
 
   const soldSol = trade.soldSol || 0;
-  const soldUsd = trade.soldUsd || soldSol * solPrice;
-  const soldEur = soldUsd * USD_TO_EUR;
+  const soldUsd = getTradeSoldUsd(trade, solPrice).value ?? 0;
 
-  const formatValue = (sol: number, usd: number, eur: number, showSign = false) => {
+  const formatValue = (sol: number, usd: number, showSign = false) => {
     if (unit === "SOL") {
       const sign = showSign && sol > 0 ? "+" : "";
       return `${sign}${sol.toFixed(2)} SOL`;
     }
-    if (unit === "USD") {
-      const sign = showSign && usd > 0 ? "+" : usd < 0 ? "-" : "";
-      return `${sign}$${Math.abs(usd).toFixed(2)}`;
-    }
-    const sign = showSign && eur > 0 ? "+" : eur < 0 ? "-" : "";
-    return `${sign}€${Math.abs(eur).toFixed(2)}`;
+    const sign = showSign && usd > 0 ? "+" : usd < 0 ? "-" : "";
+    return `${sign}$${Math.abs(usd).toFixed(2)}`;
   };
 
-  const badgeText = `≡ ${formatValue(pnlSol, pnlUsd, pnlEur, true)}`;
+  const badgeText = `≡ ${formatValue(pnlSol, pnlUsd, true)}`;
   const tokenName = (trade.name || trade.symbol || "MEMECOIN").toUpperCase();
   const tokenSymbol = (trade.symbol || "TOKEN").toUpperCase();
 
@@ -481,12 +469,12 @@ export default function ShareablePnlCardModal({
     // Values
     ctx.fillStyle = "#ffffff";
     ctx.font = "bold 34px sans-serif";
-    ctx.fillText(formatValue(boughtSol, boughtUsd, boughtEur), valueColX, startY);
-    ctx.fillText(formatValue(soldSol, soldUsd, soldEur), valueColX, startY + rowGap);
+    ctx.fillText(formatValue(boughtSol, boughtUsd), valueColX, startY);
+    ctx.fillText(formatValue(soldSol, soldUsd), valueColX, startY + rowGap);
 
     // Profit Value (Glowing Highlight)
     ctx.fillStyle = isWin ? activeAccentColor : "#f87171";
-    ctx.fillText(formatValue(pnlSol, pnlUsd, pnlEur, true), valueColX, startY + rowGap * 2);
+    ctx.fillText(formatValue(pnlSol, pnlUsd, true), valueColX, startY + rowGap * 2);
 
     // Extra stats for 9:16 story format
     if (aspectRatio === "9:16" && trade.mcap) {
@@ -565,8 +553,8 @@ export default function ShareablePnlCardModal({
 
     const tweetText = `${emoji} ${statusPhrase} (${roiFormatted})
 
-💰 P&L: ${formatValue(pnlSol, pnlUsd, pnlEur, true)}
-💸 In: ${formatValue(boughtSol, boughtUsd, boughtEur)} | Out: ${formatValue(soldSol, soldUsd, soldEur)}${multiplierVal ? ` (${multiplierVal}x)` : ""}
+💰 P&L: ${formatValue(pnlSol, pnlUsd, true)}
+💸 In: ${formatValue(boughtSol, boughtUsd)} | Out: ${formatValue(soldSol, soldUsd)}${multiplierVal ? ` (${multiplierVal}x)` : ""}
 
 ${authorTag ? `Traded by ${authorTag}\n` : ""}Logged on Memecoin Journal 📊
 #Solana #MemeCoins $${tokenSymbol}`;
@@ -579,7 +567,7 @@ ${authorTag ? `Traded by ${authorTag}\n` : ""}Logged on Memecoin Journal 📊
   const shareText = `🚀 $${tokenSymbol} Trade Closed!
 📈 ROI: ${roiFormatted}${multiplierVal ? ` (${multiplierVal}x)` : ""}
 💰 Net: ${badgeText}
-💸 Bought: ${formatValue(boughtSol, boughtUsd, boughtEur)} | Sold: ${formatValue(soldSol, soldUsd, soldEur)}
+💸 Bought: ${formatValue(boughtSol, boughtUsd)} | Sold: ${formatValue(soldSol, soldUsd)}
 ${traderHandle.trim() ? `Traded by ${traderHandle.trim()}\n` : ""}#Solana #MemeCoins via Memecoin Journal`;
 
   const copyShareText = () => {
@@ -640,7 +628,7 @@ ${traderHandle.trim() ? `Traded by ${traderHandle.trim()}\n` : ""}#Solana #MemeC
 
           {/* Currency Unit Toggle */}
           <div className="flex items-center gap-0.5 bg-black/60 p-0.5 rounded-lg border border-neutral-800 text-[11px] font-mono">
-            {(["SOL", "USD", "EUR"] as const).map((curr) => (
+            {(["SOL", "USD"] as const).map((curr) => (
               <button
                 key={curr}
                 onClick={() => setUnit(curr)}
@@ -883,11 +871,11 @@ ${traderHandle.trim() ? `Traded by ${traderHandle.trim()}\n` : ""}#Solana #MemeC
               <div className="space-y-1 text-[11px] sm:text-xs font-semibold max-w-[260px] bg-black/40 p-2 sm:p-2.5 rounded-xl border border-white/5 backdrop-blur-sm">
                 <div className="flex items-center justify-between">
                   <span className="text-white/70 uppercase tracking-wider text-[10px]">BOUGHT</span>
-                  <span className="font-mono text-white">{formatValue(boughtSol, boughtUsd, boughtEur)}</span>
+                  <span className="font-mono text-white">{formatValue(boughtSol, boughtUsd)}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-white/70 uppercase tracking-wider text-[10px]">SOLD</span>
-                  <span className="font-mono text-white">{formatValue(soldSol, soldUsd, soldEur)}</span>
+                  <span className="font-mono text-white">{formatValue(soldSol, soldUsd)}</span>
                 </div>
                 <div className="flex items-center justify-between pt-0.5 border-t border-white/10">
                   <span className="text-white/70 uppercase tracking-wider text-[10px]">PROFIT</span>
@@ -895,7 +883,7 @@ ${traderHandle.trim() ? `Traded by ${traderHandle.trim()}\n` : ""}#Solana #MemeC
                     className="font-mono font-bold"
                     style={{ color: isWin ? activeAccentColor : "#f87171" }}
                   >
-                    {formatValue(pnlSol, pnlUsd, pnlEur, true)}
+                    {formatValue(pnlSol, pnlUsd, true)}
                   </span>
                 </div>
               </div>

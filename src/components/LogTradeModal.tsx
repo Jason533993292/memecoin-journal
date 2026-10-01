@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { db } from "../lib/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, Timestamp } from "firebase/firestore";
 import {
   X,
   Search,
@@ -32,6 +32,7 @@ import { compressImage } from "../lib/utils";
 import { buildTradeAmounts, getTradeCreateValidationError, parseQuickTradePaste } from "../lib/tradeInput";
 import { useAuth } from "../context/AuthContext";
 import { parseLocalStorageValue, useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
+import { selectSolanaTokenPair } from "../lib/tokenMarketData";
 
 // Re-export for backward compatibility
 export { DEFAULT_GOOD_TAGS, DEFAULT_MISTAKE_TAGS, COMMON_SETUPS, DURATION_PRESETS };
@@ -42,6 +43,11 @@ interface LogTradeModalProps {
   onTradeLogged: () => void;
   initialData?: Partial<Trade> | null;
   solPrice?: number;
+}
+
+function toLocalDateTimeInput(timestamp: number): string {
+  const date = new Date(timestamp);
+  return new Date(timestamp - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
 }
 
 export default function LogTradeModal({
@@ -55,6 +61,7 @@ export default function LogTradeModal({
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const caDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const tokenLookupRef = useRef(0);
   const formRef = useRef<HTMLFormElement | null>(null);
 
   const [ca, setCa] = useState(initialData?.ca || "");
@@ -80,6 +87,7 @@ export default function LogTradeModal({
   const [setupType, setSetupType] = useState<string>(isKnownInitialSetup ? initialSetup : "Custom");
   const [customSetup, setCustomSetup] = useState(isKnownInitialSetup ? "" : initialSetup);
   const [durationMinutes, setDurationMinutes] = useState<number | undefined>(initialData?.durationMinutes || 15);
+  const [tradedAtInput, setTradedAtInput] = useState(() => toLocalDateTimeInput(Date.now()));
 
   // Financial fields
   const [boughtSol, setBoughtSol] = useState(initialData?.boughtSol ? String(initialData.boughtSol) : "");
@@ -201,6 +209,7 @@ export default function LogTradeModal({
   const fetchTokenData = async (contractAddress = ca) => {
     const cleanCa = contractAddress.trim();
     if (!cleanCa) return;
+    const lookupId = ++tokenLookupRef.current;
     setLoadingToken(true);
     setFetchError("");
 
@@ -210,18 +219,15 @@ export default function LogTradeModal({
       const directRes = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${cleanCa}`);
       if (directRes.ok) {
         const directData = await directRes.json();
-        if (directData.pairs && directData.pairs.length > 0) {
-          const sorted = [...directData.pairs].sort(
-            (a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0)
-          );
-          const best = sorted[0];
+        const best = selectSolanaTokenPair(directData, cleanCa);
+        if (best && lookupId === tokenLookupRef.current) {
           const directObj = {
-            name: best.baseToken.name || "Unknown Token",
-            symbol: best.baseToken.symbol || "MEME",
-            priceUsd: best.priceUsd || "0",
-            marketCap: best.marketCap || best.fdv || 0,
-            liquidity: best.liquidity?.usd || 0,
-            imageUrl: best.info?.imageUrl || null,
+            name: typeof best.baseToken?.name === "string" ? best.baseToken.name : "Unknown Token",
+            symbol: typeof best.baseToken?.symbol === "string" ? best.baseToken.symbol : "MEME",
+            priceUsd: typeof best.priceUsd === "string" ? best.priceUsd : "0",
+            marketCap: Number(best.marketCap) || Number(best.fdv) || 0,
+            liquidity: Number(best.liquidity?.usd) || 0,
+            imageUrl: typeof best.info?.imageUrl === "string" ? best.info.imageUrl : undefined,
           };
           setTokenData(directObj);
           showToast("Token found", "info", `${directObj.name} ($${directObj.symbol})`);
@@ -233,12 +239,17 @@ export default function LogTradeModal({
       console.error("Token lookup failed:", clientErr);
     }
 
-    setFetchError("Token not found on DexScreener. Check contract address or paste name manually.");
-    setLoadingToken(false);
+    if (lookupId === tokenLookupRef.current) {
+      setFetchError("Token not found on DexScreener. Check contract address or paste name manually.");
+      setLoadingToken(false);
+    }
   };
 
   const handleCaChange = (val: string) => {
     setCa(val);
+    setTokenData(null);
+    setFetchError("");
+    tokenLookupRef.current += 1;
     if (caDebounceRef.current) clearTimeout(caDebounceRef.current);
     if (val.trim().length >= 32 && val.trim().length <= 44) {
       caDebounceRef.current = setTimeout(() => {
@@ -481,6 +492,8 @@ export default function LogTradeModal({
       const parsedSlippage = parseFloat(slippagePct) || null;
 
       const finalSetup = customSetup.trim() || setupType;
+      const tradedAt = new Date(tradedAtInput).getTime();
+      if (!Number.isFinite(tradedAt)) throw new RangeError("Choose a valid trade date and time.");
 
       if (!user) throw new Error("Please sign in before saving a trade.");
       const tradesCol = collection(db, "users", user.uid, "trades");
@@ -512,14 +525,14 @@ export default function LogTradeModal({
         exitMarketCapUsd: parsedExitMcap,
         slippagePct: parsedSlippage,
         entryTimezoneOffset: new Date().getTimezoneOffset(),
-        tradedAt: Date.now(),
+        tradedAt,
         solUsdRate: solPrice > 0 ? solPrice : null,
         solUsdRateSource: solPrice > 0 ? "live-at-entry" : "unknown",
         tradeMode: wallet === "Paper" ? "paper" : "real",
         goodTags: selectedGoodTags,
         mistakes: selectedMistakes,
         notes: notes.trim(),
-        date: serverTimestamp(),
+        date: Timestamp.fromMillis(tradedAt),
         createdAt: Date.now(),
       };
       const validationError = getTradeCreateValidationError(tradeDocument);
@@ -718,6 +731,18 @@ export default function LogTradeModal({
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div>
+              <label htmlFor="new-trade-date" className="mb-1.5 block font-medium text-[#787774]">Trade date and time</label>
+              <input
+                id="new-trade-date"
+                type="datetime-local"
+                value={tradedAtInput}
+                onChange={(event) => setTradedAtInput(event.target.value)}
+                className="w-full rounded-lg border border-[#e3e2de] bg-[#fbfbfa] px-3 py-2 text-xs text-[#37352f] focus:border-[#2383e2] focus:outline-none"
+                required
+              />
             </div>
 
             {/* Optional chart screenshot */}

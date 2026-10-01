@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Target, Check, ShieldAlert } from "lucide-react";
+import { X, Target, ShieldAlert } from "lucide-react";
 import { GoalSettings } from "../lib/types";
 import { useToast } from "./Toast";
 
@@ -96,7 +96,7 @@ export default function GoalEditorModal({
               />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 font-mono text-xs">SOL</span>
             </div>
-            <span className="text-[10px] text-[#9b9a97] mt-0.5 block">Your 7-day net gain goal</span>
+            <span className="text-[10px] text-[#9b9a97] mt-0.5 block">Your calendar-week net gain goal</span>
           </div>
 
           <div>
@@ -114,7 +114,7 @@ export default function GoalEditorModal({
               />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 font-mono text-xs">SOL</span>
             </div>
-            <span className="text-[10px] text-[#9b9a97] mt-0.5 block">Your 30-day net gain goal</span>
+            <span className="text-[10px] text-[#9b9a97] mt-0.5 block">Your calendar-month net gain goal</span>
           </div>
 
           <div>

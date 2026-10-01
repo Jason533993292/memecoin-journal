@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import SolanaLogo from "./SolanaLogo";
 import ThemePreviewControl from "./ThemePreviewControl";
 import {
   LayoutDashboard,
@@ -9,15 +8,14 @@ import {
   Wallet,
   BarChart3,
   Bot,
-  TrendingUp,
-  TrendingDown,
   Command,
   Sparkles,
   Plus,
 } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
-import { LogIn, LogOut, Trash2, User as UserIcon } from "lucide-react";
+import { LogIn, LogOut, MailCheck, Trash2, User as UserIcon } from "lucide-react";
+import { useToast } from "./Toast";
 
 interface TopBannerProps {
   currentTab: string;
@@ -28,6 +26,8 @@ interface TopBannerProps {
   onDeleteAccount?: () => void;
   solPrice?: number;
   solChange24h?: number;
+  solPriceStatus?: "live" | "cached" | "stale" | "unavailable";
+  solPriceUpdatedAt?: number | null;
 }
 
 export default function TopBanner({
@@ -39,8 +39,11 @@ export default function TopBanner({
   onDeleteAccount,
   solPrice = 0,
   solChange24h = 0,
+  solPriceStatus = "unavailable",
+  solPriceUpdatedAt = null,
 }: TopBannerProps) {
-  const { user, loginWithGoogle, logout } = useAuth();
+  const { user, loginWithGoogle, logout, resendVerification } = useAuth();
+  const { showToast } = useToast();
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
 
   const tabs = [
@@ -83,11 +86,15 @@ export default function TopBanner({
           <ThemePreviewControl />
 
           {/* Live SOL Price Badge */}
-          <div className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 bg-white border border-[#e3e2de] rounded-md text-[11px] font-mono shadow-xs">
-            <span className={`w-2 h-2 rounded-full ${solPrice > 0 ? "bg-emerald-500 animate-pulse" : "bg-neutral-300"}`}></span>
+          <div
+            className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 bg-white border border-[#e3e2de] rounded-md text-[11px] font-mono shadow-xs"
+            title={solPriceUpdatedAt ? `${solPriceStatus === "stale" ? "Stale cached" : solPriceStatus} SOL price, updated ${new Date(solPriceUpdatedAt).toLocaleTimeString()}` : "SOL price unavailable"}
+          >
+            <span className={`w-2 h-2 rounded-full ${solPriceStatus === "live" ? "bg-emerald-500 animate-pulse" : solPriceStatus === "cached" ? "bg-amber-400" : solPriceStatus === "stale" ? "bg-rose-500" : "bg-neutral-300"}`}></span>
             <span className="text-[#37352f] font-semibold">
               {solPrice > 0 ? `$${solPrice.toFixed(2)}` : "SOL —"}
             </span>
+            {solPriceStatus === "stale" && <span className="text-[9px] font-sans text-rose-600">stale</span>}
             {solChange24h !== 0 && (
               <span
                 className={`hidden sm:inline text-[10px] font-medium ${
@@ -141,6 +148,8 @@ export default function TopBanner({
                 className="flex items-center gap-1.5 rounded-md p-1 hover:bg-[#eeece8]"
               >
                 {user.photoURL ? (
+                  // User profile images come from the authenticated identity provider.
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={user.photoURL}
                     alt=""
@@ -156,6 +165,23 @@ export default function TopBanner({
               {accountMenuOpen && (
                 <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-[#e3e2de] bg-white p-2 shadow-xl">
                   <p className="truncate px-2 py-2 text-[11px] text-[#787774]">{user.email}</p>
+                  {!user.emailVerified && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void resendVerification()
+                          .then(() => {
+                            setAccountMenuOpen(false);
+                            showToast("Verification email sent", "success", "Check your inbox and spam folder.");
+                          })
+                          .catch(() => showToast("Could not send verification email", "error", "Wait a moment and try again."));
+                      }}
+                      className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs text-amber-700 hover:bg-amber-50"
+                    >
+                      <MailCheck size={14} />
+                      Resend verification email
+                    </button>
+                  )}
                   {onDeleteAccount && (
                     <button
                       type="button"

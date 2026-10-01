@@ -5,6 +5,7 @@ import { Trade } from "../lib/types";
 import { getTradeTimestamp, getTradeDate } from "../lib/utils";
 import { useCurrentTime } from "../lib/useLocalStorage";
 import { DEFAULT_GOOD_TAGS } from "../lib/constants";
+import { getUsdValueStatus } from "../lib/tradeCalculations";
 import {
   TrendingUp,
   ShieldAlert,
@@ -51,7 +52,7 @@ export default function EquityCurveCard({ trades, solPrice = 150 }: EquityCurveC
       const cutoff = timeframe === "7d" ? now - 7 * 86400000 : now - 30 * 86400000;
       const beforeTrades = sorted.filter((t) => getTradeTimestamp(t) < cutoff);
       openingPnl = beforeTrades.reduce((sum, t) => {
-        const p = currency === "SOL" ? (t.pnlSol || 0) : (t.pnlUsd !== undefined ? t.pnlUsd : (t.pnlSol || 0) * solPrice);
+        const p = currency === "SOL" ? (t.pnlSol || 0) : (getUsdValueStatus(t, solPrice).value ?? 0);
         return sum + p;
       }, 0);
     }
@@ -93,7 +94,7 @@ export default function EquityCurveCard({ trades, solPrice = 150 }: EquityCurveC
       
       const pnl = currency === "SOL"
         ? (t.pnlSol || 0)
-        : (t.pnlUsd !== undefined ? t.pnlUsd : (t.pnlSol || 0) * solPrice);
+        : (getUsdValueStatus(t, solPrice).value ?? 0);
       
       const mistakesList = t.mistakes || [];
       const badTags = mistakesList.filter((m) => !DEFAULT_GOOD_TAGS.includes(m));
