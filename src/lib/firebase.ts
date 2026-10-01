@@ -1,4 +1,5 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "firebase/app-check";
 import { getFirestore } from "firebase/firestore";
 import {
   getAuth,
@@ -25,6 +26,24 @@ const firebaseConfig = {
 };
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const appCheckSiteKey = process.env.NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY?.trim();
+
+// App Check stays inactive until the public reCAPTCHA Enterprise site key is
+// configured. Monitor its metrics before enabling enforcement in Firebase.
+if (typeof window !== "undefined" && appCheckSiteKey) {
+  try {
+    initializeAppCheck(app, {
+      provider: new ReCaptchaEnterpriseProvider(appCheckSiteKey),
+      isTokenAutoRefreshEnabled: true,
+    });
+  } catch (error: unknown) {
+    const code = typeof error === "object" && error && "code" in error ? String(error.code) : "";
+    if (code !== "appCheck/already-initialized") {
+      console.warn("Firebase App Check could not initialize.");
+    }
+  }
+}
+
 const db = getFirestore(app);
 const auth = getAuth(app);
 

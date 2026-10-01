@@ -11,7 +11,7 @@ const nextConfig: NextConfig = {
         { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(), usb=()" },
         {
           key: "Content-Security-Policy-Report-Only",
-          value: "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com https://firebaseinstallations.googleapis.com https://api.dexscreener.com",
+          value: "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' https://www.recaptcha.net https://www.gstatic.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-src https://www.recaptcha.net; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com https://firebaseinstallations.googleapis.com https://api.dexscreener.com https://www.recaptcha.net https://recaptchaenterprise.googleapis.com",
         },
       ],
     }];
