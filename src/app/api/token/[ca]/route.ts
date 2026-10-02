@@ -1,10 +1,4 @@
-import { NextResponse } from "next/server";
-import {
-  consumeUserRateLimits,
-  FirebaseAdminConfigurationError,
-  verifyFirebaseUser,
-} from "../../../../lib/firebase-admin";
-import { selectSolanaTokenPair, type DexTokenPair } from "../../../../lib/tokenMarketData";
+import { lookupPublicTokenPair, type DexTokenPair } from "../../../../lib/tokenMarketData";
 
 export const maxDuration = 15;
 
@@ -54,56 +48,21 @@ async function fetchJson(url: string, revalidate = 30): Promise<unknown> {
 }
 
 export async function GET(
-  request: Request,
+  _request: Request,
   { params }: { params: Promise<{ ca: string }> }
 ) {
   const { ca } = await params;
   const cleanCa = ca?.trim();
   if (!cleanCa || !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(cleanCa)) {
-    return NextResponse.json(
+    return Response.json(
       { error: "Enter a valid Solana token address (32–44 base58 characters)." },
       { status: 400 }
     );
   }
 
-  let user;
   try {
-    user = await verifyFirebaseUser(request);
-  } catch (error) {
-    const configError = error instanceof FirebaseAdminConfigurationError;
-    return NextResponse.json(
-      { error: configError ? "Token lookup is temporarily unavailable." : "Sign in to look up tokens." },
-      { status: configError ? 503 : 401 }
-    );
-  }
-  if (!user) {
-    return NextResponse.json({ error: "Sign in to look up tokens." }, { status: 401 });
-  }
-
-  try {
-    const allowed = await consumeUserRateLimits(user.uid, "token-lookup", [
-      { key: "minute", limit: 60, durationMs: 60_000 },
-      { key: "day", limit: 1000, durationMs: 86_400_000 },
-    ]);
-    if (!allowed) {
-      return NextResponse.json({ error: "Too many lookups. Please wait before trying again." }, { status: 429 });
-    }
-  } catch {
-    return NextResponse.json({ error: "Token lookup is temporarily unavailable." }, { status: 503 });
-  }
-
-  try {
-    const latest = await fetchJson(
-      "https://api.dexscreener.com/latest/dex/tokens/" + encodeURIComponent(cleanCa)
-    );
-    const bestLatest = selectSolanaTokenPair(latest, cleanCa);
-    if (bestLatest?.baseToken) return NextResponse.json(tokenResponse(bestLatest));
-
-    const v1 = await fetchJson(
-      "https://api.dexscreener.com/tokens/v1/solana/" + encodeURIComponent(cleanCa)
-    );
-    const bestV1 = selectSolanaTokenPair(v1, cleanCa);
-    if (bestV1?.baseToken) return NextResponse.json(tokenResponse(bestV1));
+    const dexPair = await lookupPublicTokenPair(cleanCa);
+    if (dexPair?.baseToken) return Response.json(tokenResponse(dexPair));
 
     const jupiter = await fetchJson(
       "https://api.jup.ag/price/v2?ids=" + encodeURIComponent(cleanCa)
@@ -114,7 +73,7 @@ export async function GET(
         ? (jupiter.data as Record<string, { price?: unknown }>)[cleanCa]?.price
         : undefined;
     if (tokenPrice !== undefined) {
-      return NextResponse.json({
+      return Response.json({
         name: "Solana Token",
         symbol: "SOL-TOKEN",
         priceUsd: String(finiteNumber(tokenPrice)),
@@ -125,12 +84,12 @@ export async function GET(
       });
     }
 
-    return NextResponse.json({ error: "Token not found on supported market-data services." }, { status: 404 });
+    return Response.json({ error: "Token not found on supported market-data services." }, { status: 404 });
   } catch (error) {
     console.warn("Token metadata lookup failed", {
       reason: error instanceof Error ? error.name : "unknown",
     });
-    return NextResponse.json(
+    return Response.json(
       { error: "Token lookup timed out or the market-data services are unavailable." },
       { status: 502 }
     );
