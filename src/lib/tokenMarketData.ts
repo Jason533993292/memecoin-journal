@@ -29,3 +29,29 @@ export function selectSolanaTokenPair(payload: unknown, requestedMint: string): 
     .slice(0, 100)
     .sort((first, second) => liquidityUsd(second) - liquidityUsd(first))[0] || null;
 }
+
+export async function lookupPublicTokenPair(
+  requestedMint: string,
+  fetchImpl: typeof fetch = fetch
+): Promise<DexTokenPair | null> {
+  const endpoints = [
+    `https://api.dexscreener.com/latest/dex/tokens/${encodeURIComponent(requestedMint)}`,
+    `https://api.dexscreener.com/tokens/v1/solana/${encodeURIComponent(requestedMint)}`,
+  ];
+
+  for (const endpoint of endpoints) {
+    try {
+      const response = await fetchImpl(endpoint, {
+        headers: { Accept: "application/json" },
+        signal: AbortSignal.timeout(2_500),
+      });
+      if (!response.ok) continue;
+      const pair = selectSolanaTokenPair(await response.json(), requestedMint);
+      if (pair) return pair;
+    } catch {
+      // Try the next fixed market-data endpoint.
+    }
+  }
+
+  return null;
+}
