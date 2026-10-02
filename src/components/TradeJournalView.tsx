@@ -15,7 +15,7 @@ import {
   Image as ImageIcon,
   Clock,
 } from "lucide-react";
-import { exportTradesToCSV, exportTradesToJSON, parseTradeImport, tradeImportKey } from "../lib/exportImport";
+import { exportTradesToCSV, exportTradesToJSON, filterNewTradeImports, parseTradeImport } from "../lib/exportImport";
 import { getTradeTimestamp } from "../lib/utils";
 import { useCurrentTime } from "../lib/useLocalStorage";
 import { useToast } from "./Toast";
@@ -120,8 +120,7 @@ export default function TradeJournalView({
     try {
       const text = await file.text();
       const imported = parseTradeImport(text, file.name.toLowerCase().endsWith(".json") ? "json" : "csv");
-      const existingKeys = new Set(trades.map(tradeImportKey));
-      const uniqueImported = imported.filter((trade) => !existingKeys.has(tradeImportKey(trade)));
+      const uniqueImported = filterNewTradeImports(imported, trades);
 
       if (uniqueImported.length > 0) {
         let count = 0;

@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   buildTradesCsv,
+  filterNewTradeImports,
   parseTradeImport,
   serializeTradesToJson,
   tradeImportKey,
@@ -97,4 +98,41 @@ test("duplicate detection uses the original time, address, and amounts", () => {
   const base = { id: "a", ca: "Mint", name: "A", symbol: "A", wallet: "Main", result: "Win" as const, boughtSol: 1, pnlSol: 0.5, pnlUsd: 50, mistakes: [], tradedAt: 1234 };
   assert.equal(tradeImportKey(base), tradeImportKey({ ...base, id: "b", name: "Renamed" }));
   assert.notEqual(tradeImportKey(base), tradeImportKey({ ...base, pnlSol: 0.6 }));
+});
+
+test("import duplicate filtering removes duplicates inside the same file", () => {
+  const first = { ca: "Mint", boughtSol: 1, soldSol: 2, pnlSol: 1, tradedAt: 1234 };
+  assert.deepEqual(filterNewTradeImports([first, { ...first }], []), [first]);
+});
+
+test("imports normalize required strings and Firestore field lengths", () => {
+  const [trade] = parseTradeImport(JSON.stringify([{
+    tradedAt: 1234,
+    name: "",
+    symbol: "",
+    wallet: "",
+    result: "Win",
+    boughtSol: 1,
+    pnlSol: 1,
+    pnlUsd: 100,
+    setupType: "x".repeat(200),
+    notes: "n".repeat(5000),
+  }]), "json");
+
+  assert.equal(trade.name, "Token");
+  assert.equal(trade.symbol, "MEME");
+  assert.equal(trade.wallet, "Main");
+  assert.equal(trade.setupType.length, 120);
+  assert.equal(trade.notes?.length, 4000);
+});
+
+test("imports reject numeric values that deployed Firestore rules reject", () => {
+  assert.throws(() => parseTradeImport(JSON.stringify([{
+    tradedAt: 1234,
+    result: "Loss",
+    boughtSol: 1,
+    soldSol: -1,
+    pnlSol: -1,
+    pnlUsd: -100,
+  }]), "json"), /row 1/i);
 });

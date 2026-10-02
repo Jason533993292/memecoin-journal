@@ -78,7 +78,10 @@ function validateStringField(data: Record<string, unknown>, field: string, maxLe
 }
 
 /** Returns a user-readable reason a trade create would fail the deployed Firestore schema rules. */
-export function getTradeCreateValidationError(value: Record<string, unknown>): string | null {
+export function getTradeCreateValidationError(
+  value: Record<string, unknown>,
+  requireCreateMetadata = true
+): string | null {
   const unknownField = Object.keys(value).find((field) => !TRADE_CREATE_FIELDS.has(field));
   if (unknownField) return `Unsupported trade field: ${unknownField}. Please refresh the page and try again.`;
 
@@ -130,8 +133,9 @@ export function getTradeCreateValidationError(value: Record<string, unknown>): s
     return "SOL price source is not a supported option.";
   }
   if (value.tradeMode != null && !["real", "paper"].includes(String(value.tradeMode))) return "Trade mode is not a supported option.";
-  if (typeof value.notes !== "string" || value.notes.length > 4_000) return "Notes must be text and no more than 4,000 characters.";
-  if (typeof value.createdAt !== "number" || !Number.isFinite(value.createdAt)) return "Trade creation time is missing. Refresh and try again.";
+  if (value.notes != null && (typeof value.notes !== "string" || value.notes.length > 4_000)) return "Notes must be text and no more than 4,000 characters.";
+  if (requireCreateMetadata && typeof value.notes !== "string") return "Trade notes are missing. Refresh and try again.";
+  if (requireCreateMetadata && (typeof value.createdAt !== "number" || !Number.isFinite(value.createdAt))) return "Trade creation time is missing. Refresh and try again.";
 
   return null;
 }

@@ -557,6 +557,9 @@ export default function LogTradeModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="log-trade-title"
         className="bg-white border border-[#e9e9e7] rounded-2xl w-full max-w-xl shadow-xl relative text-[#37352f] flex flex-col max-h-[92vh] overflow-hidden"
       >
         {/* Sticky Header */}
@@ -564,7 +567,7 @@ export default function LogTradeModal({
           <div className="flex items-center gap-2">
             <span className="text-xl">📓</span>
             <div>
-              <h2 className="text-base sm:text-lg font-semibold tracking-tight text-[#37352f]">
+              <h2 id="log-trade-title" className="text-base sm:text-lg font-semibold tracking-tight text-[#37352f]">
                 Log New Trade
               </h2>
               <p className="text-xs text-[#787774]">
@@ -692,6 +695,7 @@ export default function LogTradeModal({
                   type="text"
                   value={customSetup}
                   onChange={(e) => setCustomSetup(e.target.value)}
+                  maxLength={120}
                   placeholder="Describe your custom setup..."
                   className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]"
                 />}
@@ -1092,6 +1096,7 @@ export default function LogTradeModal({
                   type="text"
                   value={customTagInput}
                   onChange={(e) => setCustomTagInput(e.target.value)}
+                  maxLength={80}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();

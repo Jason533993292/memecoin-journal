@@ -272,8 +272,20 @@ function AuthenticatedApp({ user }: { user: User }) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  const refreshAiBrief = useCallback(async () => {
+  const refreshAiBrief = useCallback(async (
+    providerOverride?: "deepseek" | "gemini" | "openai",
+    apiKeyOverride?: string
+  ) => {
     if (!user || activeTrades.length === 0) return;
+    const sessionKey = typeof window === "undefined"
+      ? ""
+      : window.sessionStorage.getItem("ai_" + user.uid + "_provider_api_key") || "";
+    const requestApiKey = apiKeyOverride?.trim() || sessionKey || providerApiKey || "";
+    const requestProvider = providerOverride || selectedProvider;
+    if (!requestApiKey) {
+      showToast("AI review could not run", "error", "Save an API key for the selected provider first.");
+      return;
+    }
     setLoadingAi(true);
     try {
       const token = await user.getIdToken();
@@ -295,8 +307,8 @@ function AuthenticatedApp({ user }: { user: User }) {
             createdAt: trade.createdAt,
             date: trade.date,
           })),
-          clientApiKey: providerApiKey,
-          provider: selectedProvider,
+          clientApiKey: requestApiKey,
+          provider: requestProvider,
         }),
       });
       if (res.ok) {

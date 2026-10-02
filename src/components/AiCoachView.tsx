@@ -14,7 +14,7 @@ type AiProvider = "deepseek" | "gemini" | "openai";
 interface AiCoachViewProps {
   trades: Trade[];
   aiBrief: AiCoachBrief | null;
-  onRefreshAiBrief: () => void;
+  onRefreshAiBrief: (provider: AiProvider, apiKey: string) => void;
   loadingAi: boolean;
 }
 
@@ -208,7 +208,7 @@ export default function AiCoachView({
           </div>
 
           <button
-            onClick={onRefreshAiBrief}
+            onClick={() => onRefreshAiBrief(provider, apiKey)}
             disabled={loadingAi || trades.length === 0 || !isProviderReady}
             title={!isProviderReady ? "Save a provider API key before requesting a review" : undefined}
             className="bg-[#2383e2] hover:bg-[#1a73ca] text-white px-3.5 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 shadow-xs transition-colors disabled:opacity-50"

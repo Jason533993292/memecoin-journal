@@ -20,10 +20,12 @@ function clearLocalAccountData(uid: string) {
   try {
     const prefixes = ["memecoin_journal_" + uid + "_", "ai_" + uid + "_"];
 
-    for (let index = localStorage.length - 1; index >= 0; index -= 1) {
-      const key = localStorage.key(index);
-      if (key && prefixes.some((prefix) => key.startsWith(prefix))) {
-        localStorage.removeItem(key);
+    for (const storage of [localStorage, sessionStorage]) {
+      for (let index = storage.length - 1; index >= 0; index -= 1) {
+        const key = storage.key(index);
+        if (key && prefixes.some((prefix) => key.startsWith(prefix))) {
+          storage.removeItem(key);
+        }
       }
     }
   } catch {

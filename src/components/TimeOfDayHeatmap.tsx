@@ -165,6 +165,7 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
   );
 
   const formatMetric = (cell: CellData) => {
+    if (cell.tradeCount === 0) return metric === "tradeCount" ? "0" : "No trades";
     if (metric === "avgPnl") return formatUsdSigned(cell.totalPnlUsd / cell.tradeCount);
     if (metric === "totalPnl") return formatUsdSigned(cell.totalPnlUsd);
     if (metric === "winRate") return `${Math.round((cell.wins / cell.tradeCount) * 100)}%`;
@@ -322,6 +323,7 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
                   onClick={() => handleCellClick(dayIdx, hour)}
                   aria-label={`${DAY_FULL[dayIdx]} ${formatHourRange(hour)}: ${cell.tradeCount} trade${cell.tradeCount === 1 ? "" : "s"}, ${formatMetric(cell)}`}
                   aria-pressed={expandedDay === dayIdx && expandedHour === hour}
+                  disabled={cell.tradeCount === 0}
                 >
                   {cell.tradeCount >= minimumSample && (
                     <span

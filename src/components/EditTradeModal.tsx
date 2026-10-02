@@ -18,7 +18,7 @@ import { Trade } from "../lib/types";
 import { useToast } from "./Toast";
 import { COMMON_SETUPS, DURATION_PRESETS, DEFAULT_GOOD_TAGS, DEFAULT_MISTAKE_TAGS } from "../lib/constants";
 import { compressImage, getTradeTimestamp } from "../lib/utils";
-import { buildTradeAmounts } from "../lib/tradeInput";
+import { buildTradeAmounts, getTradeCreateValidationError } from "../lib/tradeInput";
 
 interface EditTradeModalProps {
   trade: Trade | null;
@@ -346,7 +346,7 @@ export default function EditTradeModal({
       if (!currentUser) throw new Error("Please sign in before editing a trade.");
       const tradeRef = doc(db, "users", currentUser.uid, "trades", trade.id);
 
-      await updateDoc(tradeRef, {
+      const updateData = {
         ca: ca.trim(),
         name: name.trim(),
         symbol: symbol.trim(),
@@ -380,14 +380,27 @@ export default function EditTradeModal({
         goodTags: selectedGoodTags,
         mistakes: selectedMistakes,
         notes: notes.trim(),
-      });
+      };
+      const storedTrade = Object.fromEntries(
+        Object.entries(trade).filter(([field]) => field !== "id")
+      );
+      const validationError = getTradeCreateValidationError(
+        { ...storedTrade, ...updateData },
+        false
+      );
+      if (validationError) throw new RangeError(validationError);
+      await updateDoc(tradeRef, updateData);
 
       showToast("Trade updated successfully", "success");
       onTradeUpdated();
       onClose();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error updating trade:", error);
-      showToast("Failed to update trade", "error");
+      showToast(
+        "Failed to update trade",
+        "error",
+        error instanceof Error && error.message ? error.message : "Check the trade values and try again."
+      );
     }
     setSaving(false);
   };
@@ -399,6 +412,9 @@ export default function EditTradeModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="edit-trade-title"
         className="bg-white border border-[#e9e9e7] rounded-2xl p-4 sm:p-6 w-full max-w-xl shadow-xl relative my-6 text-[#37352f] max-h-[92vh] overflow-y-auto"
       >
         <button
@@ -411,7 +427,7 @@ export default function EditTradeModal({
         <div className="flex items-center gap-2 mb-5 pb-3 border-b border-[#f1f1ef]">
           <span className="text-xl">✏️</span>
           <div>
-            <h2 className="text-base sm:text-lg font-semibold tracking-tight text-[#37352f]">
+            <h2 id="edit-trade-title" className="text-base sm:text-lg font-semibold tracking-tight text-[#37352f]">
               Edit Trade: ${symbol || trade.symbol}
             </h2>
             <p className="text-xs text-[#787774]">Modify financial metrics, chart screenshots, and notes.</p>
@@ -427,6 +443,7 @@ export default function EditTradeModal({
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                maxLength={120}
                 className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]"
                 required
               />
@@ -437,6 +454,7 @@ export default function EditTradeModal({
                 type="text"
                 value={symbol}
                 onChange={(e) => setSymbol(e.target.value)}
+                maxLength={40}
                 className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]"
                 required
               />
@@ -472,6 +490,7 @@ export default function EditTradeModal({
               type="text"
               value={customSetup}
               onChange={(e) => setCustomSetup(e.target.value)}
+              maxLength={120}
               placeholder="Or custom setup..."
               className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]"
             />

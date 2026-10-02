@@ -185,6 +185,19 @@ export function tradeImportKey(trade: Partial<Trade>): string {
   ].join("|");
 }
 
+export function filterNewTradeImports<T extends Partial<Trade>>(
+  imported: T[],
+  existing: Partial<Trade>[]
+): T[] {
+  const seen = new Set(existing.map(tradeImportKey));
+  return imported.filter((trade) => {
+    const key = tradeImportKey(trade);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 const number = (value: unknown, fallback = 0) => {
   const parsed = typeof value === "number" ? value : Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -242,13 +255,13 @@ export function parseTradeImport(text: string, format: TradeImportFormat): Impor
     const result = String(raw.result ?? raw.Result ?? "");
     if (!Number.isFinite(tradedAt) || !Number.isFinite(boughtSol) || !Number.isFinite(pnlSol) || !Number.isFinite(pnlUsd) || !["Win", "Loss", "BE"].includes(result)) throw new Error(`Invalid trade data on row ${index + 1}.`);
     const tradeMode = raw.tradeMode === "paper" || raw["Trade Mode"] === "paper" ? "paper" : "real";
-    return compact({
+    const importedTrade = compact({
       ca: String(raw.ca ?? raw["Contract Address"] ?? "").slice(0, 64),
-      name: String(raw.name ?? raw.Name ?? "Token").slice(0, 120),
-      symbol: String(raw.symbol ?? raw.Symbol ?? "MEME").slice(0, 40),
-      wallet: String(raw.wallet ?? raw.Wallet ?? "Main").slice(0, 80),
+      name: (String(raw.name ?? raw.Name ?? "").trim() || "Token").slice(0, 120),
+      symbol: (String(raw.symbol ?? raw.Symbol ?? "").trim() || "MEME").slice(0, 40),
+      wallet: (String(raw.wallet ?? raw.Wallet ?? "").trim() || "Main").slice(0, 80),
       result: result as Trade["result"],
-      setupType: String(raw.setupType ?? raw["Setup Type"] ?? "General").slice(0, 160),
+      setupType: (String(raw.setupType ?? raw["Setup Type"] ?? "").trim() || "General").slice(0, 120),
       boughtSol,
       boughtUsd: optionalNumber(raw.boughtUsd ?? raw["Bought USD"]),
       soldSol: optionalNumber(raw.soldSol ?? raw["Sold SOL"]),
@@ -260,7 +273,7 @@ export function parseTradeImport(text: string, format: TradeImportFormat): Impor
       price: optionalNumber(raw.price ?? raw["Price USD"]),
       mistakes: tags(raw.mistakes ?? raw["Mistakes / Tags"]),
       goodTags: tags(raw.goodTags ?? raw["Good Tags"]),
-      notes: String(raw.notes ?? raw.Notes ?? "").slice(0, 10_000),
+      notes: String(raw.notes ?? raw.Notes ?? "").slice(0, 4_000),
       screenshotUrl: optionalText(raw.screenshotUrl ?? raw["Screenshot URL"], 500_000),
       durationMinutes: optionalNumber(raw.durationMinutes ?? raw["Duration Mins"]),
       initialRiskSol: optionalNumber(raw.initialRiskSol ?? raw["Initial Risk SOL"]),
@@ -283,5 +296,25 @@ export function parseTradeImport(text: string, format: TradeImportFormat): Impor
       tradedAt,
       createdAt: optionalNumber(raw.createdAt ?? raw["Created At"]) ?? tradedAt,
     }) as ImportedTrade;
+
+    const boundedValues: Array<[number | undefined, number, number]> = [
+      [importedTrade.boughtSol, 0, 100_000_000],
+      [importedTrade.pnlSol, -100_000_000, 100_000_000],
+      [importedTrade.pnlUsd, -100_000_000_000, 100_000_000_000],
+      [importedTrade.boughtUsd, 0, 100_000_000_000],
+      [importedTrade.soldSol, 0, 100_000_000],
+      [importedTrade.soldUsd, 0, 100_000_000_000],
+      [importedTrade.feesSol, 0, 100_000_000],
+      [importedTrade.solUsdRate, 0, 1_000_000_000],
+      [importedTrade.createdAt, 0, 10_000_000_000_000],
+    ];
+    const invalidBoundedValue = boundedValues.some(([value, minimum, maximum]) =>
+      value !== undefined && (value < minimum || value > maximum)
+    );
+    if (invalidBoundedValue) {
+      throw new Error(`Invalid trade data on row ${index + 1}.`);
+    }
+
+    return importedTrade;
   });
 }

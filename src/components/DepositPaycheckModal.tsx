@@ -26,7 +26,6 @@ export default function DepositPaycheckModal({
   const [amountSol, setAmountSol] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
-  const [confirmOverdraft, setConfirmOverdraft] = useState(false);
 
   if (!isOpen || !wallet) return null;
 
@@ -42,8 +41,12 @@ export default function DepositPaycheckModal({
       return;
     }
 
-    if (isOverdraft && !confirmOverdraft) {
-      setConfirmOverdraft(true);
+    if (isOverdraft) {
+      showToast(
+        "Withdrawal exceeds this wallet’s balance",
+        "error",
+        `Enter ${wallet.balanceSol.toFixed(2)} SOL or less.`
+      );
       return;
     }
 
@@ -59,7 +62,6 @@ export default function DepositPaycheckModal({
       onClose();
       setAmountSol("");
       setNotes("");
-      setConfirmOverdraft(false);
     } catch (err) {
       console.error(err);
       showToast("Transaction failed", "error");
@@ -69,10 +71,14 @@ export default function DepositPaycheckModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
-      <div className="bg-white border border-[#e9e9e7] rounded-xl p-6 w-full max-w-md shadow-xl relative text-[#37352f]">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="wallet-transaction-title"
+        className="bg-white border border-[#e9e9e7] rounded-xl p-6 w-full max-w-md shadow-xl relative text-[#37352f]"
+      >
         <button
           onClick={() => {
-            setConfirmOverdraft(false);
             onClose();
           }}
           className="absolute top-4 right-4 text-[#9b9a97] hover:text-[#37352f] transition-colors p-1 rounded-md hover:bg-[#f1f1ef]"
@@ -85,7 +91,7 @@ export default function DepositPaycheckModal({
             {isDeposit ? <ArrowDownToLine size={18} className="text-[#2383e2]" /> : <ArrowUpFromLine size={18} className="text-emerald-600" />}
           </span>
           <div>
-            <h2 className="text-base font-bold text-[#37352f]">
+            <h2 id="wallet-transaction-title" className="text-base font-bold text-[#37352f]">
               {isDeposit ? "Deposit Funds to Wallet" : "Take Profit / Paycheck Withdrawal"}
             </h2>
             <p className="text-xs text-[#787774]">
@@ -108,7 +114,6 @@ export default function DepositPaycheckModal({
                 value={amountSol}
                 onChange={(e) => {
                   setAmountSol(e.target.value);
-                  setConfirmOverdraft(false);
                 }}
                 placeholder="e.g. 5.0"
                 className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-3 py-2 text-sm font-semibold text-[#37352f] focus:outline-none focus:border-[#2383e2] tabular-nums"
@@ -138,7 +143,7 @@ export default function DepositPaycheckModal({
                 <strong className="block font-semibold">Overdraft Warning</strong>
                 <span>
                   Withdrawing {numAmount} SOL exceeds the recorded balance of {wallet.balanceSol.toFixed(2)} SOL. 
-                  {confirmOverdraft ? " Click Confirm again to proceed." : " Click Confirm to acknowledge."}
+                  Enter an amount no greater than the available balance.
                 </span>
               </div>
             </div>
@@ -148,7 +153,6 @@ export default function DepositPaycheckModal({
             <button
               type="button"
               onClick={() => {
-                setConfirmOverdraft(false);
                 onClose();
               }}
               className="px-4 py-2 rounded-lg text-xs font-medium text-[#787774] hover:bg-[#f1f1ef] transition-colors"
@@ -157,11 +161,9 @@ export default function DepositPaycheckModal({
             </button>
             <button
               type="submit"
-              disabled={saving}
+              disabled={saving || isOverdraft}
               className={`px-5 py-2 text-white font-medium rounded-lg text-xs shadow-xs transition-colors flex items-center gap-1.5 disabled:opacity-50 ${
-                isOverdraft && confirmOverdraft
-                  ? "bg-amber-600 hover:bg-amber-700"
-                  : isDeposit
+                isDeposit
                   ? "bg-[#2383e2] hover:bg-[#1a73ca]"
                   : "bg-emerald-600 hover:bg-emerald-700"
               }`}
@@ -170,9 +172,7 @@ export default function DepositPaycheckModal({
                 <Loader2 size={13} className="animate-spin" />
               ) : (
                 <span>
-                  {isOverdraft && confirmOverdraft
-                    ? "Proceed With Overdraft"
-                    : `Confirm ${isDeposit ? "Deposit" : "Paycheck"}`}
+                  {`Confirm ${isDeposit ? "Deposit" : "Paycheck"}`}
                 </span>
               )}
             </button>
