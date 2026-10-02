@@ -32,7 +32,7 @@ import { compressImage } from "../lib/utils";
 import { buildTradeAmounts, getTradeCreateValidationError, parseQuickTradePaste } from "../lib/tradeInput";
 import { useAuth } from "../context/AuthContext";
 import { parseLocalStorageValue, useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
-import { selectSolanaTokenPair } from "../lib/tokenMarketData";
+import { lookupTokenMetadata } from "../lib/tokenLookupClient";
 
 // Re-export for backward compatibility
 export { DEFAULT_GOOD_TAGS, DEFAULT_MISTAKE_TAGS, COMMON_SETUPS, DURATION_PRESETS };
@@ -213,34 +213,27 @@ export default function LogTradeModal({
     setLoadingToken(true);
     setFetchError("");
 
-    // Token details are public market data. Looking them up directly keeps the
-    // trade form responsive even if an optional server-side service is offline.
     try {
-      const directRes = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${cleanCa}`);
-      if (directRes.ok) {
-        const directData = await directRes.json();
-        const best = selectSolanaTokenPair(directData, cleanCa);
-        if (best && lookupId === tokenLookupRef.current) {
-          const directObj = {
-            name: typeof best.baseToken?.name === "string" ? best.baseToken.name : "Unknown Token",
-            symbol: typeof best.baseToken?.symbol === "string" ? best.baseToken.symbol : "MEME",
-            priceUsd: typeof best.priceUsd === "string" ? best.priceUsd : "0",
-            marketCap: Number(best.marketCap) || Number(best.fdv) || 0,
-            liquidity: Number(best.liquidity?.usd) || 0,
-            imageUrl: typeof best.info?.imageUrl === "string" ? best.info.imageUrl : undefined,
-          };
-          setTokenData(directObj);
-          showToast("Token found", "info", `${directObj.name} ($${directObj.symbol})`);
-          setLoadingToken(false);
-          return;
-        }
+      if (!user) throw new Error("auth-required");
+      const idToken = await user.getIdToken();
+      const result = await lookupTokenMetadata(cleanCa, idToken);
+      if (lookupId !== tokenLookupRef.current) return;
+
+      if (result.data) {
+        setTokenData(result.data);
+        showToast("Token found", "info", `${result.data.name} ($${result.data.symbol})`);
+        setLoadingToken(false);
+        return;
       }
-    } catch (clientErr) {
-      console.error("Token lookup failed:", clientErr);
+
+      setFetchError(`${result.error || "Token not found."} You can enter the token name manually.`);
+    } catch {
+      if (lookupId === tokenLookupRef.current) {
+        setFetchError("Token lookup is temporarily unavailable. You can enter the token name manually.");
+      }
     }
 
     if (lookupId === tokenLookupRef.current) {
-      setFetchError("Token not found on DexScreener. Check contract address or paste name manually.");
       setLoadingToken(false);
     }
   };
@@ -905,254 +898,3 @@ export default function LogTradeModal({
             <div className="border border-[#e9e9e7] rounded-xl p-3 bg-white">
               <button
                 type="button"
-                onClick={() => setShowAdvanced(!showAdvanced)}
-                className="w-full flex items-center justify-between text-xs font-medium text-[#787774] hover:text-[#37352f]"
-              >
-                <span>Expert / Advanced Fields</span>
-                <span>{showAdvanced ? "▲" : "▼"}</span>
-              </button>
-
-              {showAdvanced && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-3 mt-2 border-t border-[#f1f1ef]">
-                  <div>
-                    <label className="block font-medium text-[#787774] mb-1">
-                      Initial Risk (SOL)
-                    </label>
-                    <input
-                      type="number"
-                      step="any"
-                      value={initialRiskSol}
-                      onChange={(e) => setInitialRiskSol(e.target.value)}
-                      placeholder="e.g. 0.25 SOL"
-                      className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]"
-                    />
-                    <span className="text-[10px] text-[#9b9a97] block mt-0.5">
-                      Max loss plan (1R)
-                    </span>
-                  </div>
-
-                  <div>
-                    <label className="block font-medium text-[#787774] mb-1">
-                      Priority Fees (SOL)
-                    </label>
-                    <input
-                      type="number"
-                      step="any"
-                      value={feesSol}
-                      onChange={(e) => setFeesSol(e.target.value)}
-                      placeholder="e.g. 0.008 SOL"
-                      className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]"
-                    />
-                    <span className="text-[10px] text-[#9b9a97] block mt-0.5">
-                      Jito tip / priority
-                    </span>
-                  </div>
-
-                  <div className="col-span-2 sm:col-span-3 pt-2 border-t border-[#f1f1ef]">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-[#9b9a97] mb-2">Expert market context</p>
-                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                      {[["Entry liquidity ($)", entryLiquidityUsd, setEntryLiquidityUsd], ["Exit liquidity ($)", exitLiquidityUsd, setExitLiquidityUsd], ["Entry mcap ($)", entryMarketCapUsd, setEntryMarketCapUsd], ["Exit mcap ($)", exitMarketCapUsd, setExitMarketCapUsd], ["Slippage (%)", slippagePct, setSlippagePct]].map(([label, value, setter]) => (
-                        <label key={String(label)} className="text-[10px] text-[#787774]">{String(label)}<input type="number" step="any" value={String(value)} onChange={(e) => (setter as (v: string) => void)(e.target.value)} className="mt-1 w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]" /></label>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="col-span-2 sm:col-span-1">
-                    <label className="block font-medium text-[#787774] mb-1">
-                      Stop Loss Price ($)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.0000001"
-                      value={stopPrice}
-                      onChange={(e) => setStopPrice(e.target.value)}
-                      placeholder="e.g. 0.0042"
-                      className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]"
-                    />
-                    <span className="text-[10px] text-[#9b9a97] block mt-0.5">
-                      Target invalidation
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Wallet Selection */}
-            <div>
-              <label className="block font-medium text-[#787774] mb-1 flex items-center gap-1">
-                <WalletIcon size={12} />
-                <span>Wallet Used</span>
-              </label>
-              <select
-                value={wallet}
-                onChange={(e) => setWallet(e.target.value)}
-                className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]"
-              >
-                <option value="Main">Main Wallet (Phantom)</option>
-                <option value="Paper">Paper Trading Bag (Simulated)</option>
-              </select>
-            </div>
-
-            {/* Categorized Tags: Separated into Good vs Mistakes */}
-            <div className="space-y-3 pt-1">
-              <div className="flex items-center justify-between">
-                <label className="font-semibold text-xs text-[#37352f] flex items-center gap-1.5">
-                  <Tag size={13} className="text-[#2383e2]" />
-                  <span>Execution & Psychology Tags</span>
-                </label>
-                <span className="text-[11px] text-[#9b9a97]">
-                  {selectedGoodTags.length + selectedMistakes.length} selected
-                </span>
-              </div>
-
-              {/* Section A: Good Execution & Discipline */}
-              <div>
-                <div className="flex items-center gap-1 text-[11px] font-medium text-emerald-700 mb-1.5">
-                  <ShieldCheck size={12} />
-                  <span>Good Execution & Discipline (Things you did right)</span>
-                </div>
-                <div className="flex flex-wrap gap-1.5 p-2 bg-emerald-50/40 border border-emerald-200/60 rounded-lg">
-                  {DEFAULT_GOOD_TAGS.filter((tag, index) => showAllTags || index < 4 || selectedGoodTags.includes(tag)).map((tag) => {
-                    const isSelected = selectedGoodTags.includes(tag);
-                    return (
-                      <button
-                        key={tag}
-                        type="button"
-                        onClick={() => toggleGoodTag(tag)}
-                        className={`px-2 py-1 rounded-md text-[11px] font-medium transition-all flex items-center gap-1 border ${
-                          isSelected
-                            ? "bg-emerald-100 border-emerald-400 text-emerald-800 font-semibold shadow-xs"
-                            : "bg-white border-emerald-200 text-emerald-900 hover:bg-emerald-50"
-                        }`}
-                      >
-                        {isSelected && <Check size={11} />}
-                        <span>{tag}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Section B: Mistakes & Traps */}
-              <div>
-                <div className="flex items-center gap-1 text-[11px] font-medium text-rose-700 mb-1.5">
-                  <AlertTriangle size={12} />
-                  <span>Mistakes & Psychological Traps</span>
-                </div>
-                <div className="flex flex-wrap gap-1.5 p-2 bg-rose-50/40 border border-rose-200/60 rounded-lg">
-                  {DEFAULT_MISTAKE_TAGS.filter((tag, index) => showAllTags || index < 5 || selectedMistakes.includes(tag)).map((tag) => {
-                    const isSelected = selectedMistakes.includes(tag);
-                    return (
-                      <button
-                        key={tag}
-                        type="button"
-                        onClick={() => toggleMistake(tag)}
-                        className={`px-2 py-1 rounded-md text-[11px] font-medium transition-all flex items-center gap-1 border ${
-                          isSelected
-                            ? "bg-rose-100 border-rose-400 text-rose-800 font-semibold shadow-xs"
-                            : "bg-white border-rose-200 text-rose-900 hover:bg-rose-50"
-                        }`}
-                      >
-                        {isSelected && <Check size={11} />}
-                        <span>{tag}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setShowAllTags((visible) => !visible)}
-                className="text-[11px] font-medium text-[#2383e2] hover:underline"
-              >
-                {showAllTags ? "Show fewer tags" : "Show all tags and custom tags"}
-              </button>
-
-              {/* Custom Tag Input with explicit Good vs Mistake selection */}
-              {showAllTags && <div className="flex flex-wrap gap-2 pt-1 items-center">
-                <div className="flex items-center gap-1 bg-[#f1f1ef] p-0.5 rounded-lg border border-[#e3e2de] text-[11px]">
-                  <button
-                    type="button"
-                    onClick={() => setCustomTagType("mistake")}
-                    className={`px-2 py-0.5 rounded font-medium transition-all ${
-                      customTagType === "mistake"
-                        ? "bg-white text-rose-700 shadow-xs font-semibold"
-                        : "text-[#787774]"
-                    }`}
-                  >
-                    Mistake
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCustomTagType("good")}
-                    className={`px-2 py-0.5 rounded font-medium transition-all ${
-                      customTagType === "good"
-                        ? "bg-white text-emerald-700 shadow-xs font-semibold"
-                        : "text-[#787774]"
-                    }`}
-                  >
-                    Good Tag
-                  </button>
-                </div>
-                <input
-                  type="text"
-                  value={customTagInput}
-                  onChange={(e) => setCustomTagInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleAddCustomTag(e);
-                    }
-                  }}
-                  placeholder="Add custom tag (e.g. Scalped 30s pump)..."
-                  className="flex-1 min-w-[150px] bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]"
-                />
-                <button
-                  type="button"
-                  onClick={(e) => handleAddCustomTag(e)}
-                  className="px-3 py-1.5 bg-[#2383e2] hover:bg-[#1a73ca] text-white rounded-lg text-xs font-semibold flex items-center gap-1 shrink-0 transition-colors shadow-xs"
-                >
-                  <Plus size={13} />
-                  <span>Add Tag</span>
-                </button>
-              </div>}
-            </div>
-
-            {/* Trade Notes */}
-            <div>
-              <label className="block font-medium text-[#787774] mb-1">Trade Notes & Rationale</label>
-              <textarea
-                rows={2}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                maxLength={4000}
-                placeholder="Why did you enter? Did you stick to take-profit levels? What would you do differently?"
-                className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg p-2.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2] resize-none"
-              />
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#f1f1ef]">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 rounded-lg text-xs font-medium text-[#787774] hover:bg-[#f1f1ef] transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                id="log-trade-submit-btn"
-                type="submit"
-                disabled={saving}
-                className="px-5 py-2 bg-[#2383e2] hover:bg-[#1a73ca] text-white font-medium rounded-lg text-xs shadow-xs transition-colors flex items-center gap-1.5 disabled:opacity-50"
-              >
-                {saving ? <Loader2 size={13} className="animate-spin" /> : <span>Save Trade to Cloud</span>}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
-}
