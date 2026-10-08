@@ -65,9 +65,10 @@ and do not send it in chat. The data-backend flag should be omitted or set to
    explicitly link and apply it. Review the plan before applying.
 5. Configure Railway's web service with the existing Firebase public config
    variables and `FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON` if server routes need
-   Firebase Admin. Also set the Supabase public URL/key. Supabase service-role
-   secrets, if needed for one-time import only, must be used locally and never
-   added to the web service or committed files.
+   Firebase Admin. Also set the Supabase public URL/key and the server-only
+   `SUPABASE_SERVICE_ROLE_KEY`, which is required by the account-deletion
+   route. Never prefix the service-role key with `NEXT_PUBLIC_`, commit it, or
+   use it from browser code.
 
 ## Data transfer and cutover checklist
 
@@ -97,10 +98,14 @@ and do not send it in chat. The data-backend flag should be omitted or set to
    Keep Firestore until the new deployment is stable and a restore has been
    tested. Do not delete the Firebase project as part of this migration.
 
-## Important current limitation
+## Current cutover state
 
-The application has many direct Firestore call sites. They have deliberately
-not been switched to Supabase yet: doing so before there is a target project,
-verified identity claims, an imported staging dataset, and two-account RLS
-tests would strand existing data or users. This repository change is the
-non-destructive migration foundation, not the production cutover.
+The journal now routes trades, wallets, wallet transactions, and user settings
+through Supabase whenever `NEXT_PUBLIC_DATA_BACKEND=supabase` is set. Firebase
+Authentication remains the identity provider, and Firebase Admin verifies its
+tokens before issuing the Supabase-compatible role claim. Removing that flag
+uses the retained Firebase data path as a rollback option.
+
+Existing Firestore data is intentionally **not** copied automatically. Run the
+staging export/import and the two-account RLS checks before directing existing
+users to the Supabase-backed production deployment.

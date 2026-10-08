@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "test": "node --test --experimental-strip-types tests/*.test.mts",
-    "test:rules": "npx -y firebase-tools@latest emulators:exec --only firestore \"node --test tests/firestoreRules.test.mjs\""
+    "test:rules": "npx -y firebase-tools@latest emulators:exec --only firestore \"node --test tests/firestoreRules.test.mjs\"",
+    "migration:export": "node scripts/export-firestore-migration.mjs",
+    "migration:import:staging": "node scripts/import-supabase-migration.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
