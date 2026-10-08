@@ -108,8 +108,8 @@ export default function DepositPaycheckModal({
             <div className="relative">
               <input
                 type="number"
-                step="0.01"
-                min="0.001"
+                step="any"
+                min="0"
                 required
                 value={amountSol}
                 onChange={(e) => {

@@ -23,6 +23,13 @@ import AccountDeletionModal from "../components/AccountDeletionModal";
 import { ToastProvider, useToast } from "../components/Toast";
 import { parseLocalStorageValue, useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
 import { Trash2 } from "lucide-react";
+import {
+  deleteSupabaseTrade,
+  listSupabaseTrades,
+  loadSupabasePreferences,
+  patchSupabasePreferences,
+  usesSupabaseJournal,
+} from "@/lib/journalBackend";
 
 import { useAuth } from "../context/AuthContext";
 import AuthModal from "../components/AuthModal";
@@ -141,6 +148,33 @@ function AuthenticatedApp({ user }: { user: User }) {
   const activeLoading = loading;
 
   useEffect(() => {
+    if (usesSupabaseJournal()) {
+      let active = true;
+      const loadJournal = async () => {
+        try {
+          const [nextTrades, preferences] = await Promise.all([
+            listSupabaseTrades(user.uid),
+            loadSupabasePreferences(user.uid),
+          ]);
+          if (!active) return;
+          setTrades(nextTrades);
+          setRules(preferences.rules || DEFAULT_RULES);
+          setGoals(preferences.goals || DEFAULT_GOALS);
+          setPermissionError(false);
+        } catch (error) {
+          console.error("Supabase journal load failed", error);
+          if (active) setPermissionError(true);
+        } finally {
+          if (active) setLoading(false);
+        }
+      };
+      void loadJournal();
+      const interval = window.setInterval(() => void loadJournal(), 20_000);
+      return () => {
+        active = false;
+        window.clearInterval(interval);
+      };
+    }
     const uid = user.uid;
     const tradeQuery = query(
       collection(db, "users", uid, "trades"),
@@ -187,7 +221,11 @@ function AuthenticatedApp({ user }: { user: User }) {
 
   const handleSaveRules = async (updated: JournalRules) => {
     try {
-      await setDoc(doc(db, "users", user.uid, "settings", "preferences"), { rules: updated }, { merge: true });
+      if (usesSupabaseJournal()) {
+        await patchSupabasePreferences(user.uid, { rules: updated });
+      } else {
+        await setDoc(doc(db, "users", user.uid, "settings", "preferences"), { rules: updated }, { merge: true });
+      }
       setRules(updated);
     } catch {
       showToast("Could not save rules", "error", "Check your connection and try again.");
@@ -197,7 +235,11 @@ function AuthenticatedApp({ user }: { user: User }) {
 
   const handleSaveGoals = async (updated: GoalSettings) => {
     try {
-      await setDoc(doc(db, "users", user.uid, "settings", "preferences"), { goals: updated }, { merge: true });
+      if (usesSupabaseJournal()) {
+        await patchSupabasePreferences(user.uid, { goals: updated });
+      } else {
+        await setDoc(doc(db, "users", user.uid, "settings", "preferences"), { goals: updated }, { merge: true });
+      }
       setGoals(updated);
     } catch {
       showToast("Could not save goals", "error", "Check your connection and try again.");
@@ -206,7 +248,12 @@ function AuthenticatedApp({ user }: { user: User }) {
   };
 
   // Backwards-compatible trigger for modals
-  const fetchTrades = useCallback(() => {}, []);
+  const fetchTrades = useCallback(() => {
+    if (!usesSupabaseJournal()) return;
+    void listSupabaseTrades(user.uid)
+      .then((nextTrades) => setTrades(nextTrades))
+      .catch((error) => console.error("Supabase trade refresh failed", error));
+  }, [user.uid]);
 
   // Delete trade
   const handleDeleteTradeDirectly = (id: string) => {
@@ -218,7 +265,12 @@ function AuthenticatedApp({ user }: { user: User }) {
     const id = tradeToDeleteDirectly;
     setTradeToDeleteDirectly(null);
     try {
-      await deleteDoc(doc(db, "users", user.uid, "trades", id));
+      if (usesSupabaseJournal()) {
+        await deleteSupabaseTrade(user.uid, id);
+        fetchTrades();
+      } else {
+        await deleteDoc(doc(db, "users", user.uid, "trades", id));
+      }
     } catch {
       showToast("Could not delete this trade", "error", "Check your connection and try again.");
     }

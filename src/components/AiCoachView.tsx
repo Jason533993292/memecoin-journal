@@ -273,8 +273,8 @@ export default function AiCoachView({
           <p className={`text-xs leading-relaxed ${isProviderReady ? "text-[#787774]" : "text-rose-700"}`}>
               Choose a provider and matching API key. It stays in this browser and is sent only when you request an analysis. Supported providers: DeepSeek, Google Gemini, and OpenAI.
           </p>
-          <div className="flex gap-2 pt-2">
-            <div className="relative flex-1">
+          <div className="space-y-2 pt-2">
+            <div>
               <label className="sr-only" htmlFor="ai-provider">AI provider</label>
               <select id="ai-provider" value={provider} onChange={(e) => {
                 setApiKeyDraft("");
@@ -284,6 +284,9 @@ export default function AiCoachView({
                 <option value="gemini">Google Gemini</option>
                 <option value="openai">OpenAI</option>
               </select>
+            </div>
+            <div className="flex gap-2">
+              <div className="relative min-w-0 flex-1">
               <input
                 aria-label="Provider API key"
                 type={showKey ? "text" : "password"}
@@ -296,11 +299,13 @@ export default function AiCoachView({
               <button
                 type="button"
                 onClick={() => setShowKey(!showKey)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-rose-400 hover:text-rose-600 p-1"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-rose-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
                 title={showKey ? "Hide key" : "Show key"}
+                aria-label={showKey ? "Hide API key" : "Show API key"}
               >
                 {showKey ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
+              </div>
             </div>
             <button
               onClick={saveProviderSettings}

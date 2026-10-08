@@ -6,6 +6,7 @@ import {
   rateLimitDocumentId,
   verifyFirebaseUser,
 } from "../../../../lib/firebase-admin";
+import { deleteSupabaseJournalData } from "@/lib/supabase-admin";
 
 export const maxDuration = 60;
 
@@ -55,6 +56,11 @@ export async function POST(request: Request) {
     }
 
     const { auth, db } = getFirebaseAdmin();
+    if (process.env.NEXT_PUBLIC_DATA_BACKEND === "supabase") {
+      // Delete the staged Postgres copy first. If it fails, retain Firebase so
+      // the user can retry rather than leaving a split account deletion.
+      await deleteSupabaseJournalData(decodedToken.uid);
+    }
     // Firestore recursiveDelete includes all subcollections under this UID,
     // including future settings collections. This app does not use Firebase Storage.
     await db.recursiveDelete(db.collection("users").doc(decodedToken.uid));

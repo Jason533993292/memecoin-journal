@@ -33,6 +33,7 @@ import { buildTradeAmounts, getTradeCreateValidationError, parseQuickTradePaste 
 import { useAuth } from "../context/AuthContext";
 import { parseLocalStorageValue, useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
 import { lookupTokenMetadata } from "../lib/tokenLookupClient";
+import { saveSupabaseTrade, usesSupabaseJournal } from "../lib/journalBackend";
 
 // Re-export for backward compatibility
 export { DEFAULT_GOOD_TAGS, DEFAULT_MISTAKE_TAGS, COMMON_SETUPS, DURATION_PRESETS };
@@ -489,7 +490,6 @@ export default function LogTradeModal({
       if (!Number.isFinite(tradedAt)) throw new RangeError("Choose a valid trade date and time.");
 
       if (!user) throw new Error("Please sign in before saving a trade.");
-      const tradesCol = collection(db, "users", user.uid, "trades");
 
       const tradeDocument = {
         ca: ca.trim(),
@@ -531,7 +531,12 @@ export default function LogTradeModal({
       const validationError = getTradeCreateValidationError(tradeDocument);
       if (validationError) throw new RangeError(validationError);
 
-      await addDoc(tradesCol, tradeDocument);
+      if (usesSupabaseJournal()) {
+        await saveSupabaseTrade(user.uid, tradeDocument);
+      } else {
+        const tradesCol = collection(db, "users", user.uid, "trades");
+        await addDoc(tradesCol, tradeDocument);
+      }
 
       showToast(
         "Trade saved to Cloud",

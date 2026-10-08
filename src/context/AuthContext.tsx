@@ -45,6 +45,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setLoading(false);
+      if (!currentUser || process.env.NEXT_PUBLIC_DATA_BACKEND !== "supabase") return;
+
+      void (async () => {
+        try {
+          const token = await currentUser.getIdToken();
+          const response = await fetch("/api/auth/supabase-role", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (response.ok) await currentUser.getIdToken(true);
+        } catch {
+          // Firebase remains a valid login if the optional migration bridge is
+          // unavailable; Supabase requests will show their own clear error.
+        }
+      })();
     });
 
     return () => unsubscribe();

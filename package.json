@@ -11,6 +11,7 @@
     "test:rules": "npx -y firebase-tools@latest emulators:exec --only firestore \"node --test tests/firestoreRules.test.mjs\""
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.117.2",
     "clsx": "^2.1.1",
     "firebase": "^12.19.0",
     "firebase-admin": "13.10.0",
@@ -29,6 +30,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.8",
+    "railway": "^3.12.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   },

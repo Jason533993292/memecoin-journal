@@ -33,6 +33,17 @@ import { useAuth } from "../context/AuthContext";
 import { db } from "../lib/firebase";
 import { parseLocalStorageValue } from "../lib/useLocalStorage";
 import { getTradeTimestamp } from "../lib/utils";
+import {
+  applySupabaseWalletTransaction,
+  deleteSupabaseWallet,
+  listSupabaseWallets,
+  listSupabaseWalletTransactions,
+  loadSupabaseWalletConfig,
+  saveSupabaseWallet,
+  saveSupabaseWalletConfig,
+  saveSupabaseWalletTransaction,
+  usesSupabaseJournal,
+} from "../lib/journalBackend";
 
 interface WalletsViewProps {
   trades: Trade[];
@@ -82,6 +93,33 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
 
   useEffect(() => {
     if (!user) return;
+    if (usesSupabaseJournal()) {
+      let cancelled = false;
+      const load = async () => {
+        try {
+          const [nextWallets, nextTransactions, config] = await Promise.all([
+            listSupabaseWallets(user.uid),
+            listSupabaseWalletTransactions(user.uid),
+            loadSupabaseWalletConfig(user.uid),
+          ]);
+          if (cancelled) return;
+          setWallets(nextWallets);
+          setTransactions(nextTransactions);
+          setPaperCapitalSol(typeof config.paperCapitalSol === "number" && config.paperCapitalSol >= 0 ? config.paperCapitalSol : 25);
+        } catch {
+          if (!cancelled) showToast("Could not load wallets", "error", "Check your connection and try again.");
+        } finally {
+          if (!cancelled) setWalletDataLoading(false);
+        }
+      };
+      void load();
+      const poll = window.setInterval(() => void load(), 20_000);
+      return () => {
+        cancelled = true;
+        window.clearInterval(poll);
+      };
+    }
+
     let loadedWallets = false;
     let loadedTransactions = false;
     let loadedConfig = false;
@@ -151,27 +189,36 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
       const legacyPaperCapital = Number.parseFloat(storedPaperCapital || "");
       if (legacyWallets.length === 0 && legacyTransactions.length === 0 && !Number.isFinite(legacyPaperCapital)) return;
 
-      void Promise.all([
-        ...legacyWallets.map((wallet) => setDoc(doc(db, "users", user.uid, "wallets", wallet.id), {
-          ...wallet,
-          updatedAt: typeof wallet.updatedAt === "number" ? wallet.updatedAt : Date.now(),
-        })),
-        ...legacyTransactions.map((transaction) => setDoc(doc(db, "users", user.uid, "walletTransactions", transaction.id), {
-          ...transaction,
-          date: transaction.date || Timestamp.now(),
-          createdAt: typeof transaction.createdAt === "number" ? transaction.createdAt : Date.now(),
-        })),
-        ...(Number.isFinite(legacyPaperCapital) && legacyPaperCapital >= 0
-          ? [setDoc(doc(db, "users", user.uid, "settings", "walletConfig"), {
+      const saveWallets = usesSupabaseJournal()
+        ? legacyWallets.map((wallet) => saveSupabaseWallet(user.uid, wallet))
+        : legacyWallets.map((wallet) => setDoc(doc(db, "users", user.uid, "wallets", wallet.id), {
+            ...wallet,
+            updatedAt: typeof wallet.updatedAt === "number" ? wallet.updatedAt : Date.now(),
+          }));
+      const saveTransactions = usesSupabaseJournal()
+        ? legacyTransactions.map((transaction) => saveSupabaseWalletTransaction(user.uid, transaction))
+        : legacyTransactions.map((transaction) => setDoc(doc(db, "users", user.uid, "walletTransactions", transaction.id), {
+            ...transaction,
+            date: transaction.date || Timestamp.now(),
+            createdAt: typeof transaction.createdAt === "number" ? transaction.createdAt : Date.now(),
+          }));
+      const saveConfig = Number.isFinite(legacyPaperCapital) && legacyPaperCapital >= 0
+        ? usesSupabaseJournal()
+          ? [saveSupabaseWalletConfig(user.uid, legacyPaperCapital)]
+          : [setDoc(doc(db, "users", user.uid, "settings", "walletConfig"), {
               paperCapitalSol: legacyPaperCapital,
               updatedAt: Date.now(),
             })]
-          : []),
+        : [];
+      void Promise.all([
+        ...saveWallets,
+        ...saveTransactions,
+        ...saveConfig,
       ]).then(() => {
         localStorage.removeItem(`${storagePrefix}wallets`);
         localStorage.removeItem(`${storagePrefix}wallet_txs`);
         localStorage.removeItem(`${storagePrefix}paper_capital`);
-        showToast("Wallet data secured in your account", "success", "Your earlier browser-only data was migrated to Firestore.");
+        showToast("Wallet data secured in your account", "success", "Your earlier browser-only data was migrated to your account.");
       }).catch(() => {
         migrationAttempted.current = false;
         showToast("Wallet migration paused", "error", "Your browser copy is intact. We will retry after you reload.");
@@ -228,7 +275,8 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
       address: lookupResult.address,
     };
     try {
-      await setDoc(doc(db, "users", user!.uid, "wallets", newW.id), { ...newW, updatedAt: Date.now() });
+      if (usesSupabaseJournal()) await saveSupabaseWallet(user!.uid, newW);
+      else await setDoc(doc(db, "users", user!.uid, "wallets", newW.id), { ...newW, updatedAt: Date.now() });
       showToast(`Added ${newW.name} with ${newW.balanceSol} SOL`, "success");
       setLookupAddress("");
       setLookupResult(null);
@@ -242,10 +290,11 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
     const num = parseFloat(tempPaperCapital);
     if (!isNaN(num) && num >= 0) {
       try {
-        await setDoc(doc(db, "users", user!.uid, "settings", "walletConfig"), {
-          paperCapitalSol: num,
-          updatedAt: Date.now(),
-        });
+        if (usesSupabaseJournal()) await saveSupabaseWalletConfig(user!.uid, num);
+        else await setDoc(doc(db, "users", user!.uid, "settings", "walletConfig"), {
+            paperCapitalSol: num,
+            updatedAt: Date.now(),
+          });
         showToast("Paper trading capital updated", "success", `${num} SOL`);
       } catch {
         showToast("Could not save paper balance", "error", "Check your connection and try again.");
@@ -274,7 +323,8 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
         };
 
     try {
-      await setDoc(doc(db, "users", user!.uid, "wallets", savedWallet.id), { ...savedWallet, updatedAt: Date.now() });
+      if (usesSupabaseJournal()) await saveSupabaseWallet(user!.uid, savedWallet);
+      else await setDoc(doc(db, "users", user!.uid, "wallets", savedWallet.id), { ...savedWallet, updatedAt: Date.now() });
       showToast(editingWallet ? "Wallet updated" : "Wallet added", "success", savedWallet.name);
       setEditingWallet(null);
     } catch {
@@ -296,7 +346,8 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
     if (!walletToDelete) return;
     const { id, name } = walletToDelete;
     try {
-      await deleteDoc(doc(db, "users", user!.uid, "wallets", id));
+      if (usesSupabaseJournal()) await deleteSupabaseWallet(user!.uid, id);
+      else await deleteDoc(doc(db, "users", user!.uid, "wallets", id));
       showToast("Wallet deleted", "info", name);
       setWalletToDelete(null);
     } catch {
@@ -322,9 +373,13 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
       amountSol: Math.abs(deltaSol),
       ...(solPrice > 0 ? { amountUsd: Math.abs(deltaSol) * solPrice } : {}),
       notes,
-      date: Timestamp.now(),
+      date: new Date(),
       createdAt: Date.now(),
     };
+    if (usesSupabaseJournal()) {
+      await applySupabaseWalletTransaction(user!.uid, newTx, deltaSol);
+      return;
+    }
     const walletRef = doc(db, "users", user!.uid, "wallets", walletId);
     const transactionRef = doc(db, "users", user!.uid, "walletTransactions", newTx.id);
     await runTransaction(db, async (transaction) => {

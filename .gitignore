@@ -40,3 +40,16 @@ firestore-debug.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+cors.cjs
+cors.cjs.map
+cors.d.cts
+cors.d.cts.map
+cors.d.mts
+cors.d.mts.map
+cors.mjs
+cors.mjs.map
+
+# Local-only Firestore migration exports and credentials
+/migration-data/
+/.env.migration
+/.env.migration.*

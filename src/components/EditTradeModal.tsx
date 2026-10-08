@@ -19,6 +19,7 @@ import { useToast } from "./Toast";
 import { COMMON_SETUPS, DURATION_PRESETS, DEFAULT_GOOD_TAGS, DEFAULT_MISTAKE_TAGS } from "../lib/constants";
 import { compressImage, getTradeTimestamp } from "../lib/utils";
 import { buildTradeAmounts, getTradeCreateValidationError } from "../lib/tradeInput";
+import { saveSupabaseTrade, usesSupabaseJournal } from "../lib/journalBackend";
 
 interface EditTradeModalProps {
   trade: Trade | null;
@@ -389,7 +390,11 @@ export default function EditTradeModal({
         false
       );
       if (validationError) throw new RangeError(validationError);
-      await updateDoc(tradeRef, updateData);
+      if (usesSupabaseJournal()) {
+        await saveSupabaseTrade(currentUser.uid, { ...storedTrade, ...updateData }, trade.id);
+      } else {
+        await updateDoc(tradeRef, updateData);
+      }
 
       showToast("Trade updated successfully", "success");
       onTradeUpdated();

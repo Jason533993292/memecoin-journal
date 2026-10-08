@@ -21,6 +21,7 @@ import { useCurrentTime } from "../lib/useLocalStorage";
 import { useToast } from "./Toast";
 import { getTradeBoughtUsd, getTradeSoldUsd, getUsdValueStatus } from "../lib/tradeCalculations";
 import ImageLightboxModal from "./ImageLightboxModal";
+import { deleteSupabaseTrade, saveSupabaseTrade, usesSupabaseJournal } from "../lib/journalBackend";
 
 interface TradeJournalViewProps {
   trades: Trade[];
@@ -96,9 +97,14 @@ export default function TradeJournalView({
     try {
       const currentUser = auth.currentUser;
       if (!currentUser) throw new Error("Please sign in to delete this trade.");
-      const tradeDocRef = doc(db, "users", currentUser.uid, "trades", id);
-      await deleteDoc(tradeDocRef);
-      showToast("Trade deleted from Firestore", "info");
+      if (usesSupabaseJournal()) {
+        await deleteSupabaseTrade(currentUser.uid, id);
+        showToast("Trade deleted from Supabase", "info");
+      } else {
+        const tradeDocRef = doc(db, "users", currentUser.uid, "trades", id);
+        await deleteDoc(tradeDocRef);
+        showToast("Trade deleted from Firestore", "info");
+      }
       onTradeDeleted();
     } catch (err) {
       console.error("Error deleting trade:", err);
@@ -126,13 +132,20 @@ export default function TradeJournalView({
         let count = 0;
         const currentUser = auth.currentUser;
         if (!currentUser) throw new Error("Please sign in to import trades.");
-        const batch = writeBatch(db);
-        for (const item of uniqueImported) {
-          const tradeRef = doc(collection(db, "users", currentUser.uid, "trades"));
-          batch.set(tradeRef, { ...item, date: Timestamp.fromMillis(item.tradedAt) });
-          count++;
+        if (usesSupabaseJournal()) {
+          await Promise.all(uniqueImported.map(async (item) => {
+            await saveSupabaseTrade(currentUser.uid, { ...item, date: new Date(item.tradedAt) });
+            count++;
+          }));
+        } else {
+          const batch = writeBatch(db);
+          for (const item of uniqueImported) {
+            const tradeRef = doc(collection(db, "users", currentUser.uid, "trades"));
+            batch.set(tradeRef, { ...item, date: Timestamp.fromMillis(item.tradedAt) });
+            count++;
+          }
+          await batch.commit();
         }
-        await batch.commit();
         const skipped = imported.length - uniqueImported.length;
         showToast(
           `Imported ${count} trade${count === 1 ? "" : "s"}.`,
