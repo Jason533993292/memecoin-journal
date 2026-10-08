@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "../context/AuthContext";
 import ErrorBoundary from "../components/ErrorBoundary";
+import { Analytics } from '@vercel/analytics/next';
 
 export const metadata: Metadata = {
   title: "Memecoin Journal",
@@ -35,6 +36,7 @@ export default function RootLayout({
         <ErrorBoundary>
           <AuthProvider>{children}</AuthProvider>
         </ErrorBoundary>
+        <Analytics />
       </body>
     </html>
   );
