@@ -53,3 +53,7 @@ cors.mjs.map
 /migration-data/
 /.env.migration
 /.env.migration.*
+
+# Local Codex/Firebase skill installations
+/.agents/
+/skills-lock.json
