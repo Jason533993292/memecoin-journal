@@ -173,6 +173,7 @@ export default function AuthModal() {
               <Mail className="w-4 h-4 text-neutral-500 absolute left-3 top-2.5" />
               <input
                 type="email"
+                autoComplete="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -195,6 +196,7 @@ export default function AuthModal() {
               <Key className="w-4 h-4 text-neutral-500 absolute left-3 top-2.5" />
               <input
                 type="password"
+                autoComplete={mode === "signup" ? "new-password" : "current-password"}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
