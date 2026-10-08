@@ -69,13 +69,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       await signInWithPopup(auth, googleProvider);
     } catch (error: unknown) {
-      console.warn("Popup blocked or failed, attempting redirect:", error);
-      if (
-        typeof error === "object" &&
-        error !== null &&
-        "code" in error &&
-        error.code === "auth/popup-blocked"
-      ) {
+      const code = typeof error === "object" && error !== null && "code" in error
+        ? String(error.code)
+        : "";
+
+      // Some privacy and popup-blocking extensions close the OAuth window after
+      // it opens. Firebase reports that as popup-closed-by-user even though the
+      // user started the sign-in flow, so continue with the more reliable
+      // full-page redirect in either popup failure case.
+      if (code === "auth/popup-blocked" || code === "auth/popup-closed-by-user") {
+        console.info("Using redirect-based Google sign-in.");
         await signInWithRedirect(auth, googleProvider);
       } else {
         throw error;
