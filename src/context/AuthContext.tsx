@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import {
   auth,
   googleProvider,
+  getRedirectResult,
   signInWithPopup,
   signInWithRedirect,
   signInWithEmailAndPassword,
@@ -42,6 +43,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
+    // Complete a Google redirect before relying on the restored Auth session.
+    // Without this call, a redirect can return to the sign-in screen without
+    // surfacing the provider result to Firebase Auth.
+    void getRedirectResult(auth).catch((error: unknown) => {
+      const code = typeof error === "object" && error !== null && "code" in error
+        ? String(error.code)
+        : "unknown";
+      console.error(`Google redirect sign-in failed: ${code}`);
+    });
+
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setLoading(false);

@@ -42,6 +42,25 @@ FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON=<existing Firebase Admin JSON>
 SUPABASE_SERVICE_ROLE_KEY=<server-only key, required for account deletion>
 ```
 
+### Google sign-in on Railway
+
+For a Railway or other non-Firebase host, configure Google redirect sign-in to
+use the exact domain serving that deployment. Firebase documents this as the
+solution for browsers that partition third-party storage:
+
+1. Add the bare domain to **Firebase Authentication → Settings → Authorized
+   domains**.
+2. Set `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` to that bare domain in the matching
+   Railway environment, for example
+   `memecoin-journal-staging.up.railway.app`.
+3. In Google Cloud Console, add
+   `https://<that-domain>/__/auth/handler` to the Firebase-created web OAuth
+   client's authorized redirect URIs.
+
+The app proxies Firebase's `/__/auth/` and `/__/firebase/` helper paths, so
+the helper is served through the same Railway domain. Repeat these steps for a
+separate production custom domain; do not reuse a staging domain in production.
+
 The first three values are safe for the browser except the service-role key.
 Never prefix `SUPABASE_SERVICE_ROLE_KEY` with `NEXT_PUBLIC_`, never commit it,
 and do not send it in chat. The data-backend flag should be omitted or set to

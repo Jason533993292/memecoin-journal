@@ -1,6 +1,22 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  async rewrites() {
+    // Firebase recommends proxying its redirect helper through a non-Firebase
+    // host so browsers that partition third-party storage can complete OAuth.
+    // This becomes active when the Railway deployment uses its own domain as
+    // NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN.
+    return [
+      {
+        source: "/__/auth/:path*",
+        destination: "https://memecoin-journal.firebaseapp.com/__/auth/:path*",
+      },
+      {
+        source: "/__/firebase/:path*",
+        destination: "https://memecoin-journal.firebaseapp.com/__/firebase/:path*",
+      },
+    ];
+  },
   async headers() {
     return [{
       source: "/(.*)",

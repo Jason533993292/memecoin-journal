@@ -4,6 +4,7 @@ import { getFirestore } from "firebase/firestore";
 import {
   getAuth,
   GoogleAuthProvider,
+  getRedirectResult,
   signInWithPopup,
   signInWithRedirect,
   signInWithEmailAndPassword,
@@ -54,6 +55,7 @@ export {
   db,
   auth,
   googleProvider,
+  getRedirectResult,
   signInWithPopup,
   signInWithRedirect,
   signInWithEmailAndPassword,
