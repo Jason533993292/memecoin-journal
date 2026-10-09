@@ -4,9 +4,9 @@ import { auth } from "@/lib/firebase";
 let client: SupabaseClient | null = null;
 
 /**
- * Optional Supabase client for the staged Firebase -> Supabase migration.
- * Firebase remains the active data backend until an explicit cutover is
- * configured and verified. Never put a service-role key in a NEXT_PUBLIC var.
+ * Supabase client for deployments configured with NEXT_PUBLIC_DATA_BACKEND=supabase.
+ * Firebase continues to provide the user's identity token. Never put a
+ * service-role key in a NEXT_PUBLIC variable.
  */
 export function getSupabaseClient(): SupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();

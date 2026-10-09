@@ -21,7 +21,7 @@ import GoalEditorModal from "../components/GoalEditorModal";
 import DailyRecapModal from "../components/DailyRecapModal";
 import AccountDeletionModal from "../components/AccountDeletionModal";
 import { ToastProvider, useToast } from "../components/Toast";
-import { parseLocalStorageValue, useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
+import { parseLocalStorageValue, readSessionStorageValue, useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
 import { Trash2 } from "lucide-react";
 import {
   deleteSupabaseTrade,
@@ -64,7 +64,7 @@ function SectionLoading() {
 }
 
 function MainApp() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, backendSetupError, retryBackendSetup, logout } = useAuth();
 
   if (authLoading) {
     return (
@@ -74,6 +74,20 @@ function MainApp() {
     );
   }
   if (!user) return <AuthModal />;
+  if (backendSetupError) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-white px-6 text-[#37352f]">
+        <section role="alert" className="w-full max-w-lg rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center shadow-sm">
+          <h1 className="text-lg font-semibold">Your account is signed in, but the journal could not connect.</h1>
+          <p className="mt-2 text-sm text-[#787774]">Your data has not been changed. Check your connection, then retry. If this keeps happening, the app’s authentication setup needs attention.</p>
+          <div className="mt-5 flex justify-center gap-3">
+            <button type="button" onClick={retryBackendSetup} className="rounded-lg bg-[#2383e2] px-4 py-2 text-sm font-medium text-white hover:bg-[#1a73ca]">Retry connection</button>
+            <button type="button" onClick={() => void logout()} className="rounded-lg border border-[#d8d7d3] px-4 py-2 text-sm font-medium hover:bg-white">Sign out</button>
+          </div>
+        </section>
+      </main>
+    );
+  }
   return <AuthenticatedApp key={user.uid} user={user} />;
 }
 
@@ -150,7 +164,10 @@ function AuthenticatedApp({ user }: { user: User }) {
   useEffect(() => {
     if (usesSupabaseJournal()) {
       let active = true;
+      let requestInFlight = false;
       const loadJournal = async () => {
+        if (requestInFlight) return;
+        requestInFlight = true;
         try {
           const [nextTrades, preferences] = await Promise.all([
             listSupabaseTrades(user.uid),
@@ -166,6 +183,7 @@ function AuthenticatedApp({ user }: { user: User }) {
           if (active) setPermissionError(true);
         } finally {
           if (active) setLoading(false);
+          requestInFlight = false;
         }
       };
       void loadJournal();
@@ -329,9 +347,7 @@ function AuthenticatedApp({ user }: { user: User }) {
     apiKeyOverride?: string
   ) => {
     if (!user || activeTrades.length === 0) return;
-    const sessionKey = typeof window === "undefined"
-      ? ""
-      : window.sessionStorage.getItem("ai_" + user.uid + "_provider_api_key") || "";
+    const sessionKey = readSessionStorageValue("ai_" + user.uid + "_provider_api_key") || "";
     const requestApiKey = apiKeyOverride?.trim() || sessionKey || providerApiKey || "";
     const requestProvider = providerOverride || selectedProvider;
     if (!requestApiKey) {
@@ -484,7 +500,7 @@ function AuthenticatedApp({ user }: { user: User }) {
 
       {/* Edit Trade Modal */}
       <EditTradeModal
-        key={`${user.uid}:${editingTrade?.id || "closed"}`}
+        key={`${user.uid}:edit-trade`}
         trade={editingTrade}
         isOpen={!!editingTrade}
         onClose={() => setEditingTrade(null)}
@@ -510,7 +526,7 @@ function AuthenticatedApp({ user }: { user: User }) {
 
       {/* Rule Editor Modal */}
       <RuleEditorModal
-        key={`${user.uid}:${isRuleEditorOpen ? "open" : "closed"}`}
+        key={`${user.uid}:rule-editor`}
         isOpen={isRuleEditorOpen}
         onClose={() => setIsRuleEditorOpen(false)}
         rules={activeRules}
@@ -519,7 +535,7 @@ function AuthenticatedApp({ user }: { user: User }) {
 
       {/* Goal Tracker Editor Modal */}
       <GoalEditorModal
-        key={`${user.uid}:${isGoalEditorOpen ? "open" : "closed"}`}
+        key={`${user.uid}:goal-editor`}
         isOpen={isGoalEditorOpen}
         onClose={() => setIsGoalEditorOpen(false)}
         goals={activeGoals}
@@ -547,7 +563,7 @@ function AuthenticatedApp({ user }: { user: User }) {
 
       {/* 1-Click Shareable PnL Card Graphic Modal */}
       <ShareablePnlCardModal
-        key={`${user.uid}:${sharingTrade?.id || "closed"}`}
+        key={`${user.uid}:shareable-pnl`}
         trade={sharingTrade}
         isOpen={!!sharingTrade}
         onClose={() => setSharingTrade(null)}
@@ -555,7 +571,7 @@ function AuthenticatedApp({ user }: { user: User }) {
       />
 
       <AccountDeletionModal
-        key={`${user.uid}:${isAccountDeletionOpen ? "open" : "closed"}`}
+        key={`${user.uid}:account-deletion`}
         isOpen={isAccountDeletionOpen}
         onClose={() => setIsAccountDeletionOpen(false)}
       />

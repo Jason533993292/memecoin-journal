@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description: "How Memecoin Journal collects, uses, stores, and protects personal data.",
 };
 
-const LAST_UPDATED = "30 September 2026";
+const LAST_UPDATED = "9 October 2026";
 const CONTACT_EMAIL = "orders@rewind-stores.com";
 
 function Section({ id, title, children }: Readonly<{ id: string; title: string; children: React.ReactNode }>) {
@@ -40,7 +40,7 @@ export default function PrivacyPage() {
         <aside className="mt-8 rounded-xl border border-blue-100 bg-blue-50/70 p-4" aria-label="Privacy summary">
           <h2 className="text-sm font-semibold text-[#173f73]">In short</h2>
           <ul className="mt-2 grid gap-2 text-sm leading-6 text-[#28598f] sm:grid-cols-2">
-            <li>Your journal is stored under your signed-in Firebase account.</li>
+            <li>Your journal records are scoped to the Firebase account you use to sign in.</li>
             <li>We do not sell personal data or run advertising in the app.</li>
             <li>AI reviews are optional and use the provider and key you choose.</li>
             <li>You can export your trades and permanently delete your account.</li>
@@ -86,7 +86,7 @@ export default function PrivacyPage() {
           </Section>
 
           <Section id="storage" title="4. Where your data is stored">
-            <p>Firebase Authentication manages sign-in. Cloud Firestore stores journal data under your Firebase user ID. The app&apos;s Firestore security rules are designed to restrict those records to the matching signed-in account.</p>
+            <p>Firebase Authentication manages sign-in. The current Railway staging deployment stores journal records in Supabase Postgres under your Firebase user ID, protected by row-level security. Older or Firebase-configured deployments may store journal data in Cloud Firestore with owner-only security rules. The hosting provider can also differ by deployment link.</p>
             <p>Some preferences are intentionally browser-only. These include your AI key and provider choice, paper-capital settings, and locally tracked wallet details. Browser storage is not an encrypted password manager: anyone with access to an unlocked browser profile may be able to read it.</p>
           </Section>
 
@@ -97,13 +97,13 @@ export default function PrivacyPage() {
           </Section>
 
           <Section id="sharing" title="6. Service providers and disclosures">
-            <p>We use Google Firebase for authentication and Firestore, Vercel for hosting and server endpoints, public Solana RPC and market-data services when you request a lookup, and the AI provider you select when you ask for a review.</p>
+            <p>We use Google Firebase for authentication, Supabase Postgres for the current Railway staging journal deployment, and Railway or Vercel for hosting and server endpoints depending on the deployment link. Older Firebase-configured deployments may use Cloud Firestore. Public Solana RPC and market-data services are contacted when you request a lookup, and your selected AI provider is contacted when you request a review.</p>
             <p>These providers may process data in countries outside Belgium or the European Economic Area. Their handling of data is governed by their own terms, privacy notices, and applicable transfer safeguards. We may also disclose data where required to comply with law, enforce rights, or protect users and the service.</p>
             <p>We do not sell personal data, use it for behavioural advertising, or knowingly allow third parties to use it for their own marketing.</p>
           </Section>
 
           <Section id="retention" title="7. Retention and deletion">
-            <p>Your account and journal data remain in Firebase while your account is active. You can export trades from the Trade Journal and use the account menu to permanently delete your Firebase account and its Firestore data. Deletion requires recent re-authentication to protect you from unauthorized requests.</p>
+            <p>Your account remains in Firebase Authentication while active. Journal records are retained in the database used by the deployment you access (Supabase Postgres for the current Railway staging deployment, or Firestore for older Firebase-configured deployments). You can export trades from the Trade Journal and use the account menu to delete your sign-in and journal data after recent re-authentication. A minimal Firebase user ID revocation marker may be retained in Supabase to prevent a previously issued sign-in token from restoring deleted records.</p>
             <p>The deletion flow also clears this app&apos;s account-scoped local settings from the browser where you complete it. It cannot clear data from other browsers or devices, so remove AI keys and local settings there as well. Short service-security records may remain only as long as needed for security, legal, or operational purposes.</p>
           </Section>
 
@@ -114,7 +114,7 @@ export default function PrivacyPage() {
           </Section>
 
           <Section id="security" title="9. Security, children, and changes">
-            <p>We use reasonable technical measures intended to protect the service, including Firebase account controls, Firestore access rules, authenticated server endpoints, and rate limits. No online service can guarantee absolute security, so keep your sign-in credentials and devices secure.</p>
+            <p>We use technical measures intended to protect the service, including Firebase account controls, database row-level security or Firestore access rules according to deployment, authenticated server endpoints, and rate limits. No online service can guarantee absolute security, so keep your sign-in credentials and devices secure.</p>
             <p>Memecoin Journal is not intended for children. Do not use the service if you are below the minimum age required to consent to online services where you live.</p>
             <p>We may update this notice as the service or legal requirements change. We will post the updated version here and revise the “Last updated” date. Material changes will be communicated through the service where reasonably practical.</p>
           </Section>

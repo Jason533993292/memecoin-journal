@@ -19,6 +19,8 @@ import {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  backendSetupError: boolean;
+  retryBackendSetup: () => void;
   loginWithGoogle: () => Promise<void>;
   loginWithEmail: (email: string, pass: string) => Promise<void>;
   signUpWithEmail: (email: string, pass: string) => Promise<void>;
@@ -30,6 +32,8 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
+  backendSetupError: false,
+  retryBackendSetup: () => {},
   loginWithGoogle: async () => {},
   loginWithEmail: async () => {},
   signUpWithEmail: async () => {},
@@ -41,6 +45,14 @@ const AuthContext = createContext<AuthContextType>({
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [backendSetupError, setBackendSetupError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+
+  const retryBackendSetup = () => {
+    setBackendSetupError(false);
+    setLoading(true);
+    setRetryCount((count) => count + 1);
+  };
 
   useEffect(() => {
     // Complete a Google redirect before relying on the restored Auth session.
@@ -52,11 +64,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         : "unknown";
       console.error(`Google redirect sign-in failed: ${code}`);
     });
+  }, []);
 
+  useEffect(() => {
+    let active = true;
+    let authEvent = 0;
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setLoading(false);
-      if (!currentUser || process.env.NEXT_PUBLIC_DATA_BACKEND !== "supabase") return;
+      const event = ++authEvent;
+      setLoading(true);
+      if (!currentUser) {
+        setUser(null);
+        setBackendSetupError(false);
+        setLoading(false);
+        return;
+      }
+
+      if (process.env.NEXT_PUBLIC_DATA_BACKEND !== "supabase") {
+        setUser(currentUser);
+        setBackendSetupError(false);
+        setLoading(false);
+        return;
+      }
 
       void (async () => {
         try {
@@ -64,17 +92,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           const response = await fetch("/api/auth/supabase-role", {
             method: "POST",
             headers: { Authorization: `Bearer ${token}` },
+            cache: "no-store",
+            signal: AbortSignal.timeout(10_000),
           });
-          if (response.ok) await currentUser.getIdToken(true);
+          if (!response.ok) throw new Error("Supabase authentication setup failed.");
+          await currentUser.getIdToken(true);
+          if (!active || event !== authEvent) return;
+          setUser(currentUser);
+          setBackendSetupError(false);
         } catch {
-          // Firebase remains a valid login if the optional migration bridge is
-          // unavailable; Supabase requests will show their own clear error.
+          if (!active || event !== authEvent) return;
+          setUser(currentUser);
+          setBackendSetupError(true);
+        } finally {
+          if (active && event === authEvent) setLoading(false);
         }
       })();
     });
 
-    return () => unsubscribe();
-  }, []);
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [retryCount]);
 
   const loginWithGoogle = async () => {
     try {
@@ -128,6 +168,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       value={{
         user,
         loading,
+        backendSetupError,
+        retryBackendSetup,
         loginWithGoogle,
         loginWithEmail,
         signUpWithEmail,

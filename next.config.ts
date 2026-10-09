@@ -2,10 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   async rewrites() {
-    // Firebase recommends proxying its redirect helper through a non-Firebase
-    // host so browsers that partition third-party storage can complete OAuth.
-    // This becomes active when the Railway deployment uses its own domain as
-    // NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN.
+    // These proxy paths are available for a future custom Firebase auth domain.
+    // Do not set NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN to the deployment host until
+    // its exact /__/auth/handler URL is registered in the Google OAuth client.
     return [
       {
         source: "/__/auth/:path*",

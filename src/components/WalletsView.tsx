@@ -32,7 +32,8 @@ import { useToast } from "./Toast";
 import { useAuth } from "../context/AuthContext";
 import { db } from "../lib/firebase";
 import { parseLocalStorageValue } from "../lib/useLocalStorage";
-import { getTradeTimestamp } from "../lib/utils";
+import { formatSol, getTradeTimestamp } from "../lib/utils";
+import { isValidSolAmount } from "../lib/tradeInput";
 import {
   applySupabaseWalletTransaction,
   deleteSupabaseWallet,
@@ -95,7 +96,10 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
     if (!user) return;
     if (usesSupabaseJournal()) {
       let cancelled = false;
+      let requestInFlight = false;
       const load = async () => {
+        if (requestInFlight) return;
+        requestInFlight = true;
         try {
           const [nextWallets, nextTransactions, config] = await Promise.all([
             listSupabaseWallets(user.uid),
@@ -110,6 +114,7 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
           if (!cancelled) showToast("Could not load wallets", "error", "Check your connection and try again.");
         } finally {
           if (!cancelled) setWalletDataLoading(false);
+          requestInFlight = false;
         }
       };
       void load();
@@ -288,7 +293,7 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
   // Handle Paper Trading Capital Update
   const handleSavePaperCapital = async () => {
     const num = parseFloat(tempPaperCapital);
-    if (!isNaN(num) && num >= 0) {
+    if (isValidSolAmount(num)) {
       try {
         if (usesSupabaseJournal()) await saveSupabaseWalletConfig(user!.uid, num);
         else await setDoc(doc(db, "users", user!.uid, "settings", "walletConfig"), {
@@ -300,6 +305,9 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
         showToast("Could not save paper balance", "error", "Check your connection and try again.");
         return;
       }
+    } else {
+      showToast("Enter a valid paper balance", "error", "Use 0–100,000,000 SOL with up to 9 decimal places.");
+      return;
     }
     setIsEditingPaperCapital(false);
   };
@@ -307,18 +315,23 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
   const handleAddOrUpdateWallet = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newWalletName.trim()) return;
+    const balanceSol = Number(newWalletBalance || 0);
+    if (!isValidSolAmount(balanceSol)) {
+      showToast("Enter a valid wallet balance", "error", "Use 0–100,000,000 SOL with up to 9 decimal places.");
+      return;
+    }
 
     const savedWallet: Wallet = editingWallet
       ? {
           ...editingWallet,
           name: newWalletName.trim(),
-          balanceSol: Math.max(0, parseFloat(newWalletBalance) || 0),
+          balanceSol,
           address: newWalletAddress.trim() || editingWallet.address,
         }
       : {
           id: createLocalId("w"),
           name: newWalletName.trim(),
-          balanceSol: Math.max(0, parseFloat(newWalletBalance) || 0),
+          balanceSol,
           address: newWalletAddress.trim() || "Address not set",
         };
 
@@ -386,9 +399,15 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
       const walletSnapshot = await transaction.get(walletRef);
       if (!walletSnapshot.exists()) throw new Error("Wallet no longer exists.");
       const currentBalance = Number(walletSnapshot.data().balanceSol) || 0;
-      const newBalance = Math.max(0, currentBalance + deltaSol);
+      if (deltaSol < 0 && Math.abs(deltaSol) > currentBalance) {
+        throw new Error("Withdrawal exceeds the wallet balance.");
+      }
+      const newBalance = currentBalance + deltaSol;
+      if (!Number.isFinite(newBalance) || newBalance < 0 || newBalance > 100_000_000) {
+        throw new Error("Wallet balance is outside the supported range.");
+      }
       transaction.update(walletRef, {
-        balanceSol: parseFloat(newBalance.toFixed(3)),
+        balanceSol: newBalance,
         updatedAt: Date.now(),
       });
       transaction.set(transactionRef, newTx);
@@ -563,7 +582,7 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
         <div className="bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl p-4">
           <span className="text-xs text-[#787774] block">Total Wallet Balance</span>
           <div className="text-xl font-bold text-[#37352f] mt-1 font-mono">
-            {totalPortfolioSol.toFixed(2)} SOL
+            {formatSol(totalPortfolioSol)} SOL
           </div>
           <span className="text-[11px] text-[#9b9a97]">≈ ${(totalPortfolioSol * solPrice).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </div>
@@ -579,7 +598,7 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
         <div className="bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl p-4">
           <span className="text-xs text-[#787774] block">Profit Withdrawn</span>
           <div className="text-xl font-bold text-emerald-600 mt-1 font-mono">
-            {transactions.filter((t) => t.type === "paycheck").reduce((acc, t) => acc + t.amountSol, 0).toFixed(2)} SOL
+            {formatSol(transactions.filter((t) => t.type === "paycheck").reduce((acc, t) => acc + t.amountSol, 0))} SOL
           </div>
           <span className="text-[11px] text-[#9b9a97]">Withdrawn profit</span>
         </div>
@@ -630,7 +649,9 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
             />
             <input
               type="number"
-              step="0.01"
+              min="0"
+              max="100000000"
+              step="0.000000001"
               placeholder="Balance (SOL)"
               value={newWalletBalance}
               onChange={(e) => setNewWalletBalance(e.target.value)}
@@ -732,7 +753,7 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
                         </div>
                       </td>
                       <td className="notion-table-td font-mono font-medium">
-                        {wallet.balanceSol.toFixed(2)} SOL
+                        {formatSol(wallet.balanceSol)} SOL
                       </td>
                       <td className="notion-table-td">
                         <span className="px-2 py-0.5 rounded text-[11px] bg-[#f1f1ef] font-medium">

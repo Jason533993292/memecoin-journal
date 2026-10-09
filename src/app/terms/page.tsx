@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description: "The terms that apply when you use Memecoin Journal.",
 };
 
-const LAST_UPDATED = "30 September 2026";
+const LAST_UPDATED = "9 October 2026";
 const CONTACT_EMAIL = "orders@rewind-stores.com";
 
 function Section({ id, title, children }: Readonly<{ id: string; title: string; children: React.ReactNode }>) {
@@ -102,7 +102,7 @@ export default function TermsPage() {
           </Section>
 
           <Section id="termination" title="10. Ending your use and deleting your account">
-            <p>You may stop using the service at any time. Before deleting your account, export any journal records you want to keep. The account menu provides a permanent account-deletion flow that removes your Firebase sign-in and cloud journal data after recent re-authentication.</p>
+            <p>You may stop using the service at any time. Before deleting your account, export any journal records you want to keep. The account menu provides a permanent account-deletion flow that removes your Firebase sign-in and journal records from the database used by your deployment after recent re-authentication. A minimal account revocation marker may be retained to prevent previously issued tokens from restoring deleted records.</p>
             <p>We may end or restrict access where necessary for security, misuse, legal compliance, or to protect the service. Sections that by their nature should survive termination, including disclaimers, liability limits, and dispute provisions, will survive.</p>
           </Section>
 

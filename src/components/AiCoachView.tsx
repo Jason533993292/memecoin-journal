@@ -6,7 +6,13 @@ import { Bot, RefreshCw, AlertTriangle, ShieldCheck, Target, HelpCircle, Eye, Ey
 import { DEFAULT_GOOD_TAGS } from "../lib/constants";
 import { getTradeTimestamp } from "../lib/utils";
 import { useAuth } from "../context/AuthContext";
-import { useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
+import {
+  readSessionStorageValue,
+  removeSessionStorageValue,
+  useLocalStorageValue,
+  writeLocalStorageValue,
+  writeSessionStorageValue,
+} from "../lib/useLocalStorage";
 import { useToast } from "./Toast";
 
 type AiProvider = "deepseek" | "gemini" | "openai";
@@ -42,7 +48,7 @@ export default function AiCoachView({
   const providerStorageKey = user ? "ai_" + user.uid + "_provider" : "ai_signed_out_provider";
   const savedApiKey = useLocalStorageValue(apiKeyStorageKey);
   const [sessionApiKey, setSessionApiKey] = useState(() =>
-    typeof window === "undefined" ? "" : window.sessionStorage.getItem(apiKeyStorageKey) || ""
+    readSessionStorageValue(apiKeyStorageKey) || ""
   );
   const savedProvider = useLocalStorageValue(providerStorageKey);
   const [providerOverride, setProviderOverride] = useState<AiProvider | null>(null);
@@ -74,12 +80,12 @@ export default function AiCoachView({
     if (nextKey) {
       if (rememberKey) {
         keySaved = writeLocalStorageValue(apiKeyStorageKey, nextKey);
-        window.sessionStorage.removeItem(apiKeyStorageKey);
+        keySaved = removeSessionStorageValue(apiKeyStorageKey) && keySaved;
         setSessionApiKey("");
       } else {
-        window.sessionStorage.setItem(apiKeyStorageKey, nextKey);
+        keySaved = writeSessionStorageValue(apiKeyStorageKey, nextKey);
         setSessionApiKey(nextKey);
-        writeLocalStorageValue(apiKeyStorageKey, null);
+        keySaved = writeLocalStorageValue(apiKeyStorageKey, null) && keySaved;
       }
     }
     const providerSaved = writeLocalStorageValue(providerStorageKey, provider);
@@ -93,8 +99,12 @@ export default function AiCoachView({
   };
 
   const resetApiKey = () => {
-    writeLocalStorageValue(apiKeyStorageKey, null);
-    window.sessionStorage.removeItem(apiKeyStorageKey);
+    const localRemoved = writeLocalStorageValue(apiKeyStorageKey, null);
+    const sessionRemoved = removeSessionStorageValue(apiKeyStorageKey);
+    if (!localRemoved || !sessionRemoved) {
+      showToast("Could not clear the saved API key", "error", "Check your browser storage settings and try again.");
+      return;
+    }
     setSessionApiKey("");
     setApiKeyDraft("");
     showToast("Saved API key removed", "success");
@@ -271,7 +281,7 @@ export default function AiCoachView({
             <span>{isApiKeySet ? "AI provider settings" : "Set up an AI provider API key"}</span>
           </div>
           <p className={`text-xs leading-relaxed ${isProviderReady ? "text-[#787774]" : "text-rose-700"}`}>
-              Choose a provider and matching API key. It stays in this browser and is sent only when you request an analysis. Supported providers: DeepSeek, Google Gemini, and OpenAI.
+              Your key is stored in this browser (not encrypted) and sent over HTTPS to our server only when you request an analysis; it is forwarded to your selected provider and is not intentionally stored by the app. Supported providers: DeepSeek, Google Gemini, and OpenAI.
           </p>
           <div className="space-y-2 pt-2">
             <div>

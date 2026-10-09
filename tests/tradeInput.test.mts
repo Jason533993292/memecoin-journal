@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildTradeAmounts, parseQuickTradePaste } from "../src/lib/tradeInput.ts";
+import { buildTradeAmounts, calculateTradePnl, isValidSolAmount, parseQuickTradePaste, reinterpretAmountForCurrency } from "../src/lib/tradeInput.ts";
 
 const DIGIT_HEAVY_ADDRESS = "So11111111111111111111111111111111111111112";
 
@@ -62,4 +62,33 @@ test("derived sale proceeds never become negative", () => {
 
   assert.equal(result.soldSol, 0);
   assert.equal(result.soldUsd, 0);
+});
+
+test("quick-paste bought and sold values calculate a complete P&L", () => {
+  const pasted = parseQuickTradePaste(`${DIGIT_HEAVY_ADDRESS} bought 0.5 sold 0.75`);
+  const pnl = calculateTradePnl(Number(pasted.bought), Number(pasted.sold), 150);
+
+  assert.deepEqual(pnl, { pnlSol: "0.250", pnlUsd: "37.50", result: "Win" });
+});
+
+test("SOL amounts preserve lamport precision and reject unsupported precision or range", () => {
+  assert.equal(isValidSolAmount(0.000000001), true);
+  assert.equal(isValidSolAmount(1.000000001), true);
+  assert.equal(isValidSolAmount(1.0000000001), false);
+  assert.equal(isValidSolAmount(100_000_001), false);
+  assert.equal(isValidSolAmount(0, false), false);
+});
+
+test("switching from SOL to USD keeps the visible number and reinterprets its unit", () => {
+  assert.deepEqual(reinterpretAmountForCurrency("1", "USD", 150), {
+    sol: "0.006666667",
+    usd: "1",
+  });
+});
+
+test("switching from USD to SOL keeps the visible number and updates the hidden USD value", () => {
+  assert.deepEqual(reinterpretAmountForCurrency("1", "SOL", 150), {
+    sol: "1",
+    usd: "150.00",
+  });
 });

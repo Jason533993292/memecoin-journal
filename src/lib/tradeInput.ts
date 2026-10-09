@@ -26,6 +26,13 @@ export interface TradeAmountResult {
   pnlUsd: number;
 }
 
+export type TradeCurrencyMode = "SOL" | "USD";
+
+export interface CurrencyAmountPair {
+  sol: string;
+  usd: string;
+}
+
 const TRADE_CREATE_FIELDS = new Set([
   "ca", "name", "symbol", "wallet", "result", "setupType", "mcap",
   "liquidity", "entryLiquidityUsd", "exitLiquidityUsd", "entryMarketCapUsd",
@@ -159,6 +166,36 @@ function parseRequiredAmount(value: string, field: string): number {
   return parsed;
 }
 
+function formatConvertedSol(value: number): string {
+  return value.toFixed(9).replace(/\.?0+$/, "");
+}
+
+/**
+ * Reinterprets the visible amount when its unit changes without changing the
+ * text the user entered. The hidden counterpart is recalculated so persisted
+ * SOL and USD values remain internally consistent.
+ */
+export function reinterpretAmountForCurrency(
+  visibleValue: string,
+  currency: TradeCurrencyMode,
+  solPrice: number
+): CurrencyAmountPair {
+  const trimmed = visibleValue.trim();
+  if (!trimmed) return { sol: "", usd: "" };
+
+  const amount = Number(trimmed);
+  const validPrice = Number.isFinite(solPrice) && solPrice > 0;
+  if (!Number.isFinite(amount) || !validPrice) {
+    return currency === "SOL"
+      ? { sol: visibleValue, usd: "" }
+      : { sol: "", usd: visibleValue };
+  }
+
+  return currency === "SOL"
+    ? { sol: visibleValue, usd: (amount * solPrice).toFixed(2) }
+    : { sol: formatConvertedSol(amount / solPrice), usd: visibleValue };
+}
+
 export function parseQuickTradePaste(value: string): QuickTradePasteResult {
   const contractAddress = value.match(SOLANA_ADDRESS_PATTERN)?.[0];
   const withoutAddress = contractAddress ? value.replace(contractAddress, " ") : value;
@@ -192,4 +229,28 @@ export function buildTradeAmounts(input: TradeAmountInput): TradeAmountResult {
   }
 
   return { boughtSol, soldSol, pnlSol, boughtUsd, soldUsd, pnlUsd };
+}
+
+export function calculateTradePnl(boughtSol: number, soldSol: number, solPrice: number) {
+  if (
+    !Number.isFinite(boughtSol) || boughtSol <= 0 ||
+    !Number.isFinite(soldSol) || soldSol < 0
+  ) return null;
+
+  const pnlSol = soldSol - boughtSol;
+  const safeSolPrice = Number.isFinite(solPrice) && solPrice > 0 ? solPrice : 0;
+  return {
+    pnlSol: pnlSol.toFixed(3),
+    pnlUsd: (pnlSol * safeSolPrice).toFixed(2),
+    result: pnlSol > 0.005 ? "Win" as const : pnlSol < -0.005 ? "Loss" as const : "BE" as const,
+  };
+}
+
+/** SOL uses at most nine decimal places (one lamport). */
+export function isValidSolAmount(value: number, allowZero = true): boolean {
+  if (!Number.isFinite(value) || value < 0 || value > 100_000_000 || (!allowZero && value === 0)) {
+    return false;
+  }
+  const lamports = value * 1_000_000_000;
+  return Math.abs(lamports - Math.round(lamports)) <= 0.0001;
 }

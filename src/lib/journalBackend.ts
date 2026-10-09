@@ -2,6 +2,7 @@ import { getSupabaseClient } from "@/lib/supabase";
 import type { GoalSettings, JournalRules, Trade, Wallet, WalletTransaction } from "@/lib/types";
 
 type JsonRecord = Record<string, unknown>;
+const SUPABASE_PAGE_SIZE = 1000;
 
 export const usesSupabaseJournal = () => process.env.NEXT_PUBLIC_DATA_BACKEND === "supabase";
 
@@ -61,6 +62,8 @@ function toTradeRow(userId: string, id: string, trade: Omit<Trade, "id">): JsonR
     notes: trade.notes || null,
     screenshot_url: trade.screenshotUrl || null,
     duration_minutes: optionalNumber(trade.durationMinutes),
+    entry_time: iso(trade.entryTime),
+    exit_time: iso(trade.exitTime),
     initial_risk_sol: optionalNumber(trade.initialRiskSol),
     stop_price: optionalNumber(trade.stopPrice),
     fees_sol: optionalNumber(trade.feesSol),
@@ -107,6 +110,8 @@ function fromTradeRow(row: JsonRecord): Trade {
     notes: typeof row.notes === "string" ? row.notes : undefined,
     screenshotUrl: typeof row.screenshot_url === "string" ? row.screenshot_url : undefined,
     durationMinutes: optionalNumber(row.duration_minutes) ?? undefined,
+    entryTime: typeof row.entry_time === "string" ? row.entry_time : undefined,
+    exitTime: typeof row.exit_time === "string" ? row.exit_time : undefined,
     initialRiskSol: optionalNumber(row.initial_risk_sol) ?? undefined,
     stopPrice: optionalNumber(row.stop_price) ?? undefined,
     feesSol: optionalNumber(row.fees_sol) ?? undefined,
@@ -125,13 +130,22 @@ function throwIfError(error: { message: string } | null) {
 }
 
 export async function listSupabaseTrades(userId: string): Promise<Trade[]> {
-  const { data, error } = await getSupabaseClient()
-    .from("trades")
-    .select("*")
-    .eq("user_id", userId)
-    .order("date", { ascending: false });
-  throwIfError(error);
-  return (data ?? []).map((row) => fromTradeRow(row as JsonRecord));
+  const client = getSupabaseClient();
+  const rows: JsonRecord[] = [];
+  for (let offset = 0; ; offset += SUPABASE_PAGE_SIZE) {
+    const { data, error } = await client
+      .from("trades")
+      .select("*")
+      .eq("user_id", userId)
+      .order("date", { ascending: false })
+      .order("id", { ascending: true })
+      .range(offset, offset + SUPABASE_PAGE_SIZE - 1);
+    throwIfError(error);
+    const page = (data ?? []) as JsonRecord[];
+    rows.push(...page);
+    if (page.length < SUPABASE_PAGE_SIZE) break;
+  }
+  return rows.map(fromTradeRow);
 }
 
 export async function saveSupabaseTrade(userId: string, trade: Record<string, unknown>, id = crypto.randomUUID()) {
@@ -161,13 +175,10 @@ export async function loadSupabasePreferences(userId: string): Promise<{ rules?:
 }
 
 export async function patchSupabasePreferences(userId: string, patch: { rules?: JournalRules; goals?: GoalSettings }) {
-  const previous = await loadSupabasePreferences(userId);
-  const { error } = await getSupabaseClient().from("user_settings").upsert({
-    user_id: userId,
-    setting_key: "preferences",
-    data: { ...previous, ...patch },
-    updated_at: new Date().toISOString(),
-  }, { onConflict: "user_id,setting_key" });
+  const { error } = await getSupabaseClient().rpc("patch_user_preferences", {
+    p_user_id: userId,
+    p_patch: patch,
+  });
   throwIfError(error);
 }
 
@@ -223,13 +234,22 @@ export async function deleteSupabaseWallet(userId: string, id: string) {
 }
 
 export async function listSupabaseWalletTransactions(userId: string): Promise<WalletTransaction[]> {
-  const { data, error } = await getSupabaseClient()
-    .from("wallet_transactions")
-    .select("*")
-    .eq("user_id", userId)
-    .order("date", { ascending: false });
-  throwIfError(error);
-  return (data ?? []).map((row) => fromWalletTransactionRow(row as JsonRecord));
+  const client = getSupabaseClient();
+  const rows: JsonRecord[] = [];
+  for (let offset = 0; ; offset += SUPABASE_PAGE_SIZE) {
+    const { data, error } = await client
+      .from("wallet_transactions")
+      .select("*")
+      .eq("user_id", userId)
+      .order("date", { ascending: false })
+      .order("id", { ascending: true })
+      .range(offset, offset + SUPABASE_PAGE_SIZE - 1);
+    throwIfError(error);
+    const page = (data ?? []) as JsonRecord[];
+    rows.push(...page);
+    if (page.length < SUPABASE_PAGE_SIZE) break;
+  }
+  return rows.map(fromWalletTransactionRow);
 }
 
 export async function saveSupabaseWalletTransaction(userId: string, transaction: WalletTransaction) {

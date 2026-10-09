@@ -18,7 +18,7 @@ import { Trade } from "../lib/types";
 import { useToast } from "./Toast";
 import { COMMON_SETUPS, DURATION_PRESETS, DEFAULT_GOOD_TAGS, DEFAULT_MISTAKE_TAGS } from "../lib/constants";
 import { compressImage, getTradeTimestamp } from "../lib/utils";
-import { buildTradeAmounts, getTradeCreateValidationError } from "../lib/tradeInput";
+import { buildTradeAmounts, getTradeCreateValidationError, reinterpretAmountForCurrency } from "../lib/tradeInput";
 import { saveSupabaseTrade, usesSupabaseJournal } from "../lib/journalBackend";
 
 interface EditTradeModalProps {
@@ -199,21 +199,19 @@ export default function EditTradeModal({
       return;
     }
 
-    if (newMode === "USD") {
-      const sBought = parseFloat(boughtSol);
-      if (!isNaN(sBought)) setBoughtUsd((sBought * solPrice).toFixed(2));
-      const sSold = parseFloat(soldSol);
-      if (!isNaN(sSold)) setSoldUsd((sSold * solPrice).toFixed(2));
-      const sPnl = parseFloat(pnlSol);
-      if (!isNaN(sPnl)) setPnlUsd((sPnl * solPrice).toFixed(2));
-    } else {
-      const uBought = parseFloat(boughtUsd);
-      if (!isNaN(uBought)) setBoughtSol((uBought / solPrice).toFixed(3));
-      const uSold = parseFloat(soldUsd);
-      if (!isNaN(uSold)) setSoldSol((uSold / solPrice).toFixed(3));
-      const uPnl = parseFloat(pnlUsd);
-      if (!isNaN(uPnl)) setPnlSol((uPnl / solPrice).toFixed(3));
-    }
+    const visibleBought = currencyMode === "SOL" ? boughtSol : boughtUsd;
+    const visibleSold = currencyMode === "SOL" ? soldSol : soldUsd;
+    const visiblePnl = currencyMode === "SOL" ? pnlSol : pnlUsd;
+    const nextBought = reinterpretAmountForCurrency(visibleBought, newMode, solPrice);
+    const nextSold = reinterpretAmountForCurrency(visibleSold, newMode, solPrice);
+    const nextPnl = reinterpretAmountForCurrency(visiblePnl, newMode, solPrice);
+
+    setBoughtSol(nextBought.sol);
+    setBoughtUsd(nextBought.usd);
+    setSoldSol(nextSold.sol);
+    setSoldUsd(nextSold.usd);
+    setPnlSol(nextPnl.sol);
+    setPnlUsd(nextPnl.usd);
 
     setCurrencyMode(newMode);
   };
@@ -654,6 +652,7 @@ export default function EditTradeModal({
                   step="any"
                   value={currencyMode === "SOL" ? boughtSol : boughtUsd}
                   onChange={(e) => handleBoughtChange(e.target.value, currencyMode === "SOL")}
+                  onWheel={(e) => e.currentTarget.blur()}
                   className="w-full bg-white border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2] font-mono"
                   required
                 />
@@ -668,6 +667,7 @@ export default function EditTradeModal({
                   step="any"
                   value={currencyMode === "SOL" ? soldSol : soldUsd}
                   onChange={(e) => handleSoldChange(e.target.value, currencyMode === "SOL")}
+                  onWheel={(e) => e.currentTarget.blur()}
                   className="w-full bg-white border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2] font-mono"
                 />
               </div>

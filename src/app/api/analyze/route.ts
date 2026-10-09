@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isInputTradeRecord } from "../../../lib/aiInput";
 import {
   consumeUserRateLimits,
   FirebaseAdminConfigurationError,
@@ -59,6 +60,38 @@ function getTimestamp(trade: InputTrade) {
 
 function isProvider(value: unknown): value is Provider {
   return typeof value === "string" && PROVIDERS.includes(value as Provider);
+}
+
+async function readBoundedResponseText(response: Response, maxBytes: number): Promise<string> {
+  const contentLength = Number(response.headers.get("content-length") || 0);
+  if (contentLength > maxBytes) throw new RangeError("AI provider response is too large.");
+  if (!response.body) return "";
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > maxBytes) {
+        await reader.cancel().catch(() => undefined);
+        throw new RangeError("AI provider response is too large.");
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const bytes = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
 }
 
 export async function POST(request: Request) {
@@ -128,9 +161,14 @@ export async function POST(request: Request) {
     );
   }
 
-  const tradeList = Array.isArray(trades)
-    ? (trades.slice(0, 100) as InputTrade[])
-    : [];
+  if (trades !== undefined && !Array.isArray(trades)) {
+    return NextResponse.json({ error: "Trades must be provided as a list." }, { status: 400 });
+  }
+  const suppliedTrades = Array.isArray(trades) ? trades.slice(0, 100) : [];
+  if (suppliedTrades.some((trade) => !isInputTradeRecord(trade))) {
+    return NextResponse.json({ error: "Each trade must be a valid object." }, { status: 400 });
+  }
+  const tradeList = suppliedTrades as InputTrade[];
   const wins = tradeList.filter((trade) => trade.result === "Win");
   const losses = tradeList.filter((trade) => trade.result === "Loss");
   const netPnlSol = tradeList.reduce((total, trade) => total + finiteNumber(trade.pnlSol), 0);
@@ -213,6 +251,7 @@ export async function POST(request: Request) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 25_000);
   let response: Response;
+  let responseText = "";
   try {
     response = await fetch(endpoint, {
       method: "POST",
@@ -226,11 +265,31 @@ export async function POST(request: Request) {
       signal: controller.signal,
       cache: "no-store",
     });
+    if (!response.ok) {
+      // Never log the upstream body: provider error messages may echo credential material.
+      console.warn("AI provider request failed", { provider, status: response.status });
+      return NextResponse.json(
+        {
+          error:
+            response.status === 401 || response.status === 403
+              ? "The provider rejected this API key. Check that it belongs to the selected provider."
+              : "The selected AI provider could not complete the request. Please try again.",
+        },
+        { status: 502 }
+      );
+    }
+    responseText = await readBoundedResponseText(response, 256_000);
   } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") {
+    if (controller.signal.aborted || (error instanceof DOMException && error.name === "AbortError")) {
       return NextResponse.json(
         { error: "The AI provider timed out. Please try again." },
         { status: 504 }
+      );
+    }
+    if (error instanceof RangeError) {
+      return NextResponse.json(
+        { error: "The AI provider returned an oversized response." },
+        { status: 502 }
       );
     }
     return NextResponse.json(
@@ -241,23 +300,9 @@ export async function POST(request: Request) {
     clearTimeout(timeout);
   }
 
-  if (!response.ok) {
-    // Never log the upstream body: provider error messages may echo credential material.
-    console.warn("AI provider request failed", { provider, status: response.status });
-    return NextResponse.json(
-      {
-        error:
-          response.status === 401 || response.status === 403
-            ? "The provider rejected this API key. Check that it belongs to the selected provider."
-            : "The selected AI provider could not complete the request. Please try again.",
-      },
-      { status: 502 }
-    );
-  }
-
   let data: unknown;
   try {
-    data = await response.json();
+    data = JSON.parse(responseText);
   } catch {
     return NextResponse.json(
       { error: "The AI provider returned an unreadable response." },

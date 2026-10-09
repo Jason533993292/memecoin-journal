@@ -18,6 +18,12 @@ export function getSupabaseAdminClient(): SupabaseClient {
 
 export async function deleteSupabaseJournalData(userId: string) {
   const admin = getSupabaseAdminClient();
+  const { error: revokeError } = await admin.from("revoked_journal_users").upsert({
+    user_id: userId,
+    revoked_at: new Date().toISOString(),
+  }, { onConflict: "user_id" });
+  if (revokeError) throw new Error(revokeError.message);
+
   const deletions = await Promise.all([
     admin.from("trades").delete().eq("user_id", userId),
     admin.from("wallet_transactions").delete().eq("user_id", userId),

@@ -25,7 +25,12 @@ const subscribeToPreviewChanges = (onStoreChange: () => void) => {
 function getStoredPreviewTheme(): PreviewTheme | null {
   if (typeof window === "undefined") return null;
 
-  const storedTheme = window.localStorage.getItem(PREVIEW_STORAGE_KEY);
+  let storedTheme: string | null = null;
+  try {
+    storedTheme = window.localStorage.getItem(PREVIEW_STORAGE_KEY);
+  } catch {
+    return null;
+  }
   return isPreviewTheme(storedTheme) ? storedTheme : null;
 }
 
@@ -63,7 +68,11 @@ export default function ThemePreviewControl() {
             type="button"
             key={option.id}
             onClick={(event) => {
-              window.localStorage.setItem(PREVIEW_STORAGE_KEY, option.id);
+              try {
+                window.localStorage.setItem(PREVIEW_STORAGE_KEY, option.id);
+              } catch {
+                return;
+              }
               window.dispatchEvent(new Event("theme-preview-change"));
               event.currentTarget.closest("details")?.removeAttribute("open");
             }}
@@ -76,7 +85,11 @@ export default function ThemePreviewControl() {
         <button
           type="button"
           onClick={(event) => {
-            window.localStorage.removeItem(PREVIEW_STORAGE_KEY);
+            try {
+              window.localStorage.removeItem(PREVIEW_STORAGE_KEY);
+            } catch {
+              return;
+            }
             window.dispatchEvent(new Event("theme-preview-change"));
             event.currentTarget.closest("details")?.removeAttribute("open");
           }}

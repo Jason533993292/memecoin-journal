@@ -50,6 +50,14 @@ export function toUsd(sol: number | undefined | null, solPrice: number): number 
   return (sol || 0) * solPrice;
 }
 
+/** Format SOL without hiding lamport-scale balances through two-decimal rounding. */
+export function formatSol(value: number, maximumFractionDigits = 9): string {
+  if (!Number.isFinite(value)) return "—";
+  return new Intl.NumberFormat(undefined, {
+    maximumFractionDigits: Math.min(9, Math.max(0, maximumFractionDigits)),
+  }).format(value);
+}
+
 /**
  * Sanitizes CSV cell content against CSV formula injection (=, +, -, @)
  * and escapes double quotes

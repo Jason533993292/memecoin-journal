@@ -29,7 +29,7 @@ import {
   DURATION_PRESETS,
 } from "../lib/constants";
 import { compressImage } from "../lib/utils";
-import { buildTradeAmounts, getTradeCreateValidationError, parseQuickTradePaste } from "../lib/tradeInput";
+import { buildTradeAmounts, calculateTradePnl, getTradeCreateValidationError, parseQuickTradePaste, reinterpretAmountForCurrency } from "../lib/tradeInput";
 import { useAuth } from "../context/AuthContext";
 import { parseLocalStorageValue, useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
 import { lookupTokenMetadata } from "../lib/tokenLookupClient";
@@ -136,6 +136,9 @@ export default function LogTradeModal({
     if (parsed.contractAddress) setCa(parsed.contractAddress);
     if (parsed.bought) handleBoughtChange(parsed.bought, true);
     if (parsed.sold) handleSoldChange(parsed.sold, true);
+    if (parsed.bought && parsed.sold) {
+      recalculatePnl(Number(parsed.bought), Number(parsed.sold));
+    }
   };
 
   const attachImage = useCallback(async (rawUrl: string) => {
@@ -253,17 +256,11 @@ export default function LogTradeModal({
   };
 
   const recalculatePnl = (inSol: number, outSol: number) => {
-    if (!isNaN(inSol) && !isNaN(outSol) && inSol > 0 && outSol >= 0) {
-      const diffSol = outSol - inSol;
-      const diffUsd = diffSol * solPrice;
-
-      setPnlSol(diffSol.toFixed(3));
-      setPnlUsd(diffUsd.toFixed(2));
-
-      if (diffSol > 0.005) setResult("Win");
-      else if (diffSol < -0.005) setResult("Loss");
-      else setResult("BE");
-    }
+    const pnl = calculateTradePnl(inSol, outSol, solPrice);
+    if (!pnl) return;
+    setPnlSol(pnl.pnlSol);
+    setPnlUsd(pnl.pnlUsd);
+    setResult(pnl.result);
   };
 
   const switchCurrencyMode = (newMode: "SOL" | "USD") => {
@@ -273,21 +270,19 @@ export default function LogTradeModal({
       return;
     }
 
-    if (newMode === "USD") {
-      const sBought = parseFloat(boughtSol);
-      if (!isNaN(sBought)) setBoughtUsd((sBought * solPrice).toFixed(2));
-      const sSold = parseFloat(soldSol);
-      if (!isNaN(sSold)) setSoldUsd((sSold * solPrice).toFixed(2));
-      const sPnl = parseFloat(pnlSol);
-      if (!isNaN(sPnl)) setPnlUsd((sPnl * solPrice).toFixed(2));
-    } else {
-      const uBought = parseFloat(boughtUsd);
-      if (!isNaN(uBought)) setBoughtSol((uBought / solPrice).toFixed(3));
-      const uSold = parseFloat(soldUsd);
-      if (!isNaN(uSold)) setSoldSol((uSold / solPrice).toFixed(3));
-      const uPnl = parseFloat(pnlUsd);
-      if (!isNaN(uPnl)) setPnlSol((uPnl / solPrice).toFixed(3));
-    }
+    const visibleBought = currencyMode === "SOL" ? boughtSol : boughtUsd;
+    const visibleSold = currencyMode === "SOL" ? soldSol : soldUsd;
+    const visiblePnl = currencyMode === "SOL" ? pnlSol : pnlUsd;
+    const nextBought = reinterpretAmountForCurrency(visibleBought, newMode, solPrice);
+    const nextSold = reinterpretAmountForCurrency(visibleSold, newMode, solPrice);
+    const nextPnl = reinterpretAmountForCurrency(visiblePnl, newMode, solPrice);
+
+    setBoughtSol(nextBought.sol);
+    setBoughtUsd(nextBought.usd);
+    setSoldSol(nextSold.sol);
+    setSoldUsd(nextSold.usd);
+    setPnlSol(nextPnl.sol);
+    setPnlUsd(nextPnl.usd);
 
     setCurrencyMode(newMode);
   };
@@ -862,6 +857,7 @@ export default function LogTradeModal({
                     step="any"
                     value={currencyMode === "SOL" ? boughtSol : boughtUsd}
                     onChange={(e) => handleBoughtChange(e.target.value, currencyMode === "SOL")}
+                    onWheel={(e) => e.currentTarget.blur()}
                     placeholder={currencyMode === "SOL" ? "0.5 SOL" : "$75"}
                     className="w-full bg-white border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2] font-mono"
                     required
@@ -877,6 +873,7 @@ export default function LogTradeModal({
                     step="any"
                     value={currencyMode === "SOL" ? soldSol : soldUsd}
                     onChange={(e) => handleSoldChange(e.target.value, currencyMode === "SOL")}
+                    onWheel={(e) => e.currentTarget.blur()}
                     placeholder={currencyMode === "SOL" ? "1.2 SOL" : "$180"}
                     className="w-full bg-white border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2] font-mono"
                   />
