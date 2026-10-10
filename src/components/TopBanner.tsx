@@ -131,7 +131,7 @@ export default function TopBanner({
           {/* New Trade Primary Action */}
           <button
             onClick={onOpenNewTrade}
-            className="bg-[#2383e2] hover:bg-[#1a73ca] text-white px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1 shadow-xs transition-colors"
+            className="bg-[#1a73ca] hover:bg-[#155fa8] text-white px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1 shadow-xs transition-colors"
           >
             <Plus size={14} className="sm:hidden" />
             <span className="hidden sm:inline">+ New Trade</span>

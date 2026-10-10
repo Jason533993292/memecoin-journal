@@ -287,7 +287,7 @@ export default function TradeJournalView({
 
             <button
               onClick={onOpenNewTrade}
-              className="bg-[#2383e2] hover:bg-[#1a73ca] text-white px-3.5 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors"
+              className="bg-[#1a73ca] hover:bg-[#155fa8] text-white px-3.5 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors"
             >
               <span>+ Log Trade</span>
             </button>
@@ -485,7 +485,7 @@ export default function TradeJournalView({
           <div className="pt-2 flex justify-center gap-3">
             <button
               onClick={onOpenNewTrade}
-              className="bg-[#2383e2] hover:bg-[#1a73ca] text-white px-5 py-2.5 rounded-lg text-xs font-semibold shadow-sm transition-all"
+              className="bg-[#1a73ca] hover:bg-[#155fa8] text-white px-5 py-2.5 rounded-lg text-xs font-semibold shadow-sm transition-all"
             >
               + Log Your First Trade (Hotkey: N)
             </button>

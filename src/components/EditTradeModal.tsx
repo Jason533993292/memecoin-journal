@@ -867,7 +867,7 @@ export default function EditTradeModal({
               id="edit-trade-submit-btn"
               type="submit"
               disabled={saving}
-              className="px-5 py-2 bg-[#2383e2] hover:bg-[#1a73ca] text-white font-medium rounded-lg text-xs shadow-xs transition-colors flex items-center gap-1.5 disabled:opacity-50"
+              className="px-5 py-2 bg-[#1a73ca] hover:bg-[#155fa8] text-white font-medium rounded-lg text-xs shadow-xs transition-colors flex items-center gap-1.5 disabled:opacity-50"
             >
               {saving ? <Loader2 size={13} className="animate-spin" /> : <span>Update Trade</span>}
             </button>

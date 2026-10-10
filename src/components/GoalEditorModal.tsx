@@ -187,7 +187,7 @@ export default function GoalEditorModal({
             </button>
             <button
               type="submit"
-              className="bg-[#2383e2] hover:bg-[#1a73ca] text-white px-4 py-1.5 rounded-lg text-xs font-semibold shadow-xs transition-colors"
+              className="bg-[#1a73ca] hover:bg-[#155fa8] text-white px-4 py-1.5 rounded-lg text-xs font-semibold shadow-xs transition-colors"
             >
               Save Goals
             </button>

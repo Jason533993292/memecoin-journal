@@ -267,7 +267,7 @@ export default function DashboardView({
           </div>
           <button
             onClick={onOpenNewTrade}
-            className="shrink-0 bg-[#2383e2] hover:bg-[#1a73ca] text-white px-4 py-2 rounded-lg text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5"
+            className="shrink-0 bg-[#1a73ca] hover:bg-[#155fa8] text-white px-4 py-2 rounded-lg text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5"
           >
             <span>Log First Trade</span>
             <ArrowRight size={13} />

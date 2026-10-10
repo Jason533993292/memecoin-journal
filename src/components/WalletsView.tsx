@@ -453,7 +453,7 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
                 setNewWalletAddress("");
                 setIsAddingWallet(true);
               }}
-              className="bg-[#2383e2] hover:bg-[#1a73ca] text-white px-3.5 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors"
+              className="bg-[#1a73ca] hover:bg-[#155fa8] text-white px-3.5 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors"
             >
               <Plus size={14} />
               <span>New Wallet</span>
@@ -496,7 +496,7 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
             <button
               onClick={handleCheckOnChainBalance}
               disabled={loadingLookup || !lookupAddress}
-              className="px-3 py-1.5 bg-[#2383e2] hover:bg-[#1a73ca] text-white rounded-lg text-xs font-medium flex items-center gap-1 disabled:opacity-50 transition-colors shrink-0"
+              className="px-3 py-1.5 bg-[#1a73ca] hover:bg-[#155fa8] text-white rounded-lg text-xs font-medium flex items-center gap-1 disabled:opacity-50 transition-colors shrink-0"
             >
               {loadingLookup ? <Loader2 size={13} className="animate-spin" /> : <span>Scan RPC</span>}
             </button>
@@ -555,7 +555,7 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
               />
               <button
                 onClick={handleSavePaperCapital}
-                className="px-3 py-1.5 bg-[#2383e2] hover:bg-[#1a73ca] text-white rounded-lg text-xs font-semibold"
+                className="px-3 py-1.5 bg-[#1a73ca] hover:bg-[#155fa8] text-white rounded-lg text-xs font-semibold"
               >
                 Save
               </button>
@@ -678,7 +678,7 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
             </button>
             <button
               type="submit"
-              className="px-3 py-1 bg-[#2383e2] hover:bg-[#1a73ca] text-white rounded text-xs font-medium"
+              className="px-3 py-1 bg-[#1a73ca] hover:bg-[#155fa8] text-white rounded text-xs font-medium"
             >
               {editingWallet ? "Save Changes" : "Create Wallet"}
             </button>
@@ -696,7 +696,7 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
           <button
             type="button"
             onClick={() => setIsAddingWallet(true)}
-            className="mt-4 rounded-lg bg-[#2383e2] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[#1a73ca]"
+            className="mt-4 rounded-lg bg-[#1a73ca] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[#155fa8]"
           >
             Add a real wallet
           </button>

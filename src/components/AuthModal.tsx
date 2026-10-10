@@ -160,7 +160,7 @@ export default function AuthModal() {
 
         <div className="relative flex items-center justify-center">
           <div className="border-t border-neutral-800 w-full" />
-          <span className="bg-[#0d0d0d] px-3 text-[10px] text-neutral-500 uppercase tracking-widest absolute">
+          <span className="bg-[#0d0d0d] px-3 text-[10px] text-neutral-400 uppercase tracking-widest absolute">
             Or with email
           </span>
         </div>
@@ -209,7 +209,7 @@ export default function AuthModal() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full mt-2 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#2383e2] hover:bg-[#1a73ca] text-white rounded-xl text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer shadow-md"
+            className="w-full mt-2 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#1a73ca] hover:bg-[#155fa8] text-white rounded-xl text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer shadow-md"
           >
             {loading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -257,7 +257,7 @@ export default function AuthModal() {
           )}
         </div>
 
-        <p className="text-center text-[10px] leading-4 text-neutral-500">
+        <p className="text-center text-[10px] leading-4 text-neutral-400">
           By creating an account or continuing to use the journal, you acknowledge the{" "}
           <a href="/terms" className="text-neutral-300 underline underline-offset-2">Terms</a>
           {" "}and{" "}

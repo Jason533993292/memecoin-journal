@@ -17,7 +17,7 @@ test("returns null when market data has no exact Solana mint match", () => {
   assert.equal(selectSolanaTokenPair({ pairs: [{ chainId: "bsc", baseToken: { address: "Mint" } }] }, "Mint"), null);
 });
 
-test("public lookup returns a listed Solana token without Firebase credentials", async () => {
+test("market-data selection returns an exact listed Solana token", async () => {
   const mint = "3nUw6gYGCWAVpbaPnwVr3KJuP1unJKUtKmeMNuFzpump";
   const pair = await lookupPublicTokenPair(mint, async () => Response.json({
     schemaVersion: "1.0.0",

@@ -436,7 +436,7 @@ export default function TradeDetailDrawer({
                   onClose();
                   onEdit(trade);
                 }}
-                className="bg-[#2383e2] hover:bg-[#1a73ca] text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-xs"
+                className="bg-[#1a73ca] hover:bg-[#155fa8] text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-xs"
               >
                 Edit Trade
               </button>

@@ -1111,7 +1111,7 @@ export default function LogTradeModal({
                 <button
                   type="button"
                   onClick={(e) => handleAddCustomTag(e)}
-                  className="px-3 py-1.5 bg-[#2383e2] hover:bg-[#1a73ca] text-white rounded-lg text-xs font-semibold flex items-center gap-1 shrink-0 transition-colors shadow-xs"
+                  className="px-3 py-1.5 bg-[#1a73ca] hover:bg-[#155fa8] text-white rounded-lg text-xs font-semibold flex items-center gap-1 shrink-0 transition-colors shadow-xs"
                 >
                   <Plus size={13} />
                   <span>Add Tag</span>
@@ -1145,7 +1145,7 @@ export default function LogTradeModal({
                 id="log-trade-submit-btn"
                 type="submit"
                 disabled={saving}
-                className="px-5 py-2 bg-[#2383e2] hover:bg-[#1a73ca] text-white font-medium rounded-lg text-xs shadow-xs transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                className="px-5 py-2 bg-[#1a73ca] hover:bg-[#155fa8] text-white font-medium rounded-lg text-xs shadow-xs transition-colors flex items-center gap-1.5 disabled:opacity-50"
               >
                 {saving ? <Loader2 size={13} className="animate-spin" /> : <span>Save Trade to Cloud</span>}
               </button>

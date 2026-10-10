@@ -215,7 +215,7 @@ export default function RuleEditorModal({
           <button
             type="button"
             onClick={handleSave}
-            className="px-4 py-2 bg-[#2383e2] hover:bg-[#1a73ca] text-white font-medium rounded-lg text-xs shadow-xs flex items-center gap-1.5"
+            className="px-4 py-2 bg-[#1a73ca] hover:bg-[#155fa8] text-white font-medium rounded-lg text-xs shadow-xs flex items-center gap-1.5"
           >
             <Check size={13} /> Save Rules
           </button>

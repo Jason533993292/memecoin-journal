@@ -1,4 +1,9 @@
 import { lookupPublicTokenPair, type DexTokenPair } from "../../../../lib/tokenMarketData";
+import {
+  consumeUserRateLimits,
+  FirebaseAdminConfigurationError,
+  verifyFirebaseUser,
+} from "../../../../lib/firebase-admin";
 
 export const maxDuration = 15;
 
@@ -48,7 +53,7 @@ async function fetchJson(url: string, revalidate = 30): Promise<unknown> {
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ ca: string }> }
 ) {
   const { ca } = await params;
@@ -57,6 +62,48 @@ export async function GET(
     return Response.json(
       { error: "Enter a valid Solana token address (32–44 base58 characters)." },
       { status: 400 }
+    );
+  }
+
+  let user;
+  try {
+    user = await verifyFirebaseUser(request);
+  } catch (error) {
+    const configurationError = error instanceof FirebaseAdminConfigurationError;
+    return Response.json(
+      {
+        error: configurationError
+          ? "Token lookup is temporarily unavailable."
+          : "Your sign-in has expired. Sign in again and retry.",
+      },
+      {
+        status: configurationError ? 503 : 401,
+        headers: { "Cache-Control": "no-store" },
+      }
+    );
+  }
+  if (!user) {
+    return Response.json(
+      { error: "Sign in to look up token details." },
+      { status: 401, headers: { "Cache-Control": "no-store" } }
+    );
+  }
+
+  try {
+    const allowed = await consumeUserRateLimits(user.uid, "token-lookup", [
+      { key: "minute", limit: 30, durationMs: 60_000 },
+      { key: "day", limit: 1_000, durationMs: 86_400_000 },
+    ]);
+    if (!allowed) {
+      return Response.json(
+        { error: "Too many token lookups. Please wait before trying again." },
+        { status: 429, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+  } catch {
+    return Response.json(
+      { error: "Token lookup is temporarily unavailable." },
+      { status: 503, headers: { "Cache-Control": "no-store" } }
     );
   }
 

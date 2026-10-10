@@ -6,20 +6,20 @@ import { db, type User } from "../lib/firebase";
 import { collection, onSnapshot, query, orderBy, doc, deleteDoc, setDoc } from "firebase/firestore";
 import { Trade, JournalRules, AiCoachBrief, GoalSettings } from "../lib/types";
 import TopBanner from "../components/TopBanner";
-import DashboardView from "../components/DashboardView";
-import TradeJournalView from "../components/TradeJournalView";
+const DashboardView = dynamic(() => import("../components/DashboardView"), { loading: () => <SectionLoading /> });
+const TradeJournalView = dynamic(() => import("../components/TradeJournalView"), { loading: () => <SectionLoading /> });
 const WalletsView = dynamic(() => import("../components/WalletsView"), { loading: () => <SectionLoading /> });
 const StatisticsView = dynamic(() => import("../components/StatisticsView"), { loading: () => <SectionLoading /> });
 const AiCoachView = dynamic(() => import("../components/AiCoachView"), { loading: () => <SectionLoading /> });
-import LogTradeModal from "../components/LogTradeModal";
-import EditTradeModal from "../components/EditTradeModal";
-import TradeDetailDrawer from "../components/TradeDetailDrawer";
-import RuleEditorModal from "../components/RuleEditorModal";
-import CommandPaletteModal from "../components/CommandPaletteModal";
-import ShareablePnlCardModal from "../components/ShareablePnlCardModal";
-import GoalEditorModal from "../components/GoalEditorModal";
-import DailyRecapModal from "../components/DailyRecapModal";
-import AccountDeletionModal from "../components/AccountDeletionModal";
+const LogTradeModal = dynamic(() => import("../components/LogTradeModal"));
+const EditTradeModal = dynamic(() => import("../components/EditTradeModal"));
+const TradeDetailDrawer = dynamic(() => import("../components/TradeDetailDrawer"));
+const RuleEditorModal = dynamic(() => import("../components/RuleEditorModal"));
+const CommandPaletteModal = dynamic(() => import("../components/CommandPaletteModal"));
+const ShareablePnlCardModal = dynamic(() => import("../components/ShareablePnlCardModal"));
+const GoalEditorModal = dynamic(() => import("../components/GoalEditorModal"));
+const DailyRecapModal = dynamic(() => import("../components/DailyRecapModal"));
+const AccountDeletionModal = dynamic(() => import("../components/AccountDeletionModal"));
 import { ToastProvider, useToast } from "../components/Toast";
 import { parseLocalStorageValue, readSessionStorageValue, useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
 import { Trash2 } from "lucide-react";
@@ -81,7 +81,7 @@ function MainApp() {
           <h1 className="text-lg font-semibold">Your account is signed in, but the journal could not connect.</h1>
           <p className="mt-2 text-sm text-[#787774]">Your data has not been changed. Check your connection, then retry. If this keeps happening, the app’s authentication setup needs attention.</p>
           <div className="mt-5 flex justify-center gap-3">
-            <button type="button" onClick={retryBackendSetup} className="rounded-lg bg-[#2383e2] px-4 py-2 text-sm font-medium text-white hover:bg-[#1a73ca]">Retry connection</button>
+            <button type="button" onClick={retryBackendSetup} className="rounded-lg bg-[#1a73ca] px-4 py-2 text-sm font-medium text-white hover:bg-[#155fa8]">Retry connection</button>
             <button type="button" onClick={() => void logout()} className="rounded-lg border border-[#d8d7d3] px-4 py-2 text-sm font-medium hover:bg-white">Sign out</button>
           </div>
         </section>
@@ -486,7 +486,7 @@ function AuthenticatedApp({ user }: { user: User }) {
       </div>
 
       {/* Log New Trade Modal */}
-      <LogTradeModal
+      {isNewTradeModalOpen && <LogTradeModal
         key={`${user.uid}:${isNewTradeModalOpen ? clonedTrade?.id || "new" : "closed"}`}
         isOpen={isNewTradeModalOpen}
         onClose={() => {
@@ -496,20 +496,20 @@ function AuthenticatedApp({ user }: { user: User }) {
         onTradeLogged={fetchTrades}
         initialData={clonedTrade}
         solPrice={solPrice}
-      />
+      />}
 
       {/* Edit Trade Modal */}
-      <EditTradeModal
+      {editingTrade && <EditTradeModal
         key={`${user.uid}:edit-trade`}
         trade={editingTrade}
         isOpen={!!editingTrade}
         onClose={() => setEditingTrade(null)}
         onTradeUpdated={fetchTrades}
         solPrice={solPrice}
-      />
+      />}
 
       {/* Trade Detail Inspector Drawer */}
-      <TradeDetailDrawer
+      {inspectingTrade && <TradeDetailDrawer
         key={user.uid}
         trade={inspectingTrade}
         isOpen={!!inspectingTrade}
@@ -522,36 +522,36 @@ function AuthenticatedApp({ user }: { user: User }) {
         }}
         onShare={(trade) => setSharingTrade(trade)}
         solPrice={solPrice}
-      />
+      />}
 
       {/* Rule Editor Modal */}
-      <RuleEditorModal
+      {isRuleEditorOpen && <RuleEditorModal
         key={`${user.uid}:rule-editor`}
         isOpen={isRuleEditorOpen}
         onClose={() => setIsRuleEditorOpen(false)}
         rules={activeRules}
         onSaveRules={handleSaveRules}
-      />
+      />}
 
       {/* Goal Tracker Editor Modal */}
-      <GoalEditorModal
+      {isGoalEditorOpen && <GoalEditorModal
         key={`${user.uid}:goal-editor`}
         isOpen={isGoalEditorOpen}
         onClose={() => setIsGoalEditorOpen(false)}
         goals={activeGoals}
         onSaveGoals={handleSaveGoals}
-      />
+      />}
 
       {/* Daily P&L Recap Modal */}
-      <DailyRecapModal
+      {isDailyRecapOpen && <DailyRecapModal
         isOpen={isDailyRecapOpen}
         onClose={() => setIsDailyRecapOpen(false)}
         trades={activeTrades}
         solPrice={solPrice}
-      />
+      />}
 
       {/* Cmd+K Quick Command Palette */}
-      <CommandPaletteModal
+      {isCommandPaletteOpen && <CommandPaletteModal
         key={isCommandPaletteOpen ? "open" : "closed"}
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
@@ -559,22 +559,22 @@ function AuthenticatedApp({ user }: { user: User }) {
         onOpenNewTrade={() => setIsNewTradeModalOpen(true)}
         trades={activeTrades}
         onSelectTrade={(trade) => setInspectingTrade(trade)}
-      />
+      />}
 
       {/* 1-Click Shareable PnL Card Graphic Modal */}
-      <ShareablePnlCardModal
+      {sharingTrade && <ShareablePnlCardModal
         key={`${user.uid}:shareable-pnl`}
         trade={sharingTrade}
         isOpen={!!sharingTrade}
         onClose={() => setSharingTrade(null)}
         solPrice={solPrice}
-      />
+      />}
 
-      <AccountDeletionModal
+      {isAccountDeletionOpen && <AccountDeletionModal
         key={`${user.uid}:account-deletion`}
         isOpen={isAccountDeletionOpen}
         onClose={() => setIsAccountDeletionOpen(false)}
-      />
+      />}
 
       {/* Custom Delete Trade Confirmation Modal */}
       {tradeToDeleteDirectly && (

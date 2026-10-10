@@ -221,7 +221,7 @@ export default function AiCoachView({
             onClick={() => onRefreshAiBrief(provider, apiKey)}
             disabled={loadingAi || trades.length === 0 || !isProviderReady}
             title={!isProviderReady ? "Save a provider API key before requesting a review" : undefined}
-            className="bg-[#2383e2] hover:bg-[#1a73ca] text-white px-3.5 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 shadow-xs transition-colors disabled:opacity-50"
+            className="bg-[#1a73ca] hover:bg-[#155fa8] text-white px-3.5 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 shadow-xs transition-colors disabled:opacity-50"
           >
             <RefreshCw size={13} className={loadingAi ? "animate-spin" : ""} />
             <span>{loadingAi ? "Analyzing..." : "Refresh AI Review"}</span>
@@ -380,7 +380,7 @@ export default function AiCoachView({
             <button
               type="submit"
               disabled={asking || !customQuestion.trim() || !apiKey || providerChanged}
-              className="px-4 py-2 bg-[#2383e2] hover:bg-[#1a73ca] text-white text-xs font-medium rounded-lg disabled:opacity-50 flex items-center gap-1.5 transition-colors"
+              className="px-4 py-2 bg-[#1a73ca] hover:bg-[#155fa8] text-white text-xs font-medium rounded-lg disabled:opacity-50 flex items-center gap-1.5 transition-colors"
             >
               {asking ? <RefreshCw size={13} className="animate-spin" /> : <span>Ask Coach</span>}
             </button>

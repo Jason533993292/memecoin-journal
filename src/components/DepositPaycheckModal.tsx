@@ -177,7 +177,7 @@ export default function DepositPaycheckModal({
               disabled={saving || isOverdraft}
               className={`px-5 py-2 text-white font-medium rounded-lg text-xs shadow-xs transition-colors flex items-center gap-1.5 disabled:opacity-50 ${
                 isDeposit
-                  ? "bg-[#2383e2] hover:bg-[#1a73ca]"
+                  ? "bg-[#1a73ca] hover:bg-[#155fa8]"
                   : "bg-emerald-600 hover:bg-emerald-700"
               }`}
             >
