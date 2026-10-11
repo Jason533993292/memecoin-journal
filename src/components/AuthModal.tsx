@@ -71,7 +71,11 @@ export default function AuthModal() {
         setErrorMsg("This site is not an authorized Firebase sign-in domain. Add the current domain under Firebase Authentication → Settings → Authorized domains.");
       } else if (code === "auth/operation-not-allowed") {
         setErrorMsg("Google Sign-In is disabled in Firebase. Enable the Google provider and save it.");
-      } else if (code !== "auth/popup-closed-by-user") {
+      } else if (code === "auth/popup-blocked") {
+        setErrorMsg("Allow pop-ups for this site, then select Continue with Google again.");
+      } else if (code === "auth/popup-closed-by-user") {
+        setStatusMsg("Google sign-in was closed. Select Continue with Google to try again.");
+      } else {
         setErrorMsg(message || "Failed to sign in with Google.");
       }
     }
