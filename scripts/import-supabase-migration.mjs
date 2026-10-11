@@ -38,20 +38,33 @@ const isoDate = (value) => {
   return null;
 };
 const upsert = async (table, rows) => {
-  for (let offset = 0; offset < rows.length; offset += 100) {
-    const response = await fetch(`${supabaseUrl}/rest/v1/${table}?on_conflict=user_id,id`, {
-      method: "POST",
-      headers: {
-        apikey: serviceKey,
-        Authorization: `Bearer ${serviceKey}`,
-        "Content-Type": "application/json",
-        Prefer: "resolution=merge-duplicates,return=minimal",
-      },
-      body: JSON.stringify(rows.slice(offset, offset + 100)),
-    });
-    if (!response.ok) {
-      const detail = (await response.text()).slice(0, 1000);
-      throw new Error(`Supabase import failed for ${table} (HTTP ${response.status}): ${detail}`);
+  // PostgREST bulk inserts require every object in one request to have the
+  // same keys. Legacy Firestore documents legitimately omit different
+  // optional fields, so group matching row shapes before chunking requests.
+  const rowsByShape = new Map();
+  for (const row of rows) {
+    const shape = Object.keys(row).sort().join("\u0000");
+    const matchingRows = rowsByShape.get(shape) || [];
+    matchingRows.push(row);
+    rowsByShape.set(shape, matchingRows);
+  }
+
+  for (const matchingRows of rowsByShape.values()) {
+    for (let offset = 0; offset < matchingRows.length; offset += 100) {
+      const response = await fetch(`${supabaseUrl}/rest/v1/${table}?on_conflict=user_id,id`, {
+        method: "POST",
+        headers: {
+          apikey: serviceKey,
+          Authorization: `Bearer ${serviceKey}`,
+          "Content-Type": "application/json",
+          Prefer: "resolution=merge-duplicates,return=minimal",
+        },
+        body: JSON.stringify(matchingRows.slice(offset, offset + 100)),
+      });
+      if (!response.ok) {
+        const detail = (await response.text()).slice(0, 1000);
+        throw new Error(`Supabase import failed for ${table} (HTTP ${response.status}): ${detail}`);
+      }
     }
   }
 };
@@ -85,6 +98,10 @@ for (const user of bundle.users) {
     const mapped = renameKeys(row.data, tradeMapping, tradeKeys);
     mapped.user_id = user.uid;
     mapped.id = row.id;
+    // Early journal versions allowed setup type to be omitted. Preserve the
+    // trade with an explicit neutral label instead of rejecting the account's
+    // entire migration.
+    if (!mapped.setup_type) mapped.setup_type = "Unspecified";
     mapped.date = isoDate(mapped.date);
     mapped.created_at = mapped.created_at == null ? null : isoDate(mapped.created_at);
     mapped.traded_at = mapped.traded_at == null ? null : isoDate(mapped.traded_at);
