@@ -237,7 +237,7 @@ export default function ResearchView({ userId, trades }: { userId: string; trade
               <div className="flex items-start justify-between gap-2"><span className="truncate text-sm font-semibold">{item.name}{item.symbol ? ` · $${item.symbol}` : ""}</span><span className="shrink-0 rounded-full bg-[#f1f1ef] px-2 py-0.5 text-[10px] text-[#5a5957]">{STAGES.find((stage) => stage.id === item.stage)?.label}</span></div>
               <p className="mt-1 line-clamp-2 text-xs text-[#787774]">{item.thesis || "No thesis yet"}</p><p className="mt-2 text-[10px] text-[#9b9a97]">{linked.length} linked trades · {item.confidence}% confidence</p>
             </button>;
-          }) : <div className="p-6 text-center"><p className="text-sm font-medium">No coin ideas yet</p><p className="mt-1 text-xs text-[#787774]">Start with a contract address, then build the thesis as you research.</p><button onClick={() => setSelectedCa("")} className="mt-3 text-xs font-semibold text-[#2383e2]">Create your first idea</button></div>}
+          }) : <div className="p-6 text-center"><p className="text-sm font-medium">No coin ideas yet</p><p className="mt-1 text-xs text-[#787774]">Start with a contract address, then build the thesis as you research.</p><button onClick={() => { setSelectedCa(""); setExampleMode(false); setDraft(blank()); }} className="mt-3 text-xs font-semibold text-[#2383e2]">Create your first idea</button></div>}
         </div>
       </aside>
 
