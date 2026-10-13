@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Trade, AiCoachBrief } from "../lib/types";
+import { useState, useMemo, useEffect } from "react";
+import { Trade, AiCoachBrief, ResearchItem } from "../lib/types";
 import { Bot, RefreshCw, AlertTriangle, ShieldCheck, Target, HelpCircle, Eye, EyeOff, KeyRound } from "lucide-react";
 import { DEFAULT_GOOD_TAGS } from "../lib/constants";
 import { getTradeTimestamp } from "../lib/utils";
@@ -14,6 +14,9 @@ import {
   writeSessionStorageValue,
 } from "../lib/useLocalStorage";
 import { useToast } from "./Toast";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { listSupabaseResearch, usesSupabaseJournal } from "@/lib/journalBackend";
 
 type AiProvider = "deepseek" | "gemini" | "openai";
 
@@ -43,6 +46,7 @@ export default function AiCoachView({
   const [asking, setAsking] = useState(false);
   const [apiKeyDraft, setApiKeyDraft] = useState("");
   const [showKey, setShowKey] = useState(false);
+  const [research, setResearch] = useState<ResearchItem[]>([]);
   const [rememberKey, setRememberKey] = useState(false);
   const apiKeyStorageKey = user ? "ai_" + user.uid + "_provider_api_key" : "ai_signed_out_provider_api_key";
   const providerStorageKey = user ? "ai_" + user.uid + "_provider" : "ai_signed_out_provider";
@@ -64,6 +68,23 @@ export default function AiCoachView({
   const isApiKeySet = Boolean(savedKeyForSession);
   const isProviderReady = isApiKeySet && !providerChanged;
   const providerLabel = provider === "deepseek" ? "DeepSeek" : provider === "gemini" ? "Google Gemini" : "OpenAI";
+
+  useEffect(() => {
+    let active = true;
+    if (!user) return;
+    const loadResearch = async () => {
+      try {
+        const entries = usesSupabaseJournal()
+          ? await listSupabaseResearch(user.uid)
+          : (await getDocs(collection(db, "users", user.uid, "research"))).docs.map((entry) => entry.data() as ResearchItem);
+        if (active) setResearch(entries.slice(0, 20));
+      } catch {
+        // AI Coach remains usable from trade history even if research is offline.
+      }
+    };
+    void loadResearch();
+    return () => { active = false; };
+  }, [user]);
 
   const saveProviderSettings = () => {
     const nextKey = apiKeyDraft.trim();
@@ -142,6 +163,17 @@ export default function AiCoachView({
             setupType: trade.setupType,
             createdAt: trade.createdAt,
             date: trade.date,
+          })),
+          research: research.slice(0, 5).map((item) => ({
+            name: item.name,
+            symbol: item.symbol,
+            stage: item.stage,
+            thesis: item.thesis,
+            bullCase: item.bullCase,
+            bearCase: item.bearCase,
+            invalidation: item.invalidation,
+            confidence: item.confidence,
+            tags: item.tags,
           })),
           customPrompt: customQuestion.trim(),
           clientApiKey: apiKey,

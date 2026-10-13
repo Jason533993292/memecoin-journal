@@ -1,10 +1,43 @@
 import { getSupabaseClient } from "@/lib/supabase";
-import type { GoalSettings, JournalRules, Trade, Wallet, WalletTransaction } from "@/lib/types";
+import type { GoalSettings, JournalRules, ResearchItem, Trade, Wallet, WalletTransaction } from "@/lib/types";
 
 type JsonRecord = Record<string, unknown>;
 const SUPABASE_PAGE_SIZE = 1000;
 
 export const usesSupabaseJournal = () => process.env.NEXT_PUBLIC_DATA_BACKEND === "supabase";
+
+export async function listSupabaseResearch(userId: string): Promise<ResearchItem[]> {
+  const { data, error } = await getSupabaseClient()
+    .from("coin_research")
+    .select("ca,data,created_at,updated_at")
+    .eq("user_id", userId)
+    .order("updated_at", { ascending: false })
+    .limit(100);
+  throwIfError(error);
+  return (data ?? []).map((row) => {
+    const record = row as unknown as { ca: string; data: ResearchItem; created_at: string; updated_at: string };
+    return { ...record.data, ca: record.ca, createdAt: Date.parse(record.created_at) || record.data.createdAt, updatedAt: Date.parse(record.updated_at) || record.data.updatedAt };
+  });
+}
+
+export async function saveSupabaseResearch(userId: string, item: ResearchItem) {
+  const normalizedCa = item.ca.trim();
+  const payload = { ...item, ca: normalizedCa };
+  if (!normalizedCa || JSON.stringify(payload).length > 90000) throw new Error("Research entry is too large or missing a contract address.");
+  const { error } = await getSupabaseClient().from("coin_research").upsert({
+    user_id: userId,
+    ca: normalizedCa,
+    data: payload,
+    created_at: new Date(item.createdAt).toISOString(),
+    updated_at: new Date(item.updatedAt).toISOString(),
+  }, { onConflict: "user_id,ca" });
+  throwIfError(error);
+}
+
+export async function deleteSupabaseResearch(userId: string, ca: string) {
+  const { error } = await getSupabaseClient().from("coin_research").delete().eq("user_id", userId).eq("ca", ca);
+  throwIfError(error);
+}
 
 function epoch(value: unknown): number | undefined {
   if (typeof value === "number" && Number.isFinite(value)) return value;

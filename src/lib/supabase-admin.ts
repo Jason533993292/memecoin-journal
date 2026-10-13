@@ -26,6 +26,7 @@ export async function deleteSupabaseJournalData(userId: string) {
 
   const deletions = await Promise.all([
     admin.from("trades").delete().eq("user_id", userId),
+    admin.from("coin_research").delete().eq("user_id", userId),
     admin.from("wallet_transactions").delete().eq("user_id", userId),
     admin.from("wallets").delete().eq("user_id", userId),
     admin.from("user_settings").delete().eq("user_id", userId),

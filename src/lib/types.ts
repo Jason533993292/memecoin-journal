@@ -95,4 +95,50 @@ export interface ToastMessage {
   type: 'success' | 'error' | 'info';
   message: string;
   description?: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}
+
+export type ResearchStage = "idea" | "researching" | "planned" | "active" | "invalidated" | "archived";
+
+export interface ResearchSnapshot {
+  id: string;
+  createdAt: number;
+  note: string;
+  priceUsd?: number;
+  marketCapUsd?: number;
+  liquidityUsd?: number;
+  sourceUrl?: string;
+}
+
+export interface ResearchDecision {
+  id: string;
+  createdAt: number;
+  mood: "calm" | "confident" | "uncertain" | "fearful" | "fomo";
+  note: string;
+}
+
+export interface ResearchItem {
+  ca: string;
+  name: string;
+  symbol: string;
+  stage: ResearchStage;
+  thesis: string;
+  bullCase: string;
+  bearCase: string;
+  catalysts: string[];
+  risks: string[];
+  invalidation: string;
+  entryPlan: string;
+  stopPlan: string;
+  targetPlan: string;
+  sizeSol?: number;
+  horizon: string;
+  confidence: number;
+  tags: string[];
+  sources: string[];
+  snapshots: ResearchSnapshot[];
+  decisions: ResearchDecision[];
+  updatedAt: number;
+  createdAt: number;
 }

@@ -11,6 +11,7 @@ const TradeJournalView = dynamic(() => import("../components/TradeJournalView"),
 const WalletsView = dynamic(() => import("../components/WalletsView"), { loading: () => <SectionLoading /> });
 const StatisticsView = dynamic(() => import("../components/StatisticsView"), { loading: () => <SectionLoading /> });
 const AiCoachView = dynamic(() => import("../components/AiCoachView"), { loading: () => <SectionLoading /> });
+const ResearchView = dynamic(() => import("../components/ResearchView"), { loading: () => <SectionLoading /> });
 const LogTradeModal = dynamic(() => import("../components/LogTradeModal"));
 const EditTradeModal = dynamic(() => import("../components/EditTradeModal"));
 const TradeDetailDrawer = dynamic(() => import("../components/TradeDetailDrawer"));
@@ -29,6 +30,7 @@ import {
   loadSupabasePreferences,
   patchSupabasePreferences,
   usesSupabaseJournal,
+  saveSupabaseTrade,
 } from "@/lib/journalBackend";
 
 import { useAuth } from "../context/AuthContext";
@@ -278,9 +280,29 @@ function AuthenticatedApp({ user }: { user: User }) {
     setTradeToDeleteDirectly(id);
   };
 
+  const offerTradeUndo = (deletedTrade: Trade) => {
+    const { id, ...tradeData } = deletedTrade;
+    showToast("Trade deleted", "info", "You can restore it for the next 10 seconds.", {
+      label: "Undo",
+      onClick: () => {
+        void (async () => {
+          try {
+            if (usesSupabaseJournal()) await saveSupabaseTrade(user.uid, tradeData, id);
+            else await setDoc(doc(db, "users", user.uid, "trades", id), tradeData);
+            fetchTrades();
+            showToast("Trade restored", "success");
+          } catch {
+            showToast("Could not restore trade", "error", "Check your connection and try again.");
+          }
+        })();
+      },
+    });
+  };
+
   const confirmDeleteTradeDirectly = async () => {
     if (!tradeToDeleteDirectly || !user) return;
     const id = tradeToDeleteDirectly;
+    const deletedTrade = trades.find((trade) => trade.id === id);
     setTradeToDeleteDirectly(null);
     try {
       if (usesSupabaseJournal()) {
@@ -289,6 +311,7 @@ function AuthenticatedApp({ user }: { user: User }) {
       } else {
         await deleteDoc(doc(db, "users", user.uid, "trades", id));
       }
+      if (deletedTrade) offerTradeUndo(deletedTrade);
     } catch {
       showToast("Could not delete this trade", "error", "Check your connection and try again.");
     }
@@ -465,6 +488,7 @@ function AuthenticatedApp({ user }: { user: User }) {
             solPrice={solPrice}
             onOpenNewTrade={() => setIsNewTradeModalOpen(true)}
             onTradeDeleted={fetchTrades}
+            onUndoAvailable={offerTradeUndo}
             onOpenEditTrade={(trade) => setEditingTrade(trade)}
             onSelectTrade={(trade) => setInspectingTrade(trade)}
           />
@@ -473,6 +497,8 @@ function AuthenticatedApp({ user }: { user: User }) {
         {currentTab === "wallets" && <WalletsView key={user.uid} trades={activeTrades} solPrice={solPrice} />}
 
         {currentTab === "statistics" && <StatisticsView key={user.uid} trades={activeTrades} solPrice={solPrice} />}
+
+        {currentTab === "research" && <ResearchView key={user.uid} userId={user.uid} trades={activeTrades} />}
 
         {currentTab === "ai-coach" && (
           <AiCoachView

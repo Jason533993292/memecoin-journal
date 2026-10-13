@@ -21,6 +21,8 @@ service cloud.firestore {
     //   Owner-only wallet labels, public Solana addresses, and tracked balances.
     // users/{uid}/walletTransactions/{transactionId}
     //   Owner-only immutable deposit/withdrawal history.
+    // users/{uid}/research/{contractAddress}
+    //   Owner-only token research/thesis workspace; bounded client payload.
     //
     // All other document paths are denied. The application currently stores
     // no screenshots in Firebase Storage; screenshots are small data URLs in
@@ -219,6 +221,43 @@ service cloud.firestore {
         && data.updatedAt >= 0 && data.updatedAt <= 10000000000000;
     }
 
+    function validResearch(data, contractAddress) {
+      return data.keys().hasOnly([
+          'ca', 'name', 'symbol', 'stage', 'thesis', 'bullCase', 'bearCase',
+          'catalysts', 'risks', 'invalidation', 'entryPlan', 'stopPlan',
+          'targetPlan', 'sizeSol', 'horizon', 'confidence', 'tags', 'sources',
+          'snapshots', 'decisions', 'updatedAt', 'createdAt'
+        ])
+        && data.keys().hasAll([
+          'ca', 'name', 'symbol', 'stage', 'thesis', 'bullCase', 'bearCase',
+          'catalysts', 'risks', 'invalidation', 'entryPlan', 'stopPlan',
+          'targetPlan', 'horizon', 'confidence', 'tags', 'sources',
+          'snapshots', 'decisions', 'updatedAt', 'createdAt'
+        ])
+        && data.ca == contractAddress
+        && validString(data, 'ca', 20, 128)
+        && validString(data, 'name', 1, 120)
+        && validString(data, 'symbol', 0, 40)
+        && data.stage in ['idea', 'researching', 'planned', 'active', 'invalidated', 'archived']
+        && validString(data, 'thesis', 0, 5000)
+        && validString(data, 'bullCase', 0, 3000)
+        && validString(data, 'bearCase', 0, 3000)
+        && validString(data, 'invalidation', 0, 2000)
+        && validString(data, 'entryPlan', 0, 2000)
+        && validString(data, 'stopPlan', 0, 1000)
+        && validString(data, 'targetPlan', 0, 1000)
+        && validString(data, 'horizon', 0, 80)
+        && data.confidence is int && data.confidence >= 0 && data.confidence <= 100
+        && validShortStringList(data.catalysts, 20, 500)
+        && validShortStringList(data.risks, 20, 500)
+        && validShortStringList(data.tags, 20, 80)
+        && validShortStringList(data.sources, 20, 500)
+        && data.snapshots is list && data.snapshots.size() <= 100
+        && data.decisions is list && data.decisions.size() <= 100
+        && validOptionalNumber(data, 'sizeSol', 0, 100000000)
+        && data.updatedAt is number && data.createdAt is number;
+    }
+
     match /users/{uid}/trades/{tradeId} {
       allow read, delete: if isOwner(uid);
       allow create: if isOwner(uid)
@@ -262,6 +301,12 @@ service cloud.firestore {
         && validWalletTransaction(request.resource.data, transactionId);
       // Transaction history is append-only. Corrections are delete-and-recreate.
       allow update: if false;
+    }
+
+    match /users/{uid}/research/{contractAddress} {
+      allow read, delete: if isOwner(uid);
+      allow create: if isOwner(uid) && validResearch(request.resource.data, contractAddress);
+      allow update: if isOwner(uid) && validResearch(request.resource.data, contractAddress);
     }
 
     // Default deny for user roots, undeclared subcollections, and all other data.

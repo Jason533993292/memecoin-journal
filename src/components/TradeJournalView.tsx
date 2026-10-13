@@ -28,6 +28,7 @@ interface TradeJournalViewProps {
   solPrice?: number;
   onOpenNewTrade: () => void;
   onTradeDeleted: () => void;
+  onUndoAvailable?: (trade: Trade) => void;
   onOpenEditTrade: (trade: Trade) => void;
   onSelectTrade: (trade: Trade) => void;
 }
@@ -37,6 +38,7 @@ export default function TradeJournalView({
   solPrice = 150,
   onOpenNewTrade,
   onTradeDeleted,
+  onUndoAvailable,
   onOpenEditTrade,
   onSelectTrade,
 }: TradeJournalViewProps) {
@@ -52,7 +54,6 @@ export default function TradeJournalView({
   const [viewMode, setViewMode] = useState<"table" | "cards">("cards");
   const [currencyMode, setCurrencyMode] = useState<"SOL" | "USD">("SOL");
   const [tradeToDelete, setTradeToDelete] = useState<string | null>(null);
-  const [deletedIds, setDeletedIds] = useState<string[]>([]);
 
   const [lightboxImage, setLightboxImage] = useState<{ url: string; title: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -92,24 +93,22 @@ export default function TradeJournalView({
     if (!tradeToDelete) return;
     const id = tradeToDelete;
     setTradeToDelete(null);
-    setDeletedIds((prev) => [...prev, id]);
+    const deletedTrade = trades.find((trade) => trade.id === id);
     
     try {
       const currentUser = auth.currentUser;
       if (!currentUser) throw new Error("Please sign in to delete this trade.");
       if (usesSupabaseJournal()) {
         await deleteSupabaseTrade(currentUser.uid, id);
-        showToast("Trade deleted from Supabase", "info");
       } else {
         const tradeDocRef = doc(db, "users", currentUser.uid, "trades", id);
         await deleteDoc(tradeDocRef);
-        showToast("Trade deleted from Firestore", "info");
       }
       onTradeDeleted();
+      if (deletedTrade) onUndoAvailable?.(deletedTrade);
     } catch (err) {
       console.error("Error deleting trade:", err);
       showToast("Failed to delete trade", "error");
-      setDeletedIds((prev) => prev.filter((pid) => pid !== id));
     }
   };
 
@@ -172,7 +171,6 @@ export default function TradeJournalView({
       : 0;
 
     return trades
-      .filter((trade) => !deletedIds.includes(trade.id))
       .filter((trade) => {
         const matchesSearch =
           trade.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -212,7 +210,7 @@ export default function TradeJournalView({
         if (sortBy === "size-desc") return (b.boughtSol || 0) - (a.boughtSol || 0);
         return 0;
       });
-  }, [trades, deletedIds, searchQuery, filterResult, filterWallet, filterSetup, filterMistake, dateRange, sortBy, now]);
+  }, [trades, searchQuery, filterResult, filterWallet, filterSetup, filterMistake, dateRange, sortBy, now]);
 
   const formatDuration = (mins?: number) => {
     if (!mins) return null;
@@ -889,7 +887,7 @@ export default function TradeJournalView({
             </div>
             <h3 className="text-base font-bold text-[#37352f] mb-1">Delete Trade?</h3>
             <p className="text-xs text-[#787774] mb-6">
-              This action cannot be undone. This trade will be permanently removed from your journal and analytics.
+              This removes the trade from your journal and analytics. You can restore it for 10 seconds using the confirmation toast.
             </p>
             <div className="flex items-center gap-2">
               <button

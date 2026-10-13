@@ -6,7 +6,7 @@ import { ToastMessage } from "../lib/types";
 
 interface ToastContextType {
   toasts: ToastMessage[];
-  showToast: (message: string, type?: "success" | "error" | "info", description?: string) => void;
+  showToast: (message: string, type?: "success" | "error" | "info", description?: string, action?: { label: string; onClick: () => void }) => void;
   removeToast: (id: string) => void;
 }
 
@@ -20,14 +20,14 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const showToast = useCallback(
-    (message: string, type: "success" | "error" | "info" = "success", description?: string) => {
+    (message: string, type: "success" | "error" | "info" = "success", description?: string, action?: { label: string; onClick: () => void }) => {
       const id = `${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-      const newToast: ToastMessage = { id, type, message, description };
+      const newToast: ToastMessage = { id, type, message, description, actionLabel: action?.label, onAction: action?.onClick };
       setToasts((prev) => [...prev, newToast]);
 
       setTimeout(() => {
         removeToast(id);
-      }, 3800);
+      }, action ? 10000 : 3800);
     },
     [removeToast]
   );
@@ -56,6 +56,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               <div className="font-semibold text-[#37352f]">{toast.message}</div>
               {toast.description && (
                 <div className="text-[11px] text-[#787774] mt-0.5 leading-normal">{toast.description}</div>
+              )}
+              {toast.actionLabel && toast.onAction && (
+                <button type="button" onClick={() => { toast.onAction?.(); removeToast(toast.id); }} className="mt-2 text-[11px] font-semibold text-[#176bbd] hover:underline">
+                  {toast.actionLabel}
+                </button>
               )}
             </div>
             <button

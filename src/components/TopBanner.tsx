@@ -11,6 +11,7 @@ import {
   Command,
   Sparkles,
   Plus,
+  Microscope,
 } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
@@ -51,6 +52,7 @@ export default function TopBanner({
     { id: "journal", label: "Journal", fullLabel: "Trade Journal", icon: BookOpen },
     { id: "wallets", label: "Wallets", fullLabel: "Wallets & Paychecks", icon: Wallet },
     { id: "statistics", label: "Analytics", fullLabel: "Statistics", icon: BarChart3 },
+    { id: "research", label: "Research", fullLabel: "Coin Research & Thesis", icon: Microscope },
     { id: "ai-coach", label: "AI Coach", fullLabel: "AI Trader Coach", icon: Bot },
   ];
 

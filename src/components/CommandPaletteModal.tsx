@@ -9,6 +9,7 @@ import {
   BarChart3,
   Bot,
   Plus,
+  Microscope,
 } from "lucide-react";
 import { Trade } from "../lib/types";
 
@@ -106,6 +107,16 @@ export default function CommandPaletteModal({
       run: () => {
         onClose();
         onNavigateTab("statistics");
+      },
+    },
+    {
+      id: "nav-research",
+      title: "Open Coin Research & Thesis",
+      category: "Research",
+      icon: Microscope,
+      run: () => {
+        onClose();
+        onNavigateTab("research");
       },
     },
     {

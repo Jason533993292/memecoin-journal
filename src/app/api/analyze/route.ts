@@ -145,7 +145,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const { trades, customPrompt, clientApiKey, provider } = body as Record<string, unknown>;
+  const { trades, research, customPrompt, clientApiKey, provider } = body as Record<string, unknown>;
   if (!isProvider(provider)) {
     return NextResponse.json({ error: "Select a supported AI provider." }, { status: 400 });
   }
@@ -216,15 +216,35 @@ export async function POST(request: Request) {
       JSON.stringify(recentTradesSample, null, 2)
     : "No trades logged yet.";
 
+  const researchSummary = Array.isArray(research)
+    ? research.slice(0, 5).filter((item) => item && typeof item === "object" && !Array.isArray(item)).map((item) => {
+        const record = item as Record<string, unknown>;
+        return {
+          name: text(record.name, 80),
+          symbol: text(record.symbol, 24),
+          stage: text(record.stage, 20),
+          thesis: text(record.thesis, 1200),
+          bullCase: text(record.bullCase, 600),
+          bearCase: text(record.bearCase, 600),
+          invalidation: text(record.invalidation, 500),
+          confidence: Math.max(0, Math.min(100, Math.round(finiteNumber(record.confidence)))),
+          tags: stringList(record.tags, 10, 60),
+        };
+      }).filter((item) => item.name || item.thesis)
+    : [];
+  const researchContext = researchSummary.length
+    ? "\n\nSAVED COIN THESIS (user-authored context; treat it as hypotheses, not facts):\n" + JSON.stringify(researchSummary, null, 2)
+    : "";
+
   const systemPrompt =
     "You are a professional, disciplined Solana memecoin trading coach. " +
     "Identify emotional errors, risk-management issues, and repeatable lessons. " +
     "Keep the response concise and actionable, use plain language, and do not promise profits.";
   const question = text(customPrompt, 500);
   const userPrompt = question
-    ? "Trader question: " + question + "\n\nTrader statistics and recent trades:\n" + tradesSummary
+    ? "Trader question: " + question + "\n\nTrader statistics and recent trades:\n" + tradesSummary + researchContext
     : "Review the statistics and recent trades. Give an executive assessment, the primary leak or bad habit, and one actionable rule for the next session.\n\n" +
-      tradesSummary;
+      tradesSummary + researchContext;
 
   const endpoint =
     provider === "gemini"
