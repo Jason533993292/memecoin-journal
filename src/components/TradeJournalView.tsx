@@ -524,6 +524,7 @@ export default function TradeJournalView({
                           {trade.name || trade.symbol}
                         </h3>
                         <span className="text-[10px] text-[#9b9a97]">${trade.symbol}</span>
+                        {(trade.venue || (trade.quoteCurrency && trade.quoteCurrency !== "SOL")) && <span className="block text-[9px] text-[#9b9a97]">{trade.venue || "Venue not set"} · {trade.quoteSymbol || trade.quoteCurrency}</span>}
                       </div>
                     </div>
 
@@ -711,6 +712,7 @@ export default function TradeJournalView({
                             ${trade.symbol}
                           </span>
                         </div>
+                        {(trade.venue || (trade.quoteCurrency && trade.quoteCurrency !== "SOL")) && <div className="ml-6 text-[9px] text-[#9b9a97]">{trade.venue || "Venue not set"} · {trade.quoteSymbol || trade.quoteCurrency}</div>}
                       </td>
 
                       {/* Setup Strategy */}

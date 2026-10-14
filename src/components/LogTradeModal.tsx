@@ -29,15 +29,13 @@ import {
   DURATION_PRESETS,
 } from "../lib/constants";
 import { compressImage } from "../lib/utils";
-import { buildTradeAmounts, calculateTradePnl, getTradeCreateValidationError, parseQuickTradePaste, reinterpretAmountForCurrency } from "../lib/tradeInput";
+import { getTradeCreateValidationError, parseQuickTradePaste, quoteAmountsToBase, defaultQuoteUsdRate, QUOTE_CURRENCIES, TRADING_VENUES } from "../lib/tradeInput";
 import { useAuth } from "../context/AuthContext";
 import { parseLocalStorageValue, useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
 import { lookupTokenMetadata } from "../lib/tokenLookupClient";
 import { saveSupabaseTrade, usesSupabaseJournal } from "../lib/journalBackend";
 
 // Re-export for backward compatibility
-export { DEFAULT_GOOD_TAGS, DEFAULT_MISTAKE_TAGS, COMMON_SETUPS, DURATION_PRESETS };
-
 interface LogTradeModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -91,12 +89,6 @@ export default function LogTradeModal({
   const [tradedAtInput, setTradedAtInput] = useState(() => toLocalDateTimeInput(Date.now()));
 
   // Financial fields
-  const [boughtSol, setBoughtSol] = useState(initialData?.boughtSol ? String(initialData.boughtSol) : "");
-  const [boughtUsd, setBoughtUsd] = useState(initialData?.boughtUsd ? String(initialData.boughtUsd) : "");
-  const [soldSol, setSoldSol] = useState(initialData?.soldSol ? String(initialData.soldSol) : "");
-  const [soldUsd, setSoldUsd] = useState(initialData?.soldUsd ? String(initialData.soldUsd) : "");
-  const [pnlSol, setPnlSol] = useState(initialData?.pnlSol ? String(initialData.pnlSol) : "");
-  const [pnlUsd, setPnlUsd] = useState(initialData?.pnlUsd ? String(initialData.pnlUsd) : "");
   const [initialRiskSol, setInitialRiskSol] = useState(initialData?.initialRiskSol ? String(initialData.initialRiskSol) : "");
   const [feesSol, setFeesSol] = useState(initialData?.feesSol ? String(initialData.feesSol) : "");
   const [stopPrice, setStopPrice] = useState(initialData?.stopPrice ? String(initialData.stopPrice) : "");
@@ -105,7 +97,14 @@ export default function LogTradeModal({
   const [entryMarketCapUsd, setEntryMarketCapUsd] = useState(initialData?.entryMarketCapUsd ? String(initialData.entryMarketCapUsd) : "");
   const [exitMarketCapUsd, setExitMarketCapUsd] = useState(initialData?.exitMarketCapUsd ? String(initialData.exitMarketCapUsd) : "");
   const [slippagePct, setSlippagePct] = useState(initialData?.slippagePct ? String(initialData.slippagePct) : "");
-  const [currencyMode, setCurrencyMode] = useState<"SOL" | "USD">("SOL");
+  const [quoteCurrency, setQuoteCurrency] = useState<Trade["quoteCurrency"]>(initialData?.quoteCurrency || "SOL");
+  const [quoteUsdRate, setQuoteUsdRate] = useState(String(initialData?.quoteUsdRate ?? (initialData?.quoteCurrency === "SOL" ? initialData.solUsdRate : undefined) ?? (defaultQuoteUsdRate(initialData?.quoteCurrency || "SOL", solPrice) || "")));
+  const [venue, setVenue] = useState(initialData?.venue || "");
+  const [otherQuoteSymbol, setOtherQuoteSymbol] = useState(initialData?.quoteCurrency === "OTHER" ? initialData.quoteSymbol || "" : "");
+  const [otherVenue, setOtherVenue] = useState("");
+  const [boughtQuote, setBoughtQuote] = useState(initialData?.boughtQuote != null ? String(initialData.boughtQuote) : initialData?.boughtSol != null ? String(initialData.boughtSol) : "");
+  const [soldQuote, setSoldQuote] = useState(initialData?.soldQuote != null ? String(initialData.soldQuote) : initialData?.soldSol != null ? String(initialData.soldSol) : "");
+  const [pnlQuote, setPnlQuote] = useState(initialData?.pnlQuote != null ? String(initialData.pnlQuote) : initialData?.pnlSol != null ? String(initialData.pnlSol) : "");
 
   // Screenshot / Chart attachment
   const [screenshotUrl, setScreenshotUrl] = useState<string>("");
@@ -134,11 +133,7 @@ export default function LogTradeModal({
     setQuickPaste(value);
     const parsed = parseQuickTradePaste(value);
     if (parsed.contractAddress) setCa(parsed.contractAddress);
-    if (parsed.bought) handleBoughtChange(parsed.bought, true);
-    if (parsed.sold) handleSoldChange(parsed.sold, true);
-    if (parsed.bought && parsed.sold) {
-      recalculatePnl(Number(parsed.bought), Number(parsed.sold));
-    }
+    if (parsed.bought && parsed.sold) syncQuoteAmounts(parsed.bought, parsed.sold, String(Number(parsed.sold) - Number(parsed.bought)));
   };
 
   const attachImage = useCallback(async (rawUrl: string) => {
@@ -255,106 +250,19 @@ export default function LogTradeModal({
     }
   };
 
-  const recalculatePnl = (inSol: number, outSol: number) => {
-    const pnl = calculateTradePnl(inSol, outSol, solPrice);
-    if (!pnl) return;
-    setPnlSol(pnl.pnlSol);
-    setPnlUsd(pnl.pnlUsd);
-    setResult(pnl.result);
-  };
-
-  const switchCurrencyMode = (newMode: "SOL" | "USD") => {
-    if (newMode === currencyMode) return;
-    if (newMode === "USD" && solPrice <= 0) {
-      showToast("Live SOL price is unavailable", "info", "Try again in a moment before entering amounts in USD.");
-      return;
-    }
-
-    const visibleBought = currencyMode === "SOL" ? boughtSol : boughtUsd;
-    const visibleSold = currencyMode === "SOL" ? soldSol : soldUsd;
-    const visiblePnl = currencyMode === "SOL" ? pnlSol : pnlUsd;
-    const nextBought = reinterpretAmountForCurrency(visibleBought, newMode, solPrice);
-    const nextSold = reinterpretAmountForCurrency(visibleSold, newMode, solPrice);
-    const nextPnl = reinterpretAmountForCurrency(visiblePnl, newMode, solPrice);
-
-    setBoughtSol(nextBought.sol);
-    setBoughtUsd(nextBought.usd);
-    setSoldSol(nextSold.sol);
-    setSoldUsd(nextSold.usd);
-    setPnlSol(nextPnl.sol);
-    setPnlUsd(nextPnl.usd);
-
-    setCurrencyMode(newMode);
-  };
-
-  const handleBoughtChange = (val: string, isSol: boolean) => {
-    if (!isSol && solPrice <= 0) return;
-    const num = parseFloat(val);
-    if (isSol) {
-      setBoughtSol(val);
-      if (!isNaN(num)) {
-        setBoughtUsd(solPrice > 0 ? (num * solPrice).toFixed(2) : "");
-        if (soldSol) recalculatePnl(num, parseFloat(soldSol) || 0);
-      } else {
-        setBoughtUsd("");
-      }
-    } else {
-      setBoughtUsd(val);
-      if (!isNaN(num)) {
-        const solVal = (num / solPrice).toFixed(3);
-        setBoughtSol(solVal);
-        if (soldSol || soldUsd) recalculatePnl(parseFloat(solVal), parseFloat(soldSol) || 0);
-      } else {
-        setBoughtSol("");
-      }
-    }
-  };
-
-  const handleSoldChange = (val: string, isSol: boolean) => {
-    if (!isSol && solPrice <= 0) return;
-    const num = parseFloat(val);
-    if (isSol) {
-      setSoldSol(val);
-      if (!isNaN(num)) {
-        setSoldUsd(solPrice > 0 ? (num * solPrice).toFixed(2) : "");
-        if (boughtSol) recalculatePnl(parseFloat(boughtSol) || 0, num);
-      } else {
-        setSoldUsd("");
-      }
-    } else {
-      setSoldUsd(val);
-      if (!isNaN(num)) {
-        const solVal = (num / solPrice).toFixed(3);
-        setSoldSol(solVal);
-        if (boughtSol || boughtUsd) recalculatePnl(parseFloat(boughtSol) || 0, parseFloat(solVal));
-      } else {
-        setSoldSol("");
-      }
-    }
-  };
-
-  const handlePnlChange = (val: string, isSol: boolean) => {
-    if (!isSol && solPrice <= 0) return;
-    const num = parseFloat(val);
-    if (isSol) {
-      setPnlSol(val);
-      if (!isNaN(num)) {
-        setPnlUsd(solPrice > 0 ? (num * solPrice).toFixed(2) : "");
-        if (num > 0.005) setResult("Win");
-        else if (num < -0.005) setResult("Loss");
-        else setResult("BE");
-      } else setPnlUsd("");
-    } else {
-      setPnlUsd(val);
-      if (!isNaN(num)) {
-        const solVal = (num / solPrice).toFixed(3);
-        setPnlSol(solVal);
-        const sNum = parseFloat(solVal);
-        if (sNum > 0.005) setResult("Win");
-        else if (sNum < -0.005) setResult("Loss");
-        else setResult("BE");
-      } else setPnlSol("");
-    }
+  const solUsdRateAtTrade = initialData?.solUsdRate ?? solPrice;
+  const activeQuoteRate = quoteCurrency === "SOL"
+    ? Number(quoteUsdRate || solUsdRateAtTrade)
+    : Number(quoteUsdRate || defaultQuoteUsdRate(quoteCurrency || "SOL", solPrice));
+  const syncQuoteAmounts = (bought: string, sold: string, pnl: string) => {
+    setBoughtQuote(bought); setSoldQuote(sold); setPnlQuote(pnl);
+    if (!bought.trim() || !pnl.trim()) return;
+    const boughtValue = Number(bought);
+    const pnlValue = Number(pnl);
+    const soldValue = sold.trim() ? Number(sold) : boughtValue + pnlValue;
+    if (![boughtValue, pnlValue, soldValue, activeQuoteRate, solUsdRateAtTrade].every(Number.isFinite) || activeQuoteRate <= 0 || solUsdRateAtTrade <= 0) return;
+    const base = quoteAmountsToBase({ bought: boughtValue, sold: soldValue, pnl: pnlValue, quoteUsdRate: activeQuoteRate, solPrice: solUsdRateAtTrade });
+    setResult(base.pnlSol > 0.005 ? "Win" : base.pnlSol < -0.005 ? "Loss" : "BE");
   };
 
   // Image Upload / Drag & Drop Handler with compression
@@ -454,23 +362,11 @@ export default function LogTradeModal({
 
     setSaving(true);
     try {
-      const amounts = buildTradeAmounts({
-        boughtSol,
-        soldSol,
-        pnlSol,
-        boughtUsd,
-        soldUsd,
-        pnlUsd,
-        solPrice,
-      });
-      const { parsedPnlSol, parsedPnlUsd, parsedBoughtSol, parsedBoughtUsd, parsedSoldSol, parsedSoldUsd } = {
-        parsedPnlSol: amounts.pnlSol,
-        parsedPnlUsd: amounts.pnlUsd,
-        parsedBoughtSol: amounts.boughtSol,
-        parsedBoughtUsd: amounts.boughtUsd,
-        parsedSoldSol: amounts.soldSol,
-        parsedSoldUsd: amounts.soldUsd,
-      };
+      const rawBought = Number(boughtQuote);
+      const rawPnl = Number(pnlQuote);
+      const rawSold = Number(soldQuote || (rawBought + rawPnl));
+      if (quoteCurrency === "OTHER" && !otherQuoteSymbol.trim()) throw new RangeError("Enter the ticker for your other quote currency.");
+      const quoteBase = quoteAmountsToBase({ bought: rawBought, sold: rawSold, pnl: rawPnl, quoteUsdRate: activeQuoteRate, solPrice: solUsdRateAtTrade });
       const parsedInitialRiskSol = parseFloat(initialRiskSol) || null;
       const parsedFeesSol = parseFloat(feesSol) || null;
       const parsedStopPrice = parseFloat(stopPrice) || null;
@@ -498,12 +394,19 @@ export default function LogTradeModal({
         mcap: tokenData?.marketCap || 0,
         liquidity: tokenData?.liquidity || 0,
         price: parseFloat(tokenData?.priceUsd || "0") || 0,
-        boughtSol: parsedBoughtSol,
-        boughtUsd: parsedBoughtUsd,
-        soldSol: parsedSoldSol,
-        soldUsd: parsedSoldUsd,
-        pnlSol: parsedPnlSol,
-        pnlUsd: parsedPnlUsd,
+        boughtSol: quoteBase.boughtSol,
+        boughtUsd: quoteBase.boughtUsd,
+        soldSol: quoteBase.soldSol,
+        soldUsd: quoteBase.soldUsd,
+        pnlSol: quoteBase.pnlSol,
+        pnlUsd: quoteBase.pnlUsd,
+        quoteCurrency: quoteCurrency || "SOL",
+        quoteSymbol: quoteCurrency === "OTHER" ? otherQuoteSymbol.trim().toUpperCase() : quoteCurrency,
+        boughtQuote: rawBought,
+        soldQuote: rawSold,
+        pnlQuote: rawPnl,
+        quoteUsdRate: activeQuoteRate,
+        venue: venue === "Other" ? otherVenue.trim().slice(0, 80) || "Other" : venue,
         initialRiskSol: parsedInitialRiskSol,
         feesSol: parsedFeesSol,
         stopPrice: parsedStopPrice,
@@ -514,7 +417,7 @@ export default function LogTradeModal({
         slippagePct: parsedSlippage,
         entryTimezoneOffset: new Date().getTimezoneOffset(),
         tradedAt,
-        solUsdRate: solPrice > 0 ? solPrice : null,
+        solUsdRate: solUsdRateAtTrade > 0 ? solUsdRateAtTrade : null,
         solUsdRateSource: solPrice > 0 ? "live-at-entry" : "unknown",
         tradeMode: wallet === "Paper" ? "paper" : "real",
         goodTags: selectedGoodTags,
@@ -536,7 +439,7 @@ export default function LogTradeModal({
       showToast(
         "Trade saved to Cloud",
         "success",
-        `${tokenData?.name || "Token"} logged (${parsedPnlSol >= 0 ? "+" : ""}${parsedPnlSol} SOL)`
+        `${tokenData?.name || "Token"} logged (${quoteBase.pnlSol >= 0 ? "+" : ""}${quoteBase.pnlSol.toFixed(3)} SOL)`
       );
       onTradeLogged();
       onClose();
@@ -821,44 +724,23 @@ export default function LogTradeModal({
             <div className="space-y-3 p-3.5 bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl">
               <div className="flex items-center justify-between">
                 <span className="font-semibold text-xs text-[#37352f]">Financial Metrics</span>
-                <div className="flex items-center gap-0.5 bg-[#f1f1ef] p-0.5 rounded-md text-[11px]">
-                  <button
-                    type="button"
-                    onClick={() => switchCurrencyMode("SOL")}
-                    className={`px-2 py-0.5 rounded font-medium transition-all ${
-                      currencyMode === "SOL"
-                        ? "bg-white text-[#37352f] shadow-xs font-semibold"
-                        : "text-[#787774]"
-                    }`}
-                  >
-                    SOL
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => switchCurrencyMode("USD")}
-                    className={`px-2 py-0.5 rounded font-medium transition-all ${
-                      currencyMode === "USD"
-                        ? "bg-white text-[#37352f] shadow-xs font-semibold"
-                        : "text-[#787774]"
-                    }`}
-                  >
-                    USD ($)
-                  </button>
-                </div>
+                <select aria-label="Trade quote currency" value={quoteCurrency || "SOL"} onChange={(e) => { const currency = e.target.value as NonNullable<Trade["quoteCurrency"]>; setQuoteCurrency(currency); const rate = currency === "SOL" ? initialData?.solUsdRate || solPrice : defaultQuoteUsdRate(currency, solPrice); setQuoteUsdRate(rate ? String(rate) : ""); }} className="rounded-md border border-[#e3e2de] bg-white px-2 py-1 text-xs">
+                  {QUOTE_CURRENCIES.map((currency) => <option key={currency} value={currency}>{currency}</option>)}
+                </select>
               </div>
 
               <div className="grid grid-cols-3 gap-2 sm:gap-3">
                 <div>
                   <label className="block font-medium text-[#787774] mb-1">
-                    Bought ({currencyMode})
+                    Bought ({quoteCurrency})
                   </label>
                   <input
                     type="number"
                     step="any"
-                    value={currencyMode === "SOL" ? boughtSol : boughtUsd}
-                    onChange={(e) => handleBoughtChange(e.target.value, currencyMode === "SOL")}
+                    value={boughtQuote}
+                    onChange={(e) => { const nextBought = e.target.value; const nextPnl = soldQuote && nextBought ? String(Number(soldQuote) - Number(nextBought)) : pnlQuote; syncQuoteAmounts(nextBought, soldQuote, nextPnl); }}
                     onWheel={(e) => e.currentTarget.blur()}
-                    placeholder={currencyMode === "SOL" ? "0.5 SOL" : "$75"}
+                    placeholder={`Amount in ${quoteCurrency}`}
                     className="w-full bg-white border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2] font-mono"
                     required
                   />
@@ -866,31 +748,31 @@ export default function LogTradeModal({
 
                 <div>
                   <label className="block font-medium text-[#787774] mb-1">
-                    Sold ({currencyMode})
+                    Sold ({quoteCurrency})
                   </label>
                   <input
                     type="number"
                     step="any"
-                    value={currencyMode === "SOL" ? soldSol : soldUsd}
-                    onChange={(e) => handleSoldChange(e.target.value, currencyMode === "SOL")}
+                    value={soldQuote}
+                    onChange={(e) => { const nextSold = e.target.value; const nextPnl = boughtQuote && nextSold ? String(Number(nextSold) - Number(boughtQuote)) : pnlQuote; syncQuoteAmounts(boughtQuote, nextSold, nextPnl); }}
                     onWheel={(e) => e.currentTarget.blur()}
-                    placeholder={currencyMode === "SOL" ? "1.2 SOL" : "$180"}
+                    placeholder={`Amount in ${quoteCurrency}`}
                     className="w-full bg-white border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2] font-mono"
                   />
                 </div>
 
                 <div>
                   <label className="block font-medium text-[#787774] mb-1">
-                    Net P&L ({currencyMode})
+                    Net P&L ({quoteCurrency})
                   </label>
                   <input
                     type="number"
                     step="any"
-                    value={currencyMode === "SOL" ? pnlSol : pnlUsd}
-                    onChange={(e) => handlePnlChange(e.target.value, currencyMode === "SOL")}
-                    placeholder={currencyMode === "SOL" ? "+0.70 SOL" : "+$105"}
+                    value={pnlQuote}
+                    onChange={(e) => syncQuoteAmounts(boughtQuote, soldQuote, e.target.value)}
+                    placeholder={`Net amount in ${quoteCurrency}`}
                     className={`w-full bg-white border rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold focus:outline-none ${
-                      (parseFloat(pnlSol) || 0) >= 0
+                      (parseFloat(pnlQuote) || 0) >= 0
                         ? "text-emerald-700 border-emerald-300 focus:border-emerald-500"
                         : "text-rose-700 border-rose-300 focus:border-rose-500"
                     }`}
@@ -898,6 +780,17 @@ export default function LogTradeModal({
                   />
                 </div>
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="text-[11px] text-[#787774]">Trading venue
+                  <select value={venue} onChange={(e) => setVenue(e.target.value)} className="mt-1 w-full rounded-lg border border-[#e3e2de] bg-white px-2.5 py-2 text-xs text-[#37352f]"><option value="">Select venue (optional)</option>{venue && !TRADING_VENUES.some((item) => item === venue) && <option value={venue}>{venue}</option>}{TRADING_VENUES.map((item) => <option key={item}>{item}</option>)}</select>
+                  {venue === "Other" && <input aria-label="Other trading venue" maxLength={80} value={otherVenue} onChange={(e) => setOtherVenue(e.target.value)} placeholder="Enter venue" className="mt-2 w-full rounded-lg border border-[#e3e2de] bg-white px-2.5 py-2 text-xs text-[#37352f]" />}
+                </label>
+                <label className="text-[11px] text-[#787774]">USD value of 1 {quoteCurrency}
+                  <input type="number" min="0" step="any" value={quoteUsdRate} onChange={(e) => setQuoteUsdRate(e.target.value)} disabled={["SOL", "USD", "USDC", "USDT"].includes(quoteCurrency || "SOL")} className="mt-1 w-full rounded-lg border border-[#e3e2de] bg-white px-2.5 py-2 text-xs text-[#37352f] disabled:bg-neutral-100" />
+                  {quoteCurrency === "OTHER" && <input aria-label="Other currency ticker" maxLength={12} value={otherQuoteSymbol} onChange={(e) => setOtherQuoteSymbol(e.target.value)} placeholder="Currency ticker" className="mt-2 w-full rounded-lg border border-[#e3e2de] bg-white px-2.5 py-2 text-xs text-[#37352f]" />}
+                </label>
+              </div>
+              <p className="text-[10px] text-[#787774]">Totals stay comparable in SOL/USD. For ETH, BTC, EUR, GBP, or Other, enter the USD exchange rate at the time of the trade. Changing currency keeps your entered amount unchanged.</p>
             </div>
 
             {/* Advanced Metrics Accordion */}

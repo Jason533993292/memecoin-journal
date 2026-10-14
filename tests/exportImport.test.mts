@@ -68,6 +68,13 @@ test("JSON backup round-trips every supported trade field without changing its d
     solUsdRate: 90,
     solUsdRateSource: "live-at-entry" as const,
     tradeMode: "real" as const,
+    quoteCurrency: "ETH" as const,
+    quoteSymbol: "ETH",
+    boughtQuote: 1,
+    soldQuote: 1.5,
+    pnlQuote: 0.5,
+    quoteUsdRate: 2500,
+    venue: "Robinhood",
     createdAt: Date.parse("2024-02-03T10:21:00.000Z"),
   };
 

@@ -18,7 +18,7 @@ import { Trade } from "../lib/types";
 import { useToast } from "./Toast";
 import { COMMON_SETUPS, DURATION_PRESETS, DEFAULT_GOOD_TAGS, DEFAULT_MISTAKE_TAGS } from "../lib/constants";
 import { compressImage, getTradeTimestamp } from "../lib/utils";
-import { buildTradeAmounts, getTradeCreateValidationError, reinterpretAmountForCurrency } from "../lib/tradeInput";
+import { getTradeCreateValidationError, quoteAmountsToBase, defaultQuoteUsdRate, QUOTE_CURRENCIES, TRADING_VENUES } from "../lib/tradeInput";
 import { saveSupabaseTrade, usesSupabaseJournal } from "../lib/journalBackend";
 
 interface EditTradeModalProps {
@@ -63,30 +63,6 @@ export default function EditTradeModal({
   const [tradedAtInput, setTradedAtInput] = useState(() => toLocalDateTimeInput(trade ? getTradeTimestamp(trade) : Date.now()));
   const [screenshotUrl, setScreenshotUrl] = useState<string>(trade?.screenshotUrl || "");
 
-  const [boughtSol, setBoughtSol] = useState(trade?.boughtSol != null ? String(trade.boughtSol) : "");
-  const [boughtUsd, setBoughtUsd] = useState(
-    trade?.boughtUsd != null
-      ? String(trade.boughtUsd)
-      : trade?.boughtSol != null && solPrice > 0
-        ? (trade.boughtSol * solPrice).toFixed(2)
-        : ""
-  );
-  const [soldSol, setSoldSol] = useState(trade?.soldSol != null ? String(trade.soldSol) : "");
-  const [soldUsd, setSoldUsd] = useState(
-    trade?.soldUsd != null
-      ? String(trade.soldUsd)
-      : trade?.soldSol != null && solPrice > 0
-        ? (trade.soldSol * solPrice).toFixed(2)
-        : ""
-  );
-  const [pnlSol, setPnlSol] = useState(trade?.pnlSol != null ? String(trade.pnlSol) : "");
-  const [pnlUsd, setPnlUsd] = useState(
-    trade?.pnlUsd != null
-      ? String(trade.pnlUsd)
-      : trade?.pnlSol != null && solPrice > 0
-        ? (trade.pnlSol * solPrice).toFixed(2)
-        : ""
-  );
   const [initialRiskSol, setInitialRiskSol] = useState(trade?.initialRiskSol != null ? String(trade.initialRiskSol) : "");
   const [feesSol, setFeesSol] = useState(trade?.feesSol != null ? String(trade.feesSol) : "");
   const [stopPrice, setStopPrice] = useState(trade?.stopPrice != null ? String(trade.stopPrice) : "");
@@ -95,7 +71,14 @@ export default function EditTradeModal({
   const [entryMarketCapUsd, setEntryMarketCapUsd] = useState(trade?.entryMarketCapUsd != null ? String(trade.entryMarketCapUsd) : "");
   const [exitMarketCapUsd, setExitMarketCapUsd] = useState(trade?.exitMarketCapUsd != null ? String(trade.exitMarketCapUsd) : "");
   const [slippagePct, setSlippagePct] = useState(trade?.slippagePct != null ? String(trade.slippagePct) : "");
-  const [currencyMode, setCurrencyMode] = useState<"SOL" | "USD">("SOL");
+  const [quoteCurrency, setQuoteCurrency] = useState<Trade["quoteCurrency"]>(trade?.quoteCurrency || "SOL");
+  const [quoteUsdRate, setQuoteUsdRate] = useState(String(trade?.quoteUsdRate ?? (trade?.quoteCurrency === "SOL" ? trade.solUsdRate : undefined) ?? (defaultQuoteUsdRate(trade?.quoteCurrency || "SOL", solPrice) || "")));
+  const [venue, setVenue] = useState(trade?.venue || "");
+  const [otherQuoteSymbol, setOtherQuoteSymbol] = useState(trade?.quoteCurrency === "OTHER" ? trade.quoteSymbol || "" : "");
+  const [otherVenue, setOtherVenue] = useState("");
+  const [boughtQuote, setBoughtQuote] = useState(trade?.boughtQuote != null ? String(trade.boughtQuote) : trade?.boughtSol != null ? String(trade.boughtSol) : "");
+  const [soldQuote, setSoldQuote] = useState(trade?.soldQuote != null ? String(trade.soldQuote) : trade?.soldSol != null ? String(trade.soldSol) : "");
+  const [pnlQuote, setPnlQuote] = useState(trade?.pnlQuote != null ? String(trade.pnlQuote) : trade?.pnlSol != null ? String(trade.pnlSol) : "");
 
   const [selectedMistakes, setSelectedMistakes] = useState<string[]>(trade?.mistakes || []);
   const [selectedGoodTags, setSelectedGoodTags] = useState<string[]>(trade?.goodTags || []);
@@ -178,112 +161,19 @@ export default function EditTradeModal({
     reader.readAsDataURL(file);
   };
 
-  const recalculatePnl = (inSol: number, outSol: number) => {
-    if (!isNaN(inSol) && !isNaN(outSol) && inSol > 0 && outSol >= 0) {
-      const diffSol = outSol - inSol;
-      const diffUsd = diffSol * solPrice;
-
-      setPnlSol(diffSol.toFixed(3));
-      setPnlUsd(diffUsd.toFixed(2));
-
-      if (diffSol > 0.005) setResult("Win");
-      else if (diffSol < -0.005) setResult("Loss");
-      else setResult("BE");
-    }
-  };
-
-  const switchCurrencyMode = (newMode: "SOL" | "USD") => {
-    if (newMode === currencyMode) return;
-    if (newMode === "USD" && solPrice <= 0) {
-      showToast("Live SOL price is unavailable", "info", "Try again in a moment before entering amounts in USD.");
-      return;
-    }
-
-    const visibleBought = currencyMode === "SOL" ? boughtSol : boughtUsd;
-    const visibleSold = currencyMode === "SOL" ? soldSol : soldUsd;
-    const visiblePnl = currencyMode === "SOL" ? pnlSol : pnlUsd;
-    const nextBought = reinterpretAmountForCurrency(visibleBought, newMode, solPrice);
-    const nextSold = reinterpretAmountForCurrency(visibleSold, newMode, solPrice);
-    const nextPnl = reinterpretAmountForCurrency(visiblePnl, newMode, solPrice);
-
-    setBoughtSol(nextBought.sol);
-    setBoughtUsd(nextBought.usd);
-    setSoldSol(nextSold.sol);
-    setSoldUsd(nextSold.usd);
-    setPnlSol(nextPnl.sol);
-    setPnlUsd(nextPnl.usd);
-
-    setCurrencyMode(newMode);
-  };
-
-  const handleBoughtChange = (val: string, isSol: boolean) => {
-    if (!isSol && solPrice <= 0) return;
-    const num = parseFloat(val);
-    if (isSol) {
-      setBoughtSol(val);
-      if (!isNaN(num)) {
-        setBoughtUsd(solPrice > 0 ? (num * solPrice).toFixed(2) : "");
-        if (soldSol) recalculatePnl(num, parseFloat(soldSol) || 0);
-      } else {
-        setBoughtUsd("");
-      }
-    } else {
-      setBoughtUsd(val);
-      if (!isNaN(num)) {
-        const solVal = (num / solPrice).toFixed(3);
-        setBoughtSol(solVal);
-        if (soldSol || soldUsd) recalculatePnl(parseFloat(solVal), parseFloat(soldSol) || 0);
-      } else {
-        setBoughtSol("");
-      }
-    }
-  };
-
-  const handleSoldChange = (val: string, isSol: boolean) => {
-    if (!isSol && solPrice <= 0) return;
-    const num = parseFloat(val);
-    if (isSol) {
-      setSoldSol(val);
-      if (!isNaN(num)) {
-        setSoldUsd(solPrice > 0 ? (num * solPrice).toFixed(2) : "");
-        if (boughtSol) recalculatePnl(parseFloat(boughtSol) || 0, num);
-      } else {
-        setSoldUsd("");
-      }
-    } else {
-      setSoldUsd(val);
-      if (!isNaN(num)) {
-        const solVal = (num / solPrice).toFixed(3);
-        setSoldSol(solVal);
-        if (boughtSol || boughtUsd) recalculatePnl(parseFloat(boughtSol) || 0, parseFloat(solVal));
-      } else {
-        setSoldSol("");
-      }
-    }
-  };
-
-  const handlePnlChange = (val: string, isSol: boolean) => {
-    if (!isSol && solPrice <= 0) return;
-    const num = parseFloat(val);
-    if (isSol) {
-      setPnlSol(val);
-      if (!isNaN(num)) {
-        setPnlUsd(solPrice > 0 ? (num * solPrice).toFixed(2) : "");
-        if (num > 0.005) setResult("Win");
-        else if (num < -0.005) setResult("Loss");
-        else setResult("BE");
-      } else setPnlUsd("");
-    } else {
-      setPnlUsd(val);
-      if (!isNaN(num)) {
-        const solVal = (num / solPrice).toFixed(3);
-        setPnlSol(solVal);
-        const sNum = parseFloat(solVal);
-        if (sNum > 0.005) setResult("Win");
-        else if (sNum < -0.005) setResult("Loss");
-        else setResult("BE");
-      } else setPnlSol("");
-    }
+  const solUsdRateAtTrade = trade?.solUsdRate ?? solPrice;
+  const activeQuoteRate = quoteCurrency === "SOL"
+    ? Number(quoteUsdRate || solUsdRateAtTrade)
+    : Number(quoteUsdRate || defaultQuoteUsdRate(quoteCurrency || "SOL", solPrice));
+  const syncQuoteAmounts = (bought: string, sold: string, pnl: string) => {
+    setBoughtQuote(bought); setSoldQuote(sold); setPnlQuote(pnl);
+    if (!bought.trim() || !pnl.trim()) return;
+    const boughtValue = Number(bought);
+    const pnlValue = Number(pnl);
+    const soldValue = sold.trim() ? Number(sold) : boughtValue + pnlValue;
+    if (![boughtValue, pnlValue, soldValue, activeQuoteRate, solUsdRateAtTrade].every(Number.isFinite) || activeQuoteRate <= 0 || solUsdRateAtTrade <= 0) return;
+    const base = quoteAmountsToBase({ bought: boughtValue, sold: soldValue, pnl: pnlValue, quoteUsdRate: activeQuoteRate, solPrice: solUsdRateAtTrade });
+    setResult(base.pnlSol > 0.005 ? "Win" : base.pnlSol < -0.005 ? "Loss" : "BE");
   };
 
   const toggleGoodTag = (tag: string) => {
@@ -311,23 +201,11 @@ export default function EditTradeModal({
     if (!trade) return;
     setSaving(true);
     try {
-      const amounts = buildTradeAmounts({
-        boughtSol,
-        soldSol,
-        pnlSol,
-        boughtUsd,
-        soldUsd,
-        pnlUsd,
-        solPrice,
-      });
-      const { parsedPnlSol, parsedPnlUsd, parsedBoughtSol, parsedBoughtUsd, parsedSoldSol, parsedSoldUsd } = {
-        parsedPnlSol: amounts.pnlSol,
-        parsedPnlUsd: amounts.pnlUsd,
-        parsedBoughtSol: amounts.boughtSol,
-        parsedBoughtUsd: amounts.boughtUsd,
-        parsedSoldSol: amounts.soldSol,
-        parsedSoldUsd: amounts.soldUsd,
-      };
+      const rawBought = Number(boughtQuote);
+      const rawPnl = Number(pnlQuote);
+      const rawSold = Number(soldQuote || (rawBought + rawPnl));
+      if (quoteCurrency === "OTHER" && !otherQuoteSymbol.trim()) throw new RangeError("Enter the ticker for your other quote currency.");
+      const quoteBase = quoteAmountsToBase({ bought: rawBought, sold: rawSold, pnl: rawPnl, quoteUsdRate: activeQuoteRate, solPrice: solUsdRateAtTrade });
       const parsedInitialRiskSol = parseFloat(initialRiskSol) || null;
       const parsedFeesSol = parseFloat(feesSol) || null;
       const parsedStopPrice = parseFloat(stopPrice) || null;
@@ -357,12 +235,19 @@ export default function EditTradeModal({
         mcap: mcap || 0,
         liquidity: liquidity || 0,
         price: price || 0,
-        boughtSol: parsedBoughtSol,
-        boughtUsd: parsedBoughtUsd,
-        soldSol: parsedSoldSol,
-        soldUsd: parsedSoldUsd,
-        pnlSol: parsedPnlSol,
-        pnlUsd: parsedPnlUsd,
+        boughtSol: quoteBase.boughtSol,
+        boughtUsd: quoteBase.boughtUsd,
+        soldSol: quoteBase.soldSol,
+        soldUsd: quoteBase.soldUsd,
+        pnlSol: quoteBase.pnlSol,
+        pnlUsd: quoteBase.pnlUsd,
+        quoteCurrency: quoteCurrency || "SOL",
+        quoteSymbol: quoteCurrency === "OTHER" ? otherQuoteSymbol.trim().toUpperCase() : quoteCurrency,
+        boughtQuote: rawBought,
+        soldQuote: rawSold,
+        pnlQuote: rawPnl,
+        quoteUsdRate: activeQuoteRate,
+        venue: venue === "Other" ? otherVenue.trim().slice(0, 80) || "Other" : venue,
         initialRiskSol: parsedInitialRiskSol,
         feesSol: parsedFeesSol,
         stopPrice: parsedStopPrice,
@@ -373,7 +258,7 @@ export default function EditTradeModal({
         slippagePct: parsedSlippage,
         tradedAt,
         date: Timestamp.fromMillis(tradedAt),
-        solUsdRate: trade.solUsdRate ?? (solPrice > 0 ? solPrice : null),
+        solUsdRate: solUsdRateAtTrade > 0 ? solUsdRateAtTrade : null,
         solUsdRateSource: trade.solUsdRateSource ?? (solPrice > 0 ? "live-at-entry" : "unknown"),
         tradeMode: wallet === "Paper" ? "paper" : "real",
         goodTags: selectedGoodTags,
@@ -616,42 +501,21 @@ export default function EditTradeModal({
           <div className="space-y-3 p-3.5 bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl">
             <div className="flex items-center justify-between">
               <span className="font-semibold text-xs text-[#37352f]">Financial Metrics</span>
-              <div className="flex items-center gap-0.5 bg-[#f1f1ef] p-0.5 rounded-md text-[11px]">
-                <button
-                  type="button"
-                  onClick={() => switchCurrencyMode("SOL")}
-                  className={`px-2 py-0.5 rounded font-medium transition-all ${
-                    currencyMode === "SOL"
-                      ? "bg-white text-[#37352f] shadow-xs font-semibold"
-                      : "text-[#787774]"
-                  }`}
-                >
-                  SOL
-                </button>
-                <button
-                  type="button"
-                  onClick={() => switchCurrencyMode("USD")}
-                  className={`px-2 py-0.5 rounded font-medium transition-all ${
-                    currencyMode === "USD"
-                      ? "bg-white text-[#37352f] shadow-xs font-semibold"
-                      : "text-[#787774]"
-                  }`}
-                >
-                  USD ($)
-                </button>
-              </div>
+              <select aria-label="Trade quote currency" value={quoteCurrency || "SOL"} onChange={(e) => { const currency = e.target.value as NonNullable<Trade["quoteCurrency"]>; setQuoteCurrency(currency); const rate = currency === "SOL" ? trade?.solUsdRate || solPrice : defaultQuoteUsdRate(currency, solPrice); setQuoteUsdRate(rate ? String(rate) : ""); }} className="rounded-md border border-[#e3e2de] bg-white px-2 py-1 text-xs">
+                {QUOTE_CURRENCIES.map((currency) => <option key={currency} value={currency}>{currency}</option>)}
+              </select>
             </div>
 
             <div className="grid grid-cols-3 gap-2 sm:gap-3">
               <div>
                 <label className="block font-medium text-[#787774] mb-1">
-                  Bought ({currencyMode})
+                  Bought ({quoteCurrency})
                 </label>
                 <input
                   type="number"
                   step="any"
-                  value={currencyMode === "SOL" ? boughtSol : boughtUsd}
-                  onChange={(e) => handleBoughtChange(e.target.value, currencyMode === "SOL")}
+                  value={boughtQuote}
+                  onChange={(e) => { const nextBought = e.target.value; const nextPnl = soldQuote && nextBought ? String(Number(soldQuote) - Number(nextBought)) : pnlQuote; syncQuoteAmounts(nextBought, soldQuote, nextPnl); }}
                   onWheel={(e) => e.currentTarget.blur()}
                   className="w-full bg-white border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2] font-mono"
                   required
@@ -660,13 +524,13 @@ export default function EditTradeModal({
 
               <div>
                 <label className="block font-medium text-[#787774] mb-1">
-                  Sold ({currencyMode})
+                  Sold ({quoteCurrency})
                 </label>
                 <input
                   type="number"
                   step="any"
-                  value={currencyMode === "SOL" ? soldSol : soldUsd}
-                  onChange={(e) => handleSoldChange(e.target.value, currencyMode === "SOL")}
+                  value={soldQuote}
+                  onChange={(e) => { const nextSold = e.target.value; const nextPnl = boughtQuote && nextSold ? String(Number(nextSold) - Number(boughtQuote)) : pnlQuote; syncQuoteAmounts(boughtQuote, nextSold, nextPnl); }}
                   onWheel={(e) => e.currentTarget.blur()}
                   className="w-full bg-white border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2] font-mono"
                 />
@@ -674,15 +538,15 @@ export default function EditTradeModal({
 
               <div>
                 <label className="block font-medium text-[#787774] mb-1">
-                  Net P&L ({currencyMode})
+                  Net P&L ({quoteCurrency})
                 </label>
                 <input
                   type="number"
                   step="any"
-                  value={currencyMode === "SOL" ? pnlSol : pnlUsd}
-                  onChange={(e) => handlePnlChange(e.target.value, currencyMode === "SOL")}
+                  value={pnlQuote}
+                  onChange={(e) => syncQuoteAmounts(boughtQuote, soldQuote, e.target.value)}
                   className={`w-full bg-white border rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold focus:outline-none ${
-                    (parseFloat(pnlSol) || 0) >= 0
+                    (parseFloat(pnlQuote) || 0) >= 0
                       ? "text-emerald-700 border-emerald-300 focus:border-emerald-500"
                       : "text-rose-700 border-rose-300 focus:border-rose-500"
                   }`}
@@ -690,6 +554,17 @@ export default function EditTradeModal({
                 />
               </div>
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="text-[11px] text-[#787774]">Trading venue
+                <select value={venue} onChange={(e) => setVenue(e.target.value)} className="mt-1 w-full rounded-lg border border-[#e3e2de] bg-white px-2.5 py-2 text-xs text-[#37352f]"><option value="">Select venue (optional)</option>{venue && !TRADING_VENUES.some((item) => item === venue) && <option value={venue}>{venue}</option>}{TRADING_VENUES.map((item) => <option key={item}>{item}</option>)}</select>
+                {venue === "Other" && <input aria-label="Other trading venue" maxLength={80} value={otherVenue} onChange={(e) => setOtherVenue(e.target.value)} placeholder="Enter venue" className="mt-2 w-full rounded-lg border border-[#e3e2de] bg-white px-2.5 py-2 text-xs text-[#37352f]" />}
+              </label>
+              <label className="text-[11px] text-[#787774]">USD value of 1 {quoteCurrency}
+                <input type="number" min="0" step="any" value={quoteUsdRate} onChange={(e) => setQuoteUsdRate(e.target.value)} disabled={["SOL", "USD", "USDC", "USDT"].includes(quoteCurrency || "SOL")} className="mt-1 w-full rounded-lg border border-[#e3e2de] bg-white px-2.5 py-2 text-xs text-[#37352f] disabled:bg-neutral-100" />
+                {quoteCurrency === "OTHER" && <input aria-label="Other currency ticker" maxLength={12} value={otherQuoteSymbol} onChange={(e) => setOtherQuoteSymbol(e.target.value)} placeholder="Currency ticker" className="mt-2 w-full rounded-lg border border-[#e3e2de] bg-white px-2.5 py-2 text-xs text-[#37352f]" />}
+              </label>
+            </div>
+            <p className="text-[10px] text-[#787774]">Totals stay comparable in SOL/USD. For ETH, BTC, EUR, GBP, or Other, enter the USD exchange rate at the time of the trade. Changing currency keeps your entered amount unchanged.</p>
           </div>
 
           {/* Advanced Metrics Accordion */}

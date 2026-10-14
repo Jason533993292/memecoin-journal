@@ -53,7 +53,7 @@ export default function PrivacyPage() {
               Philippe.A, operating from Belgium, is the data controller for Memecoin Journal. For privacy questions, access requests, or concerns, contact us at{" "}
               <a className="font-medium text-[#2383e2] hover:underline" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
             </p>
-            <p>This notice applies to the app at memecoin-journal.vercel.app and its public Privacy and Terms pages. It does not control websites or services operated by third parties.</p>
+            <p>This notice applies to the Memecoin Journal web app and its public Privacy and Terms pages. It does not control websites or services operated by third parties.</p>
           </Section>
 
           <Section id="data" title="2. Information we process">

@@ -1,10 +1,4 @@
-import { type ClassValue, clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
 import { Trade } from "./types";
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
 
 /**
  * Normalizes timestamp from any valid Trade representation (Firestore Timestamp, epoch ms, ISO string, createdAt)
@@ -43,31 +37,12 @@ export function getLocalDayKey(d: Date): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-/**
- * Converts SOL amount to USD given live or fallback solPrice
- */
-export function toUsd(sol: number | undefined | null, solPrice: number): number {
-  return (sol || 0) * solPrice;
-}
-
 /** Format SOL without hiding lamport-scale balances through two-decimal rounding. */
 export function formatSol(value: number, maximumFractionDigits = 9): string {
   if (!Number.isFinite(value)) return "—";
   return new Intl.NumberFormat(undefined, {
     maximumFractionDigits: Math.min(9, Math.max(0, maximumFractionDigits)),
   }).format(value);
-}
-
-/**
- * Sanitizes CSV cell content against CSV formula injection (=, +, -, @)
- * and escapes double quotes
- */
-export function escapeCsvField(str: string | number | undefined | null): string {
-  if (str === undefined || str === null) return '""';
-  const s = String(str).replace(/"/g, '""');
-  // Guard against CSV formula injection
-  const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
-  return `"${safe}"`;
 }
 
 /**

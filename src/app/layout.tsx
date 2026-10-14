@@ -3,10 +3,17 @@ import "./globals.css";
 import { AuthProvider } from "../context/AuthContext";
 import ErrorBoundary from "../components/ErrorBoundary";
 
+const publicDomain = process.env.RAILWAY_PUBLIC_DOMAIN?.trim();
+const metadataBase = new URL(
+  publicDomain
+    ? `https://${publicDomain}`
+    : "https://memecoin-journal-staging.up.railway.app"
+);
+
 export const metadata: Metadata = {
   title: "Memecoin Journal",
   description: "Track your degenerate crypto plays.",
-  metadataBase: new URL("https://memecoin-journal.vercel.app"),
+  metadataBase,
   openGraph: {
     title: "Memecoin Journal",
     description: "A private trading journal for Solana memecoin traders.",

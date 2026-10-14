@@ -62,6 +62,11 @@ function optionalNumber(value: unknown): number | null {
 }
 
 function toTradeRow(userId: string, id: string, trade: Omit<Trade, "id">): JsonRecord {
+  const currencyExtra = Object.fromEntries(
+    (["quoteCurrency", "quoteSymbol", "boughtQuote", "soldQuote", "pnlQuote", "quoteUsdRate", "venue"] as const)
+      .filter((field) => trade[field] !== undefined)
+      .map((field) => [field, trade[field]])
+  );
   return {
     user_id: userId,
     id,
@@ -107,10 +112,14 @@ function toTradeRow(userId: string, id: string, trade: Omit<Trade, "id">): JsonR
     trade_mode: trade.tradeMode ?? (trade.isPaper ? "paper" : "real"),
     date: iso(trade.date ?? trade.tradedAt) ?? new Date().toISOString(),
     created_at: iso(trade.createdAt),
+    extra: currencyExtra,
   };
 }
 
 function fromTradeRow(row: JsonRecord): Trade {
+  const extra = row.extra && typeof row.extra === "object" && !Array.isArray(row.extra) ? row.extra as JsonRecord : {};
+  const quoteCurrency = ["SOL", "USD", "USDC", "USDT", "ETH", "BTC", "EUR", "GBP", "OTHER"].includes(String(extra.quoteCurrency))
+    ? extra.quoteCurrency as Trade["quoteCurrency"] : undefined;
   return {
     id: String(row.id),
     ca: String(row.ca ?? ""),
@@ -155,6 +164,13 @@ function fromTradeRow(row: JsonRecord): Trade {
     tradeMode: row.trade_mode as Trade["tradeMode"],
     date: typeof row.date === "string" ? row.date : undefined,
     createdAt: epoch(row.created_at),
+    quoteCurrency,
+    quoteSymbol: typeof extra.quoteSymbol === "string" ? extra.quoteSymbol.slice(0, 12) : undefined,
+    boughtQuote: optionalNumber(extra.boughtQuote) ?? undefined,
+    soldQuote: optionalNumber(extra.soldQuote) ?? undefined,
+    pnlQuote: optionalNumber(extra.pnlQuote) ?? undefined,
+    quoteUsdRate: optionalNumber(extra.quoteUsdRate) ?? undefined,
+    venue: typeof extra.venue === "string" ? extra.venue.slice(0, 80) : undefined,
   };
 }
 
@@ -186,7 +202,15 @@ export async function saveSupabaseTrade(userId: string, trade: Record<string, un
   // it at the persistence boundary rather than leaking nullable form types into
   // the journal's domain model.
   const normalizedTrade = trade as unknown as Omit<Trade, "id">;
-  const { error } = await getSupabaseClient().from("trades").upsert(toTradeRow(userId, id, normalizedTrade), { onConflict: "user_id,id" });
+  const client = getSupabaseClient();
+  const { data: existing, error: readError } = await client.from("trades").select("extra").eq("user_id", userId).eq("id", id).maybeSingle();
+  throwIfError(readError);
+  const row = toTradeRow(userId, id, normalizedTrade);
+  row.extra = {
+    ...(existing?.extra && typeof existing.extra === "object" && !Array.isArray(existing.extra) ? existing.extra as JsonRecord : {}),
+    ...((row.extra as JsonRecord | undefined) ?? {}),
+  };
+  const { error } = await client.from("trades").upsert(row, { onConflict: "user_id,id" });
   throwIfError(error);
   return id;
 }

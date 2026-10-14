@@ -27,6 +27,37 @@ export interface TradeAmountResult {
 }
 
 export type TradeCurrencyMode = "SOL" | "USD";
+export const QUOTE_CURRENCIES = ["SOL", "USD", "USDC", "USDT", "ETH", "BTC", "EUR", "GBP", "OTHER"] as const;
+export const TRADING_VENUES = ["Robinhood", "Coinbase", "Binance", "Kraken", "Phantom", "Jupiter", "Raydium", "Other"] as const;
+
+export function defaultQuoteUsdRate(currency: (typeof QUOTE_CURRENCIES)[number], solPrice: number): number {
+  if (currency === "SOL") return solPrice > 0 ? solPrice : 0;
+  if (["USD", "USDC", "USDT"].includes(currency)) return 1;
+  return 0;
+}
+
+export function quoteAmountsToBase(input: {
+  bought: number; sold: number; pnl: number; quoteUsdRate: number; solPrice: number;
+}) {
+  if (!Number.isFinite(input.quoteUsdRate) || input.quoteUsdRate <= 0 || !Number.isFinite(input.solPrice) || input.solPrice <= 0) {
+    throw new RangeError("Enter a valid USD conversion rate and make sure the SOL price is available.");
+  }
+  const boughtUsd = input.bought * input.quoteUsdRate;
+  const soldUsd = input.sold * input.quoteUsdRate;
+  const pnlUsd = input.pnl * input.quoteUsdRate;
+  const values = [input.bought, input.sold, input.pnl, boughtUsd, soldUsd, pnlUsd];
+  if (values.some((value) => !Number.isFinite(value)) || input.bought < 0 || input.sold < 0) {
+    throw new RangeError("Trade amounts must be valid finite values; bought and sold cannot be negative.");
+  }
+  return {
+    boughtSol: boughtUsd / input.solPrice,
+    soldSol: soldUsd / input.solPrice,
+    pnlSol: pnlUsd / input.solPrice,
+    boughtUsd,
+    soldUsd,
+    pnlUsd,
+  };
+}
 
 export interface CurrencyAmountPair {
   sol: string;
@@ -42,6 +73,7 @@ const TRADE_CREATE_FIELDS = new Set([
   "durationMinutes", "entryTime", "exitTime", "initialRiskSol", "stopPrice", "feesSol",
   "entryTimezoneOffset", "tradedAt", "solUsdRate", "solUsdRateSource", "tradeMode",
   "date", "createdAt",
+  "quoteCurrency", "quoteSymbol", "boughtQuote", "soldQuote", "pnlQuote", "quoteUsdRate", "venue",
 ]);
 
 const OPTIONAL_NUMBER_LIMITS: Record<string, [number, number]> = {
@@ -65,6 +97,10 @@ const OPTIONAL_NUMBER_LIMITS: Record<string, [number, number]> = {
   tradedAt: [0, 10_000_000_000_000],
   solUsdRate: [0, 1_000_000_000],
   tradeQualityScore: [0, 100],
+  boughtQuote: [0, 1_000_000_000_000],
+  soldQuote: [0, 1_000_000_000_000],
+  pnlQuote: [-1_000_000_000_000, 1_000_000_000_000],
+  quoteUsdRate: [0, 1_000_000_000],
 };
 
 const OPTIONAL_STRING_LIMITS: Record<string, number> = {
@@ -74,6 +110,8 @@ const OPTIONAL_STRING_LIMITS: Record<string, number> = {
   exitTime: 80,
   screenshotUrl: 500_000,
   executionType: 20,
+  quoteSymbol: 12,
+  venue: 80,
 };
 
 function validateStringField(data: Record<string, unknown>, field: string, maxLength: number, minLength = 0): string | null {
@@ -140,6 +178,7 @@ export function getTradeCreateValidationError(
     return "SOL price source is not a supported option.";
   }
   if (value.tradeMode != null && !["real", "paper"].includes(String(value.tradeMode))) return "Trade mode is not a supported option.";
+  if (value.quoteCurrency != null && !QUOTE_CURRENCIES.includes(String(value.quoteCurrency) as (typeof QUOTE_CURRENCIES)[number])) return "Quote currency is not supported.";
   if (value.notes != null && (typeof value.notes !== "string" || value.notes.length > 4_000)) return "Notes must be text and no more than 4,000 characters.";
   if (requireCreateMetadata && typeof value.notes !== "string") return "Trade notes are missing. Refresh and try again.";
   if (requireCreateMetadata && (typeof value.createdAt !== "number" || !Number.isFinite(value.createdAt))) return "Trade creation time is missing. Refresh and try again.";

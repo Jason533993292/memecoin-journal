@@ -1,4 +1,4 @@
-export interface TokenLookupData {
+interface TokenLookupData {
   name: string;
   symbol: string;
   priceUsd: string;

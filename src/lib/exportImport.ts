@@ -26,7 +26,7 @@ function escapeCsvField(value: string | number | undefined | null): string {
   return `"${safe}"`;
 }
 
-export const CSV_HEADERS = [
+const CSV_HEADERS = [
   "Date",
   "Name",
   "Symbol",
@@ -47,13 +47,14 @@ export const CSV_HEADERS = [
   "Mistakes / Tags", "Good Tags", "Notes", "Initial Risk SOL", "Fees SOL",
   "Entry Liquidity USD", "Exit Liquidity USD", "Entry MCap USD", "Exit MCap USD",
   "Slippage %", "Stop Price", "Dex", "Execution Type", "Would Take Again", "Quality Score",
-  "Screenshot URL", "Timezone Offset", "SOL/USD Rate", "SOL/USD Rate Source", "Trade Mode", "Traded At", "Created At"
+  "Screenshot URL", "Timezone Offset", "SOL/USD Rate", "SOL/USD Rate Source", "Trade Mode", "Traded At", "Created At",
+  "Quote Currency", "Quote Symbol", "Bought Quote", "Sold Quote", "Net PnL Quote", "Quote USD Rate", "Trading Venue"
 ];
 
 /**
  * Parses CSV text taking quotes, escaped quotes, and commas into account.
  */
-export function parseCSV(text: string): string[][] {
+function parseCSV(text: string): string[][] {
   const rows: string[][] = [];
   let currentRow: string[] = [];
   let currentField = "";
@@ -127,7 +128,9 @@ export function buildTradesCsv(trades: Trade[]): string {
       t.wouldTakeAgain === undefined ? "" : String(t.wouldTakeAgain), t.tradeQualityScore ?? "",
       escapeCsvField(t.screenshotUrl || ""), t.entryTimezoneOffset ?? "", t.solUsdRate ?? "",
       escapeCsvField(t.solUsdRateSource || ""), t.tradeMode || (t.isPaper ? "paper" : "real"),
-      t.tradedAt || getTradeDate(t).getTime(), t.createdAt ?? ""
+      t.tradedAt || getTradeDate(t).getTime(), t.createdAt ?? "",
+      t.quoteCurrency || "SOL", escapeCsvField(t.quoteSymbol || t.quoteCurrency || "SOL"), t.boughtQuote ?? t.boughtSol,
+      t.soldQuote ?? t.soldSol ?? "", t.pnlQuote ?? t.pnlSol, t.quoteUsdRate ?? t.solUsdRate ?? "", escapeCsvField(t.venue || "")
     ].join(",");
   });
 
@@ -295,6 +298,13 @@ export function parseTradeImport(text: string, format: TradeImportFormat): Impor
       isPaper: typeof raw.isPaper === "boolean" ? raw.isPaper : tradeMode === "paper" ? true : undefined,
       tradedAt,
       createdAt: optionalNumber(raw.createdAt ?? raw["Created At"]) ?? tradedAt,
+      quoteCurrency: (["SOL", "USD", "USDC", "USDT", "ETH", "BTC", "EUR", "GBP", "OTHER"].includes(String(raw.quoteCurrency ?? raw["Quote Currency"])) ? String(raw.quoteCurrency ?? raw["Quote Currency"]) : "SOL") as Trade["quoteCurrency"],
+      quoteSymbol: optionalText(raw.quoteSymbol ?? raw["Quote Symbol"], 12),
+      boughtQuote: optionalNumber(raw.boughtQuote ?? raw["Bought Quote"]),
+      soldQuote: optionalNumber(raw.soldQuote ?? raw["Sold Quote"]),
+      pnlQuote: optionalNumber(raw.pnlQuote ?? raw["Net PnL Quote"]),
+      quoteUsdRate: optionalNumber(raw.quoteUsdRate ?? raw["Quote USD Rate"]),
+      venue: optionalText(raw.venue ?? raw["Trading Venue"], 80),
     }) as ImportedTrade;
 
     const boundedValues: Array<[number | undefined, number, number]> = [
@@ -307,6 +317,10 @@ export function parseTradeImport(text: string, format: TradeImportFormat): Impor
       [importedTrade.feesSol, 0, 100_000_000],
       [importedTrade.solUsdRate, 0, 1_000_000_000],
       [importedTrade.createdAt, 0, 10_000_000_000_000],
+      [importedTrade.boughtQuote, 0, 1_000_000_000_000],
+      [importedTrade.soldQuote, 0, 1_000_000_000_000],
+      [importedTrade.pnlQuote, -1_000_000_000_000, 1_000_000_000_000],
+      [importedTrade.quoteUsdRate, 0, 1_000_000_000],
     ];
     const invalidBoundedValue = boundedValues.some(([value, minimum, maximum]) =>
       value !== undefined && (value < minimum || value > maximum)

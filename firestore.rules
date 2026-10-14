@@ -111,7 +111,8 @@ service cloud.firestore {
           'mistakes', 'goodTags', 'isPaper', 'notes', 'screenshotUrl',
           'durationMinutes', 'entryTime', 'exitTime', 'initialRiskSol',
           'stopPrice', 'feesSol', 'entryTimezoneOffset', 'tradedAt',
-          'solUsdRate', 'solUsdRateSource', 'tradeMode', 'date', 'createdAt'
+          'solUsdRate', 'solUsdRateSource', 'tradeMode', 'date', 'createdAt',
+          'quoteCurrency', 'quoteSymbol', 'boughtQuote', 'soldQuote', 'pnlQuote', 'quoteUsdRate', 'venue'
         ])
         && data.keys().hasAll([
           'ca', 'name', 'symbol', 'wallet', 'result', 'setupType',
@@ -134,9 +135,17 @@ service cloud.firestore {
         && validOptionalNumber(data, 'boughtUsd', 0, 100000000000)
         && validOptionalNumber(data, 'soldSol', 0, 100000000)
         && validOptionalNumber(data, 'soldUsd', 0, 100000000000)
+        && validOptionalNumber(data, 'boughtQuote', 0, 1000000000000)
+        && validOptionalNumber(data, 'soldQuote', 0, 1000000000000)
+        && validOptionalNumber(data, 'pnlQuote', -1000000000000, 1000000000000)
+        && validOptionalNumber(data, 'quoteUsdRate', 0, 1000000000)
         && validOptionalNumber(data, 'feesSol', 0, 100000000)
         && validOptionalNumber(data, 'solUsdRate', 0, 1000000000)
         && validOptionalString(data, 'screenshotUrl', 500000)
+        && validOptionalString(data, 'quoteSymbol', 12)
+        && validOptionalString(data, 'venue', 80)
+        && (!('quoteCurrency' in data) || data.quoteCurrency == null
+          || data.quoteCurrency in ['SOL', 'USD', 'USDC', 'USDT', 'ETH', 'BTC', 'EUR', 'GBP', 'OTHER'])
         && (!('goodTags' in data) || data.goodTags == null
           || validTradeTags(data.goodTags));
     }

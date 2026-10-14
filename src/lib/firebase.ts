@@ -6,7 +6,6 @@ import {
   GoogleAuthProvider,
   getRedirectResult,
   signInWithPopup,
-  signInWithRedirect,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   sendEmailVerification,
@@ -51,13 +50,11 @@ const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 
 export {
-  app,
   db,
   auth,
   googleProvider,
   getRedirectResult,
   signInWithPopup,
-  signInWithRedirect,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   sendEmailVerification,

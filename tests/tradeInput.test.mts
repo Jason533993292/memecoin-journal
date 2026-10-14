@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildTradeAmounts, calculateTradePnl, isValidSolAmount, parseQuickTradePaste, reinterpretAmountForCurrency } from "../src/lib/tradeInput.ts";
+import { buildTradeAmounts, calculateTradePnl, isValidSolAmount, parseQuickTradePaste, reinterpretAmountForCurrency, quoteAmountsToBase, defaultQuoteUsdRate } from "../src/lib/tradeInput.ts";
 
 const DIGIT_HEAVY_ADDRESS = "So11111111111111111111111111111111111111112";
 
@@ -91,4 +91,23 @@ test("switching from USD to SOL keeps the visible number and updates the hidden 
     sol: "1",
     usd: "150.00",
   });
+});
+
+test("ETH quote amounts normalize to SOL and USD using the recorded historical conversion rate", () => {
+  const result = quoteAmountsToBase({ bought: 1, sold: 1.2, pnl: 0.2, quoteUsdRate: 2500, solPrice: 150 });
+  assert.equal(result.boughtUsd, 2500);
+  assert.equal(result.soldUsd, 3000);
+  assert.equal(result.pnlUsd, 500);
+  assert.equal(result.boughtSol, 2500 / 150);
+  assert.equal(result.pnlSol, 500 / 150);
+});
+
+test("stablecoin quote defaults to parity while unpriced fiat/crypto requires a manual rate", () => {
+  assert.equal(defaultQuoteUsdRate("USDC", 150), 1);
+  assert.equal(defaultQuoteUsdRate("ETH", 150), 0);
+  assert.equal(defaultQuoteUsdRate("EUR", 150), 0);
+});
+
+test("invalid quote conversion rates are rejected instead of producing misleading stats", () => {
+  assert.throws(() => quoteAmountsToBase({ bought: 1, sold: 1.1, pnl: 0.1, quoteUsdRate: 0, solPrice: 150 }), /conversion rate/i);
 });

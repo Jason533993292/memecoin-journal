@@ -1,4 +1,4 @@
-export const PREVIEW_THEMES = ["terminal", "premium-journal", "modern-platform"] as const;
+const PREVIEW_THEMES = ["terminal", "premium-journal", "modern-platform"] as const;
 
 export type PreviewTheme = (typeof PREVIEW_THEMES)[number];
 

@@ -1,8 +1,9 @@
 import type { Timestamp } from "firebase/firestore";
 
-export type TradeDate = Timestamp | Date | number | string | null | undefined;
-export type SolUsdRateSource = "user" | "live-at-entry" | "imported" | "unknown";
+type TradeDate = Timestamp | Date | number | string | null | undefined;
+type SolUsdRateSource = "user" | "live-at-entry" | "imported" | "unknown";
 export type TradeMode = "real" | "paper";
+type QuoteCurrency = "SOL" | "USD" | "USDC" | "USDT" | "ETH" | "BTC" | "EUR" | "GBP" | "OTHER";
 
 export interface Trade {
   id: string;
@@ -46,6 +47,13 @@ export interface Trade {
   solUsdRate?: number;
   solUsdRateSource?: SolUsdRateSource;
   tradeMode?: TradeMode;
+  quoteCurrency?: QuoteCurrency;
+  quoteSymbol?: string;
+  boughtQuote?: number;
+  soldQuote?: number;
+  pnlQuote?: number;
+  quoteUsdRate?: number;
+  venue?: string;
   date?: TradeDate;
   createdAt?: number;
 }

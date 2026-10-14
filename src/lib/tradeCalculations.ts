@@ -1,6 +1,6 @@
 import type { Trade, TradeMode } from "./types";
 
-export type UsdValueSource = "stored" | "estimated" | "unavailable";
+type UsdValueSource = "stored" | "estimated" | "unavailable";
 
 export interface UsdValueStatus {
   value: number | null;

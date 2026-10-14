@@ -89,6 +89,17 @@ test("trade data is private to its owner and cannot be listed publicly", async (
   await assertFails(deleteDoc(doc(otherDb, tradePath)));
 });
 
+test("new quote currency and trading venue fields remain owner-scoped", async () => {
+  const ownerDb = environment.authenticatedContext("owner-a").firestore();
+  const otherDb = environment.authenticatedContext("owner-b").firestore();
+  const path = "users/owner-a/trades/quote-trade";
+  await assertSucceeds(setDoc(doc(ownerDb, path), {
+    ...validTrade(), quoteCurrency: "ETH", quoteSymbol: "ETH", boughtQuote: 1,
+    soldQuote: 1.2, pnlQuote: 0.2, quoteUsdRate: 2500, venue: "Robinhood",
+  }));
+  await assertFails(getDoc(doc(otherDb, path)));
+});
+
 test("trade updates can correct the trade date but cannot mutate createdAt", async () => {
   const ownerDb = environment.authenticatedContext("trade-editor").firestore();
   const reference = doc(ownerDb, "users/trade-editor/trades/trade-1");
