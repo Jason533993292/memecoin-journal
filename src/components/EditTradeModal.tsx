@@ -313,7 +313,6 @@ export default function EditTradeModal({
         </button>
 
         <div className="flex items-center gap-2 mb-5 pb-3 border-b border-[#f1f1ef]">
-          <span className="text-xl">✏️</span>
           <div>
             <h2 id="edit-trade-title" className="text-base sm:text-lg font-semibold tracking-tight text-[#37352f]">
               Edit Trade: ${symbol || trade.symbol}
@@ -491,7 +490,7 @@ export default function EditTradeModal({
                       : "bg-[#fbfbfa] border-[#e3e2de] text-[#787774] hover:bg-[#f1f1ef]"
                   }`}
                 >
-                  {r === "Win" ? "🏆 Win" : r === "Loss" ? "💀 Loss" : "⚖️ Break-Even"}
+                  {r === "Win" ? "Win" : r === "Loss" ? "Loss" : "Break-even"}
                 </button>
               ))}
             </div>
@@ -664,7 +663,6 @@ export default function EditTradeModal({
           {/* Good Execution Habits Tags */}
           <div className="space-y-1.5">
             <label className="font-semibold text-xs text-emerald-800 flex items-center gap-1.5">
-              <span>✅</span>
               <span>Good Execution Habits</span>
             </label>
             <div className="flex flex-wrap gap-1.5">
@@ -692,7 +690,6 @@ export default function EditTradeModal({
           {/* Mistakes & Psychology Tags */}
           <div className="space-y-1.5">
             <label className="font-semibold text-xs text-rose-800 flex items-center gap-1.5">
-              <span>⚠️</span>
               <span>Discipline Errors & Tilt</span>
             </label>
             <div className="flex flex-wrap gap-1.5">

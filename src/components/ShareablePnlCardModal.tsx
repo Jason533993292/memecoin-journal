@@ -13,9 +13,6 @@ import {
   AtSign,
   TrendingUp,
   TrendingDown,
-  Smartphone,
-  Monitor,
-  Square,
 } from "lucide-react";
 import { useToast } from "./Toast";
 import { useAuth } from "../context/AuthContext";
@@ -43,16 +40,6 @@ interface MemePreset {
 
 const MEME_PRESETS: MemePreset[] = [
   // Win / Chad Memes
-  {
-    id: "gigachad_custom",
-    name: "Custom GigaChad",
-    category: "win",
-    imageSrc: "/memes/GigaChad.jpeg",
-    accentColor: "#14f195",
-    nodeColor: "rgba(20, 241, 149, 0.45)",
-    objectPosition: "center right",
-    scrimColor: "rgba(10, 10, 14, 0.95)",
-  },
   {
     id: "jeanphil",
     name: "Jean Phil",
@@ -94,16 +81,6 @@ const MEME_PRESETS: MemePreset[] = [
     scrimColor: "rgba(8, 15, 22, 0.95)",
   },
   {
-    id: "vince",
-    name: "Vince Cash",
-    category: "win",
-    imageSrc: "/memes/vince.png",
-    accentColor: "#00ff88",
-    nodeColor: "rgba(0, 255, 136, 0.45)",
-    objectPosition: "center right",
-    scrimColor: "rgba(5, 18, 10, 0.95)",
-  },
-  {
     id: "pepe",
     name: "Pepe Wall St",
     category: "win",
@@ -112,26 +89,6 @@ const MEME_PRESETS: MemePreset[] = [
     nodeColor: "rgba(34, 197, 94, 0.45)",
     objectPosition: "center center",
     scrimColor: "rgba(7, 20, 11, 0.95)",
-  },
-  {
-    id: "gigachad",
-    name: "GigaChad",
-    category: "win",
-    imageSrc: "/memes/win_chad.jpg",
-    accentColor: "#14f195",
-    nodeColor: "rgba(20, 241, 149, 0.45)",
-    objectPosition: "center right",
-    scrimColor: "rgba(10, 10, 14, 0.95)",
-  },
-  {
-    id: "bateman",
-    name: "Patrick Bateman",
-    category: "win",
-    imageSrc: "/memes/bateman.jpg",
-    accentColor: "#e2e8f0",
-    nodeColor: "rgba(226, 232, 240, 0.45)",
-    objectPosition: "center right",
-    scrimColor: "rgba(15, 15, 18, 0.95)",
   },
   // Loss / Down Bad Memes
   {
@@ -156,8 +113,6 @@ const MEME_PRESETS: MemePreset[] = [
   },
 ];
 
-type AspectRatio = "16:9" | "1:1" | "9:16";
-
 export default function ShareablePnlCardModal({
   trade,
   isOpen,
@@ -177,7 +132,7 @@ export default function ShareablePnlCardModal({
   );
   const [customImageSrc, setCustomImageSrc] = useState<string | null>(null);
   const [unit, setUnit] = useState<"SOL" | "USD">("SOL");
-  const [aspectRatio, setAspectRatio] = useState<AspectRatio>("16:9");
+  const [loadedBackgroundSrc, setLoadedBackgroundSrc] = useState<string | null>(null);
   const [tokenLogo, setTokenLogo] = useState<{ tradeId: string; url: string } | null>(null);
   const tokenLogoUrl = trade && tokenLogo?.tradeId === trade.id ? tokenLogo.url : null;
   const [cyberFx] = useState(true);
@@ -261,7 +216,7 @@ export default function ShareablePnlCardModal({
     return `${sign}$${Math.abs(usd).toFixed(2)}`;
   };
 
-  const badgeText = `≡ ${formatValue(pnlSol, pnlUsd, true)}`;
+  const badgeText = formatValue(pnlSol, pnlUsd, true);
   const tokenName = (trade.name || trade.symbol || "MEMECOIN").toUpperCase();
   const tokenSymbol = (trade.symbol || "TOKEN").toUpperCase();
 
@@ -306,16 +261,8 @@ export default function ShareablePnlCardModal({
   // Draw HD Card onto Canvas for Download & Copy
   const generateCanvasImage = async (): Promise<HTMLCanvasElement | null> => {
     const canvas = document.createElement("canvas");
-    let width = 1200;
-    let height = 675; // default 16:9
-
-    if (aspectRatio === "1:1") {
-      width = 1080;
-      height = 1080;
-    } else if (aspectRatio === "9:16") {
-      width = 1080;
-      height = 1920;
-    }
+    const width = 1200;
+    const height = 675;
 
     canvas.width = width;
     canvas.height = height;
@@ -348,25 +295,13 @@ export default function ShareablePnlCardModal({
     }
 
     // 2. Apply Scrim Gradient
-    if (aspectRatio === "9:16") {
-      // For vertical 9:16, dark gradient from top to bottom
-      const scrimGrad = ctx.createLinearGradient(0, 0, 0, height);
-      scrimGrad.addColorStop(0, "rgba(5, 8, 14, 0.96)");
-      scrimGrad.addColorStop(0.35, "rgba(5, 8, 14, 0.88)");
-      scrimGrad.addColorStop(0.65, "rgba(5, 8, 14, 0.4)");
-      scrimGrad.addColorStop(1, "rgba(5, 8, 14, 0.95)");
-      ctx.fillStyle = scrimGrad;
-      ctx.fillRect(0, 0, width, height);
-    } else {
-      // For 16:9 and 1:1, horizontal left-side dark scrim
-      const scrimGrad = ctx.createLinearGradient(0, 0, width, 0);
-      scrimGrad.addColorStop(0, "rgba(5, 10, 18, 0.96)");
-      scrimGrad.addColorStop(0.4, "rgba(5, 10, 18, 0.88)");
-      scrimGrad.addColorStop(0.7, "rgba(5, 10, 18, 0.4)");
-      scrimGrad.addColorStop(1, "rgba(5, 10, 18, 0.15)");
-      ctx.fillStyle = scrimGrad;
-      ctx.fillRect(0, 0, width, height);
-    }
+    const scrimGrad = ctx.createLinearGradient(0, 0, width, 0);
+    scrimGrad.addColorStop(0, "rgba(5, 10, 18, 0.96)");
+    scrimGrad.addColorStop(0.4, "rgba(5, 10, 18, 0.88)");
+    scrimGrad.addColorStop(0.7, "rgba(5, 10, 18, 0.4)");
+    scrimGrad.addColorStop(1, "rgba(5, 10, 18, 0.15)");
+    ctx.fillStyle = scrimGrad;
+    ctx.fillRect(0, 0, width, height);
 
     // 3. Removed Digital Constellation Nodes
 
@@ -449,13 +384,13 @@ export default function ShareablePnlCardModal({
     }
 
     // 7. Giant ROI Percentage (+80.91%)
-    const roiY = aspectRatio === "9:16" ? 380 : 300;
+    const roiY = 300;
     ctx.fillStyle = "#ffffff";
     ctx.font = "bold 105px sans-serif";
     ctx.fillText(roiFormatted, 60, roiY);
 
     // 8. Financial Execution Table (BOUGHT / SOLD / PROFIT)
-    const startY = aspectRatio === "9:16" ? 540 : 420;
+    const startY = 420;
     const rowGap = 65;
     const valueColX = 290;
 
@@ -476,13 +411,6 @@ export default function ShareablePnlCardModal({
     ctx.fillStyle = isWin ? activeAccentColor : "#f87171";
     ctx.fillText(formatValue(pnlSol, pnlUsd, true), valueColX, startY + rowGap * 2);
 
-    // Extra stats for 9:16 story format
-    if (aspectRatio === "9:16" && trade.mcap) {
-      ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
-      ctx.font = "bold 26px monospace";
-      ctx.fillText(`MCAP AT TRADE: $${trade.mcap.toLocaleString()}`, 60, startY + rowGap * 3.5);
-    }
-
     return canvas;
   };
 
@@ -494,7 +422,7 @@ export default function ShareablePnlCardModal({
       const dataUrl = canvas.toDataURL("image/png");
       const a = document.createElement("a");
       a.href = dataUrl;
-      a.download = `${tokenSymbol}-PnL-${aspectRatio.replace(":", "x")}-${selectedThemeId}.png`;
+      a.download = `${tokenSymbol}-PnL-${selectedThemeId}.png`;
       a.click();
       showToast("HD Meme P&L Card downloaded!", "success");
     } catch (e) {
@@ -544,19 +472,18 @@ export default function ShareablePnlCardModal({
       // Ignore
     }
 
-    // 2. Format viral CT tweet copy
+    // 2. Format post copy
     const authorTag = traderHandle.trim() ? `${traderHandle.trim()} ` : "";
-    const emoji = isWin ? "🚀" : "😭";
     const statusPhrase = isWin
       ? `Closed another winner on $${tokenSymbol}`
-      : `Took an L on $${tokenSymbol}... back to McDonald's`;
+      : `Closed a losing trade on $${tokenSymbol}`;
 
-    const tweetText = `${emoji} ${statusPhrase} (${roiFormatted})
+    const tweetText = `${statusPhrase} (${roiFormatted})
 
-💰 P&L: ${formatValue(pnlSol, pnlUsd, true)}
-💸 In: ${formatValue(boughtSol, boughtUsd)} | Out: ${formatValue(soldSol, soldUsd)}${multiplierVal ? ` (${multiplierVal}x)` : ""}
+P&L: ${formatValue(pnlSol, pnlUsd, true)}
+In: ${formatValue(boughtSol, boughtUsd)} | Out: ${formatValue(soldSol, soldUsd)}${multiplierVal ? ` (${multiplierVal}x)` : ""}
 
-${authorTag ? `Traded by ${authorTag}\n` : ""}Logged on Memecoin Journal 📊
+${authorTag ? `Traded by ${authorTag}\n` : ""}Logged on Memecoin Journal
 #Solana #MemeCoins $${tokenSymbol}`;
 
     const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
@@ -564,10 +491,10 @@ ${authorTag ? `Traded by ${authorTag}\n` : ""}Logged on Memecoin Journal 📊
     showToast("Card copied to clipboard! Paste (Cmd+V) into your tweet.", "info");
   };
 
-  const shareText = `🚀 $${tokenSymbol} Trade Closed!
-📈 ROI: ${roiFormatted}${multiplierVal ? ` (${multiplierVal}x)` : ""}
-💰 Net: ${badgeText}
-💸 Bought: ${formatValue(boughtSol, boughtUsd)} | Sold: ${formatValue(soldSol, soldUsd)}
+  const shareText = `$${tokenSymbol} trade closed
+ROI: ${roiFormatted}${multiplierVal ? ` (${multiplierVal}x)` : ""}
+Net: ${badgeText}
+Bought: ${formatValue(boughtSol, boughtUsd)} | Sold: ${formatValue(soldSol, soldUsd)}
 ${traderHandle.trim() ? `Traded by ${traderHandle.trim()}\n` : ""}#Solana #MemeCoins via Memecoin Journal`;
 
   const copyShareText = () => {
@@ -609,7 +536,7 @@ ${traderHandle.trim() ? `Traded by ${traderHandle.trim()}\n` : ""}#Solana #MemeC
             </span>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-sm font-bold tracking-tight">Dryflip Meme P&L Card Studio</h2>
+                <h2 className="text-sm font-bold tracking-tight">P&amp;L Card</h2>
                 <span
                   className="text-[10px] font-bold px-1.5 py-0.2 rounded uppercase tracking-wider"
                   style={{
@@ -621,7 +548,7 @@ ${traderHandle.trim() ? `Traded by ${traderHandle.trim()}\n` : ""}#Solana #MemeC
                 </span>
               </div>
               <p className="text-[11px] text-neutral-400">
-                Pristine meme backgrounds, live token logo & 1-click X share.
+                Choose a background, preview the result, then download or share.
               </p>
             </div>
           </div>
@@ -642,7 +569,7 @@ ${traderHandle.trim() ? `Traded by ${traderHandle.trim()}\n` : ""}#Solana #MemeC
           </div>
         </div>
 
-        {/* Controls Bar: Category Filter, Aspect Ratio & Trader Handle */}
+        {/* Controls Bar: Category Filter & Trader Handle */}
         <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5 border-t border-b border-neutral-800/80 py-2">
           {/* Mood Preset Filter */}
           <div className="flex items-center gap-1 bg-neutral-900/90 p-0.5 rounded-lg border border-neutral-800 text-xs">
@@ -662,7 +589,8 @@ ${traderHandle.trim() ? `Traded by ${traderHandle.trim()}\n` : ""}#Solana #MemeC
                   : "text-neutral-400 hover:text-emerald-300"
               }`}
             >
-              <span>🚀 Win Memes</span>
+              <TrendingUp size={12} />
+              <span>Wins</span>
             </button>
             <button
               onClick={() => setThemeFilter("loss")}
@@ -672,41 +600,8 @@ ${traderHandle.trim() ? `Traded by ${traderHandle.trim()}\n` : ""}#Solana #MemeC
                   : "text-neutral-400 hover:text-rose-300"
               }`}
             >
-              <span>😭 Loss Memes</span>
-            </button>
-          </div>
-
-          {/* Aspect Ratio Switcher */}
-          <div className="flex items-center gap-1 bg-neutral-900/90 p-0.5 rounded-lg border border-neutral-800 text-xs">
-            <button
-              onClick={() => setAspectRatio("16:9")}
-              title="Twitter / Desktop (16:9)"
-              className={`px-2 py-1 rounded text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer ${
-                aspectRatio === "16:9" ? "bg-white text-black font-bold" : "text-neutral-400 hover:text-white"
-              }`}
-            >
-              <Monitor size={12} />
-              <span>16:9</span>
-            </button>
-            <button
-              onClick={() => setAspectRatio("1:1")}
-              title="Square / Instagram (1:1)"
-              className={`px-2 py-1 rounded text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer ${
-                aspectRatio === "1:1" ? "bg-white text-black font-bold" : "text-neutral-400 hover:text-white"
-              }`}
-            >
-              <Square size={12} />
-              <span>1:1</span>
-            </button>
-            <button
-              onClick={() => setAspectRatio("9:16")}
-              title="Story / Telegram / TikTok (9:16)"
-              className={`px-2 py-1 rounded text-[11px] font-medium flex items-center gap-1 transition-colors cursor-pointer ${
-                aspectRatio === "9:16" ? "bg-white text-black font-bold" : "text-neutral-400 hover:text-white"
-              }`}
-            >
-              <Smartphone size={12} />
-              <span>9:16</span>
+              <TrendingDown size={12} />
+              <span>Losses</span>
             </button>
           </div>
 
@@ -743,6 +638,8 @@ ${traderHandle.trim() ? `Traded by ${traderHandle.trim()}\n` : ""}#Solana #MemeC
                 <img
                   src={preset.imageSrc}
                   alt={preset.name}
+                  loading="lazy"
+                  decoding="async"
                   className="w-8 h-6 object-cover rounded"
                 />
                 <span className="text-[11px] font-semibold text-white whitespace-nowrap">
@@ -777,30 +674,26 @@ ${traderHandle.trim() ? `Traded by ${traderHandle.trim()}\n` : ""}#Solana #MemeC
         {/* Live Visual P&L Card Container */}
         <div className="flex items-center justify-center bg-black/40 p-1.5 rounded-xl border border-neutral-900">
           <div
-            className={`relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl select-none w-full transition-all duration-300 ${
-              aspectRatio === "9:16"
-                ? "max-w-[270px] aspect-[9/16]"
-                : aspectRatio === "1:1"
-                ? "max-w-[340px] aspect-square"
-                : "aspect-[16/9] max-h-[320px]"
-            }`}
+            className="relative aspect-[16/9] max-h-[340px] w-full overflow-hidden rounded-2xl border border-white/10 shadow-2xl select-none"
           >
+            {loadedBackgroundSrc !== activeImageSrc && (
+              <div className="absolute inset-0 animate-pulse bg-neutral-900" aria-hidden="true" />
+            )}
             {/* Pristine Meme Background Image */}
             <img
               src={activeImageSrc}
               alt="Clean Meme Background"
-              className="absolute inset-0 w-full h-full object-cover"
+              decoding="async"
+              fetchPriority="high"
+              onLoad={() => setLoadedBackgroundSrc(activeImageSrc)}
+              className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-200 ${
+                loadedBackgroundSrc === activeImageSrc ? "opacity-100" : "opacity-0"
+              }`}
               style={{ objectPosition: currentPreset.objectPosition || "center right" }}
             />
 
             {/* Left-to-Right / Top-to-Bottom Contrast Gradient Scrim */}
-            <div
-              className={`absolute inset-0 ${
-                aspectRatio === "9:16"
-                  ? "bg-gradient-to-b from-[#060e18]/95 via-[#060e18]/70 to-[#060e18]/95"
-                  : "bg-gradient-to-r from-[#060e18]/95 via-[#060e18]/85 to-transparent"
-              }`}
-            />
+            <div className="absolute inset-0 bg-gradient-to-r from-[#060e18]/95 via-[#060e18]/85 to-transparent" />
 
             {/* Subtle Neon Cyber Scanline / Pulse FX (Toggleable) */}
             {cyberFx && (

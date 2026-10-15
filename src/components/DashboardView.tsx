@@ -108,7 +108,7 @@ export default function DashboardView({
 
   if (loading) {
     return (
-      <div className="space-y-6 sm:space-y-8 pb-16 pt-6">
+      <div className="journal-page">
         <div className="flex items-center justify-between">
           <div className="space-y-2">
             <div className="h-8 bg-[#f1f1ef] rounded-md w-56 animate-pulse"></div>
@@ -133,7 +133,7 @@ export default function DashboardView({
   }
 
   return (
-    <div className="space-y-6 sm:space-y-8 pb-16">
+    <div className="journal-page">
       {/* Title */}
       <div className="pt-6">
         <div>
@@ -155,7 +155,7 @@ export default function DashboardView({
           <AlertOctagon size={20} className="text-rose-600 shrink-0 mt-0.5" />
           <div className="space-y-0.5">
             <strong className="text-sm font-bold text-rose-950 block">
-              🛑 Daily Max Loss Cap Exceeded (-{todayLossSol.toFixed(2)} SOL / Max {goals.maxDailyLossSol} SOL)
+              Daily max loss cap exceeded (-{todayLossSol.toFixed(2)} SOL / max {goals.maxDailyLossSol} SOL)
             </strong>
             <p className="text-rose-800">
               Discipline Rule Triggered: You have reached your maximum daily loss threshold for today. Do not revenge trade. Step away from BullX / Photon to protect your capital.
@@ -259,7 +259,7 @@ export default function DashboardView({
         <div className="bg-gradient-to-r from-blue-50/70 via-indigo-50/50 to-neutral-50 border border-blue-100 rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="space-y-1 text-center sm:text-left">
             <h3 className="font-bold text-sm text-[#37352f] flex items-center gap-1.5 justify-center sm:justify-start">
-              <span>🚀</span> Ready to log your first trade?
+              Ready to log your first trade?
             </h3>
             <p className="text-xs text-[#787774] max-w-xl">
               Paste any Solana contract address, attach your setup chart, calculate P&L, and track your emotional mistakes.
@@ -282,7 +282,6 @@ export default function DashboardView({
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-[#e9e9e7]">
               <div className="flex items-center gap-2 font-semibold text-sm text-[#37352f]">
-                <span>⚠️</span>
                 <span>Risk Management</span>
               </div>
               <button
@@ -310,7 +309,6 @@ export default function DashboardView({
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-[#e9e9e7]">
               <div className="flex items-center gap-2 font-semibold text-sm text-[#37352f]">
-                <span>🔀</span>
                 <span>Trade Plan</span>
               </div>
               <button

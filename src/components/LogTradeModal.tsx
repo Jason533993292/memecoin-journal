@@ -468,7 +468,6 @@ export default function LogTradeModal({
         {/* Sticky Header */}
         <div className="flex items-center justify-between p-4 sm:p-6 pb-4 border-b border-[#f1f1ef] shrink-0 bg-white z-10 relative">
           <div className="flex items-center gap-2">
-            <span className="text-xl">📓</span>
             <div>
               <h2 id="log-trade-title" className="text-base sm:text-lg font-semibold tracking-tight text-[#37352f]">
                 Log New Trade
@@ -714,7 +713,7 @@ export default function LogTradeModal({
                         : "bg-[#fbfbfa] border-[#e3e2de] text-[#787774] hover:bg-[#f1f1ef]"
                     }`}
                   >
-                    {r === "Win" ? "🏆 Win" : r === "Loss" ? "💀 Loss" : "⚖️ Break-Even"}
+                    {r === "Win" ? "Win" : r === "Loss" ? "Loss" : "Break-even"}
                   </button>
                 ))}
               </div>

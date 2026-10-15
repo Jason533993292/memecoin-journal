@@ -422,7 +422,7 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
   const currentPaperBalance = Math.max(0, paperCapitalSol + paperPnlSol);
 
   return (
-    <div className="space-y-6 pb-16">
+    <div className="journal-page">
       {/* Breadcrumb & Title */}
       <div className="pt-6">
         <div className="flex items-center gap-2 text-xs text-[#787774] mb-2">
@@ -433,7 +433,6 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <span className="text-3xl">💼</span>
             <div>
               <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-[#37352f]">
                 Wallets & Live Solana Balances
@@ -879,11 +878,11 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
                     <td className="notion-table-td font-semibold">
                       {tx.type === "deposit" ? (
                         <span className="px-2 py-0.5 rounded bg-blue-50 text-[#2383e2] border border-blue-200 text-[11px]">
-                          📥 Deposit
+                          Deposit
                         </span>
                       ) : (
                         <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px]">
-                          📤 Paycheck
+                          Paycheck
                         </span>
                       )}
                     </td>

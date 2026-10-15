@@ -38,7 +38,6 @@ export default function ImageLightboxModal({
       >
         <div className="flex items-center justify-between p-3.5 px-5 border-b border-neutral-800 bg-neutral-950/80">
           <div className="flex items-center gap-2">
-            <span className="text-base">📈</span>
             <span className="text-xs font-semibold text-neutral-200">{title}</span>
           </div>
 

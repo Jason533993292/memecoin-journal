@@ -93,12 +93,12 @@ export default function DailyRecapModal({
   if (!isOpen) return null;
 
   const copyRecapToClipboard = () => {
-    const formatted = `📅 MemeCoin Trading Daily Recap — ${todaySummary.dateLabel}
-📊 Trades: ${todaySummary.total} (${todaySummary.winsCount}W / ${todaySummary.lossesCount}L / ${todaySummary.beCount}BE)
-🎯 Win Rate: ${todaySummary.winRate}%
-💰 Net P&L: ${todaySummary.netPnlSol >= 0 ? "+" : ""}${todaySummary.netPnlSol} SOL ($${todaySummary.netPnlUsd.toFixed(2)})
-${todaySummary.bestTrade ? `🏆 Best: $${todaySummary.bestTrade.symbol} (+${todaySummary.bestTrade.pnlSol} SOL)` : ""}
-${todaySummary.worstTrade ? `💥 Worst: $${todaySummary.worstTrade.symbol} (${todaySummary.worstTrade.pnlSol} SOL)` : ""}
+    const formatted = `MemeCoin Trading Daily Recap — ${todaySummary.dateLabel}
+Trades: ${todaySummary.total} (${todaySummary.winsCount}W / ${todaySummary.lossesCount}L / ${todaySummary.beCount}BE)
+Win Rate: ${todaySummary.winRate}%
+Net P&L: ${todaySummary.netPnlSol >= 0 ? "+" : ""}${todaySummary.netPnlSol} SOL ($${todaySummary.netPnlUsd.toFixed(2)})
+${todaySummary.bestTrade ? `Best: $${todaySummary.bestTrade.symbol} (+${todaySummary.bestTrade.pnlSol} SOL)` : ""}
+${todaySummary.worstTrade ? `Worst: $${todaySummary.worstTrade.symbol} (${todaySummary.worstTrade.pnlSol} SOL)` : ""}
 #Solana #Memecoins #TradingJournal`;
 
     navigator.clipboard.writeText(formatted.trim());
@@ -139,7 +139,6 @@ ${todaySummary.worstTrade ? `💥 Worst: $${todaySummary.worstTrade.symbol} (${t
 
         {todaySummary.total === 0 ? (
           <div className="text-center py-8 space-y-3">
-            <span className="text-3xl">☕</span>
             <h3 className="text-sm font-semibold text-[#37352f]">No Trades Logged Today Yet</h3>
             <p className="text-xs text-[#787774] max-w-sm mx-auto">
               Execute your trading plan with discipline. When you close your trades for the day, check back here for your automated recap!
@@ -216,7 +215,7 @@ ${todaySummary.worstTrade ? `💥 Worst: $${todaySummary.worstTrade.symbol} (${t
                     </div>
                   </div>
                 ) : (
-                  <p className="text-[11px] text-[#9b9a97] italic">None today 🎉</p>
+                  <p className="text-[11px] text-[#9b9a97] italic">None today</p>
                 )}
               </div>
             </div>
@@ -233,7 +232,7 @@ ${todaySummary.worstTrade ? `💥 Worst: $${todaySummary.worstTrade.symbol} (${t
                       key={tag}
                       className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200"
                     >
-                      ✓ {tag} ({count}x)
+                      {tag} ({count}x)
                     </span>
                   ))}
                   {todaySummary.mistakes.map(([tag, count]) => (
@@ -241,7 +240,7 @@ ${todaySummary.worstTrade ? `💥 Worst: $${todaySummary.worstTrade.symbol} (${t
                       key={tag}
                       className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-rose-50 text-rose-800 border border-rose-200"
                     >
-                      ⚠️ {tag} ({count}x)
+                      {tag} ({count}x)
                     </span>
                   ))}
                 </div>

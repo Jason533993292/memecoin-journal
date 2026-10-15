@@ -173,7 +173,7 @@ export default function TradeDetailDrawer({
                     Result Outcome
                   </span>
                   <div className="text-lg font-extrabold flex items-center gap-1.5">
-                    <span>{trade.result === "Win" ? "🏆 Win" : trade.result === "Loss" ? "💥 Loss" : "⚖️ Breakeven"}</span>
+                    <span>{trade.result === "Win" ? "Win" : trade.result === "Loss" ? "Loss" : "Breakeven"}</span>
                     {roiPercent && (
                       <span className="text-xs font-semibold opacity-85">
                         ({Number(roiPercent) > 0 ? `+${roiPercent}` : roiPercent}%)

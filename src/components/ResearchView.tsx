@@ -201,7 +201,7 @@ export default function ResearchView({ userId, trades }: { userId: string; trade
     catch { showToast("Clipboard unavailable", "error", "Use Research backup to export a private copy."); }
   };
 
-  return <div className="space-y-6 pb-12 pt-6">
+  return <div className="journal-page">
     <header className="flex flex-wrap items-start justify-between gap-4">
       <div><p className="text-xs text-[#787774]">Journal / Research</p><h1 className="mt-1 text-2xl font-bold tracking-tight">Coin Research</h1><p className="mt-1 text-sm text-[#787774]">Keep the thesis, the plan, and the evidence together—then compare it with your actual trades.</p></div>
       <div className="flex flex-wrap gap-2">

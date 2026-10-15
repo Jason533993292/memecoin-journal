@@ -330,7 +330,6 @@ export default function EquityCurveCard({ trades, solPrice = 150 }: EquityCurveC
       <div className="h-64 sm:h-80 w-full pt-2">
         {filteredCount === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-6 border border-dashed border-[#e3e2de] rounded-xl bg-white/50">
-            <span className="text-2xl mb-1">📈</span>
             <p className="text-xs font-semibold text-[#37352f]">No Trades to Graph Yet</p>
             <p className="text-[11px] text-[#787774] mt-0.5">Log your trades in this timeframe to see your cumulative equity line come alive.</p>
           </div>
@@ -412,7 +411,6 @@ export default function EquityCurveCard({ trades, solPrice = 150 }: EquityCurveC
                               const isGood = DEFAULT_GOOD_TAGS.includes(tag) || tag.toLowerCase().includes("good") || tag.toLowerCase().includes("profit") || tag.toLowerCase().includes("win");
                               return (
                                 <div key={idx} className={`${isGood ? "text-emerald-400" : "text-rose-400"} text-[10px] flex items-start gap-1`}>
-                                  <span className="shrink-0">{isGood ? "✅" : "⚠️"}</span>
                                   <span>{tag}</span>
                                 </div>
                               );

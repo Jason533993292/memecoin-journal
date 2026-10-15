@@ -257,3 +257,17 @@ html[data-theme-preview] .theme-preview-control button.is-active {
   background: var(--preview-accent);
   color: #ffffff;
 }
+
+.journal-page {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding-block: 2rem 4rem;
+}
+
+@media (min-width: 1280px) {
+  .journal-page {
+    gap: 2.5rem;
+    padding-top: 2.5rem;
+  }
+}

@@ -23,7 +23,7 @@ const DailyRecapModal = dynamic(() => import("../components/DailyRecapModal"));
 const AccountDeletionModal = dynamic(() => import("../components/AccountDeletionModal"));
 import { ToastProvider, useToast } from "../components/Toast";
 import { parseLocalStorageValue, readSessionStorageValue, useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
-import { Trash2 } from "lucide-react";
+import { AlertTriangle, Trash2 } from "lucide-react";
 import {
   deleteSupabaseTrade,
   listSupabaseTrades,
@@ -436,12 +436,12 @@ function AuthenticatedApp({ user }: { user: User }) {
       />
 
       {/* Main Content View Container */}
-      <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 md:px-10 flex-1 pb-16 md:pb-0">
+      <div className="mx-auto w-full max-w-[1440px] flex-1 px-6 pb-16 lg:px-10 xl:px-14">
         {/* Firestore Permission Alert Banner */}
         {permissionError && (
           <div className="mt-4 p-4 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
             <div className="flex items-center gap-2.5">
-              <span className="text-xl">⚠️</span>
+              <AlertTriangle size={18} className="shrink-0 text-amber-700" />
               <div>
                 <strong className="font-semibold block text-amber-950">
                   Journal sync is unavailable

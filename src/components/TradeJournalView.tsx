@@ -14,6 +14,7 @@ import {
   FileSpreadsheet,
   Image as ImageIcon,
   Clock,
+  BookOpen,
 } from "lucide-react";
 import { exportTradesToCSV, exportTradesToJSON, filterNewTradeImports, parseTradeImport } from "../lib/exportImport";
 import { getTradeTimestamp } from "../lib/utils";
@@ -221,7 +222,7 @@ export default function TradeJournalView({
   };
 
   return (
-    <div className="space-y-6 pb-16">
+    <div className="journal-page">
       {/* Hidden file input for import */}
       <input
         type="file"
@@ -241,7 +242,9 @@ export default function TradeJournalView({
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <span className="text-3xl">📓</span>
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#e3e2de] bg-[#fbfbfa] text-[#2383e2]">
+              <BookOpen size={20} />
+            </span>
             <div>
               <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-[#37352f]">
                 Trade Journal
@@ -455,8 +458,8 @@ export default function TradeJournalView({
       {/* Main Content: Table or Cards View or Empty State */}
       {trades.length === 0 ? (
         <div className="bg-[#fbfbfa] border border-[#e9e9e7] rounded-2xl p-8 sm:p-10 text-center max-w-2xl mx-auto my-6 space-y-5">
-          <div className="w-16 h-16 bg-blue-50 text-[#2383e2] rounded-2xl flex items-center justify-center text-3xl mx-auto shadow-xs">
-            📓
+          <div className="w-16 h-16 bg-blue-50 text-[#2383e2] rounded-2xl flex items-center justify-center mx-auto shadow-xs">
+            <BookOpen size={28} />
           </div>
           <div>
             <h2 className="text-xl font-bold text-[#37352f]">Your Trading Journal is Empty</h2>
@@ -610,7 +613,7 @@ export default function TradeJournalView({
                           key={`good-${idx}`}
                           className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-800 border border-emerald-200/60"
                         >
-                          ✅ {g}
+                          {g}
                         </span>
                       ))}
                       {trade.mistakes?.slice(0, 2).map((m, idx) => (
@@ -618,7 +621,7 @@ export default function TradeJournalView({
                           key={`mistake-${idx}`}
                           className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-rose-50 text-rose-800 border border-rose-200/60"
                         >
-                          ⚠️ {m}
+                          {m}
                         </span>
                       ))}
                       {((trade.goodTags?.length || 0) + (trade.mistakes?.length || 0) > 4) && (
@@ -730,7 +733,7 @@ export default function TradeJournalView({
                       <td className="notion-table-td font-mono text-[11px] text-[#787774] whitespace-nowrap">
                         {trade.durationMinutes ? (
                           <span className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-100 font-medium">
-                            ⏱️ {formatDuration(trade.durationMinutes)}
+                            {formatDuration(trade.durationMinutes)}
                           </span>
                         ) : (
                           "—"
@@ -818,7 +821,7 @@ export default function TradeJournalView({
                               key={`tgood-${idx}`}
                               className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-800 border border-emerald-200/60"
                             >
-                              ✅ {g}
+                              {g}
                             </span>
                           ))}
                           {trade.mistakes?.map((m, idx) => (
@@ -826,7 +829,7 @@ export default function TradeJournalView({
                               key={`tmistake-${idx}`}
                               className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-rose-50 text-rose-800 border border-rose-200/60"
                             >
-                              ⚠️ {m}
+                              {m}
                             </span>
                           ))}
                         </div>

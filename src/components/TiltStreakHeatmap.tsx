@@ -219,7 +219,7 @@ export default function TiltStreakHeatmap({ trades, solPrice = 150 }: TiltStreak
         <div className="p-3.5 bg-rose-100/80 border border-rose-300 rounded-lg flex items-center gap-3 text-rose-900 animate-in fade-in duration-200">
           <AlertTriangle size={20} className="text-rose-600 shrink-0" />
           <div className="text-xs">
-            <strong className="block font-bold">⚠️ TILT LIMIT REACHED TODAY ({todayLosses} Losses)</strong>
+            <strong className="block font-bold">Tilt limit reached today ({todayLosses} losses)</strong>
             <span>Rule: Max 3 losses per session. Step away from the charts, close BullX/Photon, and reset your mind.</span>
           </div>
         </div>

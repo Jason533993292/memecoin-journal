@@ -5,7 +5,7 @@ import { Trade } from "../lib/types";
 import { getTradeDate } from "../lib/utils";
 import { DEFAULT_GOOD_TAGS } from "../lib/constants";
 import { getUsdValueStatus } from "../lib/tradeCalculations";
-import { Layers, Target, Clock, Zap, Tag } from "lucide-react";
+import { BarChart3, Layers, Target, Clock, Zap, Tag, Trophy, TrendingDown, Lightbulb, CalendarDays } from "lucide-react";
 import TiltStreakHeatmap from "./TiltStreakHeatmap";
 import TimeOfDayHeatmap from "./TimeOfDayHeatmap";
 
@@ -182,7 +182,7 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
 
   if (trades.length === 0) {
     return (
-      <div className="space-y-8 pb-16 pt-6">
+      <div className="journal-page">
         <div className="flex items-center gap-2 text-xs text-[#787774] mb-2">
           <span>Journal</span>
           <span>/</span>
@@ -190,7 +190,9 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="text-3xl">📈</span>
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#e3e2de] bg-[#fbfbfa] text-[#2383e2]">
+            <BarChart3 size={20} />
+          </span>
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#37352f]">
               Statistics & Strategy Analytics
@@ -203,7 +205,7 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
 
         <div className="bg-white border border-[#e9e9e7] rounded-2xl p-12 text-center max-w-lg mx-auto shadow-xs mt-6">
           <div className="w-14 h-14 bg-[#f7f6f3] border border-[#e3e2de] rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
-            📊
+            <BarChart3 size={24} />
           </div>
           <h3 className="text-base font-bold text-[#37352f] mb-1.5">No Historical Trades Yet</h3>
           <p className="text-xs text-[#787774] max-w-sm mx-auto leading-relaxed">
@@ -215,7 +217,7 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
   }
 
   return (
-    <div className="space-y-8 pb-16">
+    <div className="journal-page">
       {/* Title */}
       <div className="pt-6">
         <div className="flex items-center gap-2 text-xs text-[#787774] mb-2">
@@ -225,7 +227,9 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="text-3xl">📈</span>
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#e3e2de] bg-[#fbfbfa] text-[#2383e2]">
+            <BarChart3 size={20} />
+          </span>
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#37352f]">
               Statistics & Strategy Analytics
@@ -344,7 +348,7 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
               <span className="text-[10px] text-emerald-700">Time to hit profit targets</span>
             </div>
             <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-lg">
-              🏆
+              <Trophy size={18} />
             </div>
           </div>
 
@@ -359,14 +363,14 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
               <span className="text-[10px] text-rose-700">Time held before cutting loss</span>
             </div>
             <div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center text-lg">
-              💥
+              <TrendingDown size={18} />
             </div>
           </div>
         </div>
 
         {durationStats.hasDurationData && (
           <div className="p-3 bg-[#fbfbfa] border border-[#e9e9e7] rounded-lg text-xs text-[#5a5957] flex items-center gap-2">
-            <span className="text-base">💡</span>
+            <Lightbulb size={16} className="shrink-0" />
             <span>
               {durationStats.avgLossDuration && durationStats.avgWinDuration && durationStats.avgLossDuration > durationStats.avgWinDuration ? (
                 <span>
@@ -448,7 +452,7 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
         <div className="bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl p-5 shadow-xs">
           <div className="pb-3 border-b border-[#e9e9e7]">
             <div className="flex items-center gap-1.5 font-semibold text-xs text-[#37352f]">
-              <span className="p-1 rounded bg-neutral-100 text-neutral-600">📊</span>
+              <span className="p-1 rounded bg-neutral-100 text-neutral-600"><BarChart3 size={14} /></span>
               <span>Results Breakdown</span>
             </div>
           </div>
@@ -458,7 +462,7 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
               <div className="flex items-center gap-2">
                 <span className="font-mono text-[#787774] w-4">{results.win.count}</span>
                 <span className="font-medium text-[#37352f] flex items-center gap-1">
-                  <span>🏆</span> Win
+                  Win
                 </span>
               </div>
               <span className="font-mono font-medium text-emerald-600">
@@ -470,7 +474,7 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
               <div className="flex items-center gap-2">
                 <span className="font-mono text-[#787774] w-4">{results.be.count}</span>
                 <span className="font-medium text-[#37352f] flex items-center gap-1">
-                  <span>⚖️</span> BE
+                  Break-even
                 </span>
               </div>
               <span className="font-mono font-medium text-[#787774]">
@@ -482,7 +486,7 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
               <div className="flex items-center gap-2">
                 <span className="font-mono text-[#787774] w-4">{results.loss.count}</span>
                 <span className="font-medium text-[#37352f] flex items-center gap-1">
-                  <span>💥</span> Loss
+                  Loss
                 </span>
               </div>
               <span className="font-mono font-medium text-rose-600">
@@ -496,7 +500,7 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
         <div className="bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl p-5 shadow-xs">
           <div className="pb-3 border-b border-[#e9e9e7]">
             <div className="flex items-center gap-1.5 font-semibold text-xs text-[#37352f]">
-              <span className="p-1 rounded bg-neutral-100 text-neutral-600">📅</span>
+              <span className="p-1 rounded bg-neutral-100 text-neutral-600"><CalendarDays size={14} /></span>
               <span>Yearly Statistics</span>
             </div>
           </div>
@@ -505,7 +509,6 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
             {yearlyStats.map((y) => (
               <div key={y.name} className="flex items-center justify-between py-2 border-b border-[#f1f1ef] last:border-0">
                 <div className="flex items-center gap-2">
-                  <span>📅</span>
                   <span className="font-medium text-[#37352f]">{y.name}</span>
                 </div>
                 <div className="flex items-center gap-4">
@@ -539,7 +542,6 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
               >
                 <div>
                   <span className="text-xs font-semibold text-[#37352f] flex items-center gap-1">
-                    <span>{item.isGood ? "✅" : "⚠️"}</span>
                     <span>{item.tag}</span>
                   </span>
                   <span className="text-[11px] text-[#787774]">{item.count} trade{item.count > 1 ? "s" : ""}</span>

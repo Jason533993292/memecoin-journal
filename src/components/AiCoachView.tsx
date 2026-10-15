@@ -239,7 +239,7 @@ export default function AiCoachView({
   };
 
   return (
-    <div className="space-y-6 pb-16">
+    <div className="journal-page">
       {/* Title */}
       <div className="pt-6">
         <div className="flex items-center gap-2 text-xs text-[#787774] mb-2">
@@ -250,7 +250,6 @@ export default function AiCoachView({
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-3xl">🧠</span>
             <div>
               <h1 className="text-3xl font-bold tracking-tight text-[#37352f]">
                 AI Trade Review

@@ -55,7 +55,6 @@ export default function RuleEditorModal({
         </button>
 
         <div className="flex items-center gap-2 mb-4 pb-3 border-b border-[#f1f1ef]">
-          <span className="text-xl">⚙️</span>
           <div>
             <h2 className="text-lg font-semibold tracking-tight text-[#37352f]">Edit Trading Rules</h2>
             <p className="text-xs text-[#787774]">Customize your daily Risk Management and Trade Plan guidelines.</p>
@@ -66,7 +65,6 @@ export default function RuleEditorModal({
           {/* Risk Management Section */}
           <div>
             <div className="flex items-center gap-1.5 font-semibold text-[#37352f] mb-2">
-              <span>⚠️</span>
               <span>Risk Management Rules</span>
             </div>
             <div className="space-y-1.5">
@@ -136,7 +134,6 @@ export default function RuleEditorModal({
           {/* Trade Plan Section */}
           <div className="pt-3 border-t border-[#f1f1ef]">
             <div className="flex items-center gap-1.5 font-semibold text-[#37352f] mb-2">
-              <span>🔀</span>
               <span>Trade Plan Rules</span>
             </div>
             <div className="space-y-1.5">

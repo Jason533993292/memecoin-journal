@@ -239,7 +239,7 @@ export default function GoalTracker({
 
           <div className="flex items-center justify-between text-[10px] text-[#9b9a97]">
             <span>
-              {stats.weeklyWinRate >= (goals.targetWinRate || 60) ? "🎯 On Target" : "Refine setups"}
+              {stats.weeklyWinRate >= (goals.targetWinRate || 60) ? "On target" : "Refine setups"}
             </span>
             <span>This Week</span>
           </div>
