@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description: "How Memecoin Journal collects, uses, stores, and protects personal data.",
 };
 
-const LAST_UPDATED = "9 October 2026";
+const LAST_UPDATED = "15 October 2026";
 const CONTACT_EMAIL = "orders@rewind-stores.com";
 
 function Section({ id, title, children }: Readonly<{ id: string; title: string; children: React.ReactNode }>) {
@@ -62,10 +62,10 @@ export default function PrivacyPage() {
                 <dt className="font-semibold text-[#37352f]">Account data</dt><dd>Email address, Firebase user ID, sign-in provider, and the authentication information Firebase needs to run your account.</dd>
               </div>
               <div className="grid gap-1 border-b border-[#e9e9e7] px-4 py-3 sm:grid-cols-[11rem_1fr] sm:gap-5">
-                <dt className="font-semibold text-[#37352f]">Journal data</dt><dd>Trades, outcomes, P&amp;L, strategy and psychology tags, notes, screenshots, rules, goals, and dates you choose to save.</dd>
+                <dt className="font-semibold text-[#37352f]">Journal data</dt><dd>Trades, outcomes, P&amp;L, strategy and psychology tags, notes, screenshots, rules, goals, coin research and theses, tracked-wallet labels and public addresses, paper balances, wallet transactions, and dates you choose to save.</dd>
               </div>
               <div className="grid gap-1 border-b border-[#e9e9e7] bg-[#fbfbfa] px-4 py-3 sm:grid-cols-[11rem_1fr] sm:gap-5">
-                <dt className="font-semibold text-[#37352f]">Browser-only settings</dt><dd>Paper-capital settings, tracked wallet details, AI provider choice, AI key, and similar preferences stored in your browser profile.</dd>
+                <dt className="font-semibold text-[#37352f]">Browser-only settings</dt><dd>Your AI provider choice and API key, theme choice, and similar presentation preferences stored in your browser profile.</dd>
               </div>
               <div className="grid gap-1 px-4 py-3 sm:grid-cols-[11rem_1fr] sm:gap-5">
                 <dt className="font-semibold text-[#37352f]">Technical data</dt><dd>Limited request, security, and rate-limit information needed to operate and protect the service.</dd>
@@ -87,12 +87,12 @@ export default function PrivacyPage() {
 
           <Section id="storage" title="4. Where your data is stored">
             <p>Firebase Authentication manages sign-in. The current Railway staging deployment stores journal records in Supabase Postgres under your Firebase user ID, protected by row-level security. Older or Firebase-configured deployments may store journal data in Cloud Firestore with owner-only security rules. The hosting provider can also differ by deployment link.</p>
-            <p>Some preferences are intentionally browser-only. These include your AI key and provider choice, paper-capital settings, and locally tracked wallet details. Browser storage is not an encrypted password manager: anyone with access to an unlocked browser profile may be able to read it.</p>
+            <p>Your saved trades, research, wallet bookkeeping, paper-capital settings, rules, and goals are stored in the database used by the deployment. Some preferences are intentionally browser-only, including your AI key and provider choice, theme choice, and similar presentation settings. Browser storage is not an encrypted password manager: anyone with access to an unlocked browser profile may be able to read it.</p>
           </Section>
 
           <Section id="ai" title="5. AI coach and your API key">
             <p>The AI Coach is optional. Your key is stored in local browser storage, not Firestore. When you request an AI review, the app sends the key over HTTPS to its server and forwards it only to the provider you selected: DeepSeek, Google Gemini, or OpenAI. The service does not use a shared site-owned AI key.</p>
-            <p>For an AI review, the app can process up to 100 recent trades to create a summary and forwards at most 15 reduced recent trade records plus any question you write. The forwarded sample can include token symbols, outcomes, P&amp;L, tags, and setup names. It excludes token addresses, wallet addresses, trade notes, and screenshots. We do not intentionally save API keys, full AI request bodies, or provider responses in Firestore or application logs.</p>
+            <p>For an AI review, the app can process up to 100 recent trades to create a summary and forwards at most 15 reduced recent trade records, up to five reduced saved research entries, and any question you write. The forwarded trade sample can include token symbols, outcomes, P&amp;L, tags, and setup names. The research sample can include a coin name and symbol, research stage, thesis, bull and bear cases, invalidation, confidence, and tags. It excludes token and wallet addresses, trade notes, screenshots, research sources, research timelines, and private decision-journal entries. We do not intentionally save API keys, full AI request bodies, or provider responses in Firestore or application logs.</p>
             <p>Each selected AI provider has its own privacy terms and retention practices. Review them before using the feature, and remove and revoke a key promptly if you believe it was exposed.</p>
           </Section>
 

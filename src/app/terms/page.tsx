@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description: "The terms that apply when you use Memecoin Journal.",
 };
 
-const LAST_UPDATED = "9 October 2026";
+const LAST_UPDATED = "15 October 2026";
 const CONTACT_EMAIL = "orders@rewind-stores.com";
 
 function Section({ id, title, children }: Readonly<{ id: string; title: string; children: React.ReactNode }>) {
@@ -51,7 +51,7 @@ export default function TermsPage() {
           </Section>
 
           <Section id="service" title="2. What the service does">
-            <p>Memecoin Journal lets you record trades, review performance, manage journal rules and goals, and optionally request AI-generated trading-journal feedback. The service does not place trades, hold assets, connect to your wallet for signing, or control your funds.</p>
+            <p>Memecoin Journal lets you record trades, review performance, maintain coin research and theses, track public wallet bookkeeping, manage journal rules and goals, and optionally request AI-generated trading-journal feedback. The service does not place trades, hold assets, connect to your wallet for signing, or control your funds.</p>
             <p>Market information, token lookups, wallet-balance results, charts, and calculations may be delayed, incomplete, or inaccurate. You are responsible for independently verifying information before acting on it.</p>
           </Section>
 
@@ -82,12 +82,12 @@ export default function TermsPage() {
           </Section>
 
           <Section id="your-content" title="6. Your content and journal data">
-            <p>You retain ownership of the trade records, notes, screenshots, and other content you submit. You grant us a limited, non-exclusive right to process that content only as needed to operate, secure, and improve the features you request.</p>
+            <p>You retain ownership of the trade records, research, theses, notes, screenshots, and other content you submit. You grant us a limited, non-exclusive right to process that content only as needed to operate, secure, and improve the features you request.</p>
             <p>You are responsible for your content&apos;s accuracy, legality, and any rights needed to submit it. We do not claim ownership of your trades or use them to train public AI models.</p>
           </Section>
 
           <Section id="ai" title="7. Optional AI features and third-party services">
-            <p>AI features are optional and require your own compatible API key. When you request a review, selected reduced trade information and any question you submit are sent to the provider you choose. The provider&apos;s terms, pricing, availability, and privacy practices apply to that request.</p>
+            <p>AI features are optional and require your own compatible API key. When you request a review, selected reduced trade information, selected reduced saved-research information, and any question you submit are sent to the provider you choose. The provider&apos;s terms, pricing, availability, and privacy practices apply to that request.</p>
             <p>AI output can be incorrect, incomplete, or unsuitable for your situation. Do not rely on it as professional advice or as a basis for trading without independent review. You are responsible for all charges, limits, and permissions associated with your own API key.</p>
           </Section>
 

@@ -63,6 +63,32 @@ function validWalletTransaction(id = "tx-1") {
   };
 }
 
+function validResearch(ca = "So11111111111111111111111111111111111111112") {
+  return {
+    ca,
+    name: "Test Coin",
+    symbol: "TEST",
+    stage: "researching",
+    thesis: "A bounded test thesis.",
+    bullCase: "Demand grows.",
+    bearCase: "Demand fades.",
+    catalysts: ["Confirmed catalyst"],
+    risks: ["Thin liquidity"],
+    invalidation: "Liquidity leaves.",
+    entryPlan: "Wait for confirmation.",
+    stopPlan: "Exit on invalidation.",
+    targetPlan: "Scale out.",
+    horizon: "Days",
+    confidence: 60,
+    tags: ["test"],
+    sources: ["https://example.com/source"],
+    snapshots: [],
+    decisions: [],
+    createdAt: 1_700_000_000_000,
+    updatedAt: 1_700_000_000_000,
+  };
+}
+
 before(async () => {
   environment = await initializeTestEnvironment({
     projectId,
@@ -145,6 +171,23 @@ test("wallet transactions are private, validated, and append-only", async () => 
   await assertFails(setDoc(doc(ownerDb, "users/history-owner/walletTransactions/tx-bad"), {
     ...validWalletTransaction("tx-bad"),
     notes: "x".repeat(501),
+  }));
+});
+
+test("coin research is owner-only and rejects mismatched or oversized records", async () => {
+  const ownerDb = environment.authenticatedContext("research-owner").firestore();
+  const otherDb = environment.authenticatedContext("research-other").firestore();
+  const ca = "So11111111111111111111111111111111111111112";
+  const path = `users/research-owner/research/${ca}`;
+
+  await assertSucceeds(setDoc(doc(ownerDb, path), validResearch(ca)));
+  await assertSucceeds(getDoc(doc(ownerDb, path)));
+  await assertFails(getDoc(doc(otherDb, path)));
+  await assertFails(getDocs(collection(otherDb, "users/research-owner/research")));
+  await assertFails(setDoc(doc(ownerDb, `users/research-owner/research/${ca}x`), validResearch(ca)));
+  await assertFails(setDoc(doc(ownerDb, "users/research-owner/research/short-address"), {
+    ...validResearch("short-address"),
+    thesis: "x".repeat(5_001),
   }));
 });
 

@@ -19,6 +19,45 @@ const STAGES: { id: ResearchStage; label: string }[] = [
 const blank = (): ResearchItem => ({ ca: "", name: "", symbol: "", stage: "idea", thesis: "", bullCase: "", bearCase: "", catalysts: [], risks: [], invalidation: "", entryPlan: "", stopPlan: "", targetPlan: "", horizon: "", confidence: 50, tags: [], sources: [], snapshots: [], decisions: [], createdAt: Date.now(), updatedAt: Date.now() });
 const lines = (value: string) => value.split("\n").map((line) => line.trim()).filter(Boolean).slice(0, 20);
 const text = (value: string[] | undefined) => (value ?? []).join("\n");
+const bulletList = (values: string[]) => values.map((value) => `- ${value}`).join("\n");
+
+function buildShareableThesis(item: ResearchItem) {
+  const stage = STAGES.find((entry) => entry.id === item.stage)?.label ?? item.stage;
+  const sections = [
+    `# ${item.name.trim()}${item.symbol.trim() ? ` ($${item.symbol.trim()})` : ""}`,
+    [
+      item.ca.trim() ? `**Contract:** \`${item.ca.trim()}\`` : "",
+      `**Stage:** ${stage}`,
+      `**Confidence:** ${item.confidence}%`,
+      item.horizon.trim() ? `**Time horizon:** ${item.horizon.trim()}` : "",
+      item.sizeSol !== undefined ? `**Planned size:** ${item.sizeSol} SOL` : "",
+    ].filter(Boolean).join("\n"),
+    item.thesis.trim() ? `## Core thesis\n${item.thesis.trim()}` : "",
+    item.bullCase.trim() ? `## Bull case\n${item.bullCase.trim()}` : "",
+    item.bearCase.trim() ? `## Bear case\n${item.bearCase.trim()}` : "",
+    item.catalysts.length ? `## Catalysts\n${bulletList(item.catalysts)}` : "",
+    item.risks.length ? `## Risks\n${bulletList(item.risks)}` : "",
+    item.invalidation.trim() ? `## Invalidation\n${item.invalidation.trim()}` : "",
+    [
+      item.entryPlan.trim() ? `**Entry:** ${item.entryPlan.trim()}` : "",
+      item.stopPlan.trim() ? `**Stop / risk:** ${item.stopPlan.trim()}` : "",
+      item.targetPlan.trim() ? `**Targets:** ${item.targetPlan.trim()}` : "",
+    ].filter(Boolean).length
+      ? `## Trade plan\n${[
+          item.entryPlan.trim() ? `**Entry:** ${item.entryPlan.trim()}` : "",
+          item.stopPlan.trim() ? `**Stop / risk:** ${item.stopPlan.trim()}` : "",
+          item.targetPlan.trim() ? `**Targets:** ${item.targetPlan.trim()}` : "",
+        ].filter(Boolean).join("\n")}`
+      : "",
+    item.tags.length ? `**Tags:** ${item.tags.map((tag) => `#${tag.replace(/\s+/g, "-")}`).join(" ")}` : "",
+    item.sources.length ? `## Sources\n${bulletList(item.sources)}` : "",
+    item.snapshots.length
+      ? `## Research updates\n${item.snapshots.map((snapshot) => `- ${new Date(snapshot.createdAt).toLocaleDateString()}: ${snapshot.note}`).join("\n")}`
+      : "",
+  ];
+
+  return sections.filter(Boolean).join("\n\n");
+}
 const validResearch = (value: unknown): value is ResearchItem => {
   if (!value || typeof value !== "object") return false;
   const item = value as ResearchItem;
@@ -28,6 +67,7 @@ const validResearch = (value: unknown): value is ResearchItem => {
   ];
   return typeof item.ca === "string" && item.ca.length >= 20 && item.ca.length <= 128
     && typeof item.name === "string" && item.name.length <= 120
+    && typeof item.symbol === "string" && item.symbol.length <= 40
     && STAGES.some((stage) => stage.id === item.stage)
     && typeof item.thesis === "string" && item.thesis.length <= 5000
     && typeof item.bullCase === "string" && item.bullCase.length <= 3000
@@ -36,10 +76,13 @@ const validResearch = (value: unknown): value is ResearchItem => {
     && typeof item.entryPlan === "string" && item.entryPlan.length <= 2000
     && typeof item.stopPlan === "string" && item.stopPlan.length <= 1000
     && typeof item.targetPlan === "string" && item.targetPlan.length <= 1000
+    && typeof item.horizon === "string" && item.horizon.length <= 80
     && typeof item.confidence === "number" && item.confidence >= 0 && item.confidence <= 100
+    && (item.sizeSol === undefined || (typeof item.sizeSol === "number" && Number.isFinite(item.sizeSol) && item.sizeSol >= 0 && item.sizeSol <= 100000000))
     && boundedLists.every(({ values, maxLength }) => Array.isArray(values) && values.length <= 20 && values.every((entry) => typeof entry === "string" && entry.length <= maxLength))
     && Array.isArray(item.snapshots) && item.snapshots.length <= 100 && item.snapshots.every((snapshot) => snapshot && typeof snapshot.id === "string" && typeof snapshot.note === "string" && snapshot.note.length <= 1000 && Number.isFinite(snapshot.createdAt))
     && Array.isArray(item.decisions) && item.decisions.length <= 100 && item.decisions.every((decision) => decision && typeof decision.id === "string" && typeof decision.note === "string" && decision.note.length <= 2000 && Number.isFinite(decision.createdAt) && ["calm", "confident", "uncertain", "fearful", "fomo"].includes(decision.mood))
+    && Number.isFinite(item.createdAt) && Number.isFinite(item.updatedAt)
     && JSON.stringify(item).length <= 90000;
 };
 
@@ -197,8 +240,17 @@ export default function ResearchView({ userId, trades }: { userId: string; trade
     update("decisions", [...draft.decisions, decision].slice(-100)); setDecisionNote("");
   };
   const copyThesis = async () => {
-    const content = `# ${draft.name}${draft.symbol ? ` ($${draft.symbol})` : ""}\n\nCA: ${draft.ca}\nStage: ${draft.stage}\nConfidence: ${draft.confidence}%\n\n## Thesis\n${draft.thesis}\n\n## Bull case\n${draft.bullCase}\n\n## Bear case\n${draft.bearCase}\n\n## Invalidation\n${draft.invalidation}\n\n## Plan\nEntry: ${draft.entryPlan}\nStop: ${draft.stopPlan}\nTargets: ${draft.targetPlan}\n\nSources:\n${draft.sources.map((source) => `- ${source}`).join("\n")}`;
-    try { await navigator.clipboard.writeText(content); showToast("Thesis copied", "success", "Only copied to your clipboard; nothing was published."); }
+    const content = buildShareableThesis(draft);
+    try {
+      await navigator.clipboard.writeText(content);
+      showToast(
+        "Full thesis copied",
+        "success",
+        content.length > 1900
+          ? "Ready to paste. Discord may ask you to split this longer thesis into multiple messages."
+          : "Ready to paste into Discord. Your private decision journal was not included.",
+      );
+    }
     catch { showToast("Clipboard unavailable", "error", "Use Research backup to export a private copy."); }
   };
 
@@ -243,7 +295,7 @@ export default function ResearchView({ userId, trades }: { userId: string; trade
       </aside>
 
       <main className="min-w-0 rounded-xl border border-[#e9e9e7] bg-white p-4 sm:p-6">
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-2 border-b border-[#f1f1ef] pb-4"><div><h2 className="text-lg font-semibold">{selectedCa ? draft.name || "Coin thesis" : exampleMode ? "Example thesis · not saved" : "New coin thesis"}</h2><p className="text-xs text-[#787774]">Private to your account · autosave is off; use Save to keep edits.</p></div><div className="flex flex-wrap gap-2"><select aria-label="Apply a research template" defaultValue="" onChange={(event) => { const kind = event.target.value; if (!kind) return; if ((draft.thesis || draft.bullCase) && !window.confirm("Replace the current thesis fields with this template?")) { event.target.value = ""; return; } const templates: Record<string, Partial<ResearchItem>> = { narrative: { stage: "researching", thesis: "The market may be underestimating this token because…", bullCase: "Narrative strength, attention, holder growth…", bearCase: "Narrative fades, supply pressure, liquidity falls…", catalysts: ["Sustained organic attention", "Healthy liquidity and volume"], risks: ["Concentrated holders", "Thin liquidity"], invalidation: "The thesis is invalid if…", entryPlan: "Enter only after…", stopPlan: "Risk no more than…", targetPlan: "Scale out at…", horizon: "Days to weeks" }, catalyst: { stage: "researching", thesis: "The market may be underpricing the upcoming catalyst…", bullCase: "Catalyst is confirmed and attracts durable demand…", bearCase: "Catalyst is delayed, already priced in, or has weak follow-through…", catalysts: ["Confirmed event / launch", "Post-event follow-through"], risks: ["Rumor mistaken for confirmation", "Sell-the-news reaction"], invalidation: "Invalidate if the catalyst is cancelled or fails to attract follow-through.", entryPlan: "Wait for confirmation; define the maximum chase price…", stopPlan: "Exit if the catalyst thesis breaks…", targetPlan: "Trim into strength at predefined levels…", horizon: "Event window" }, liquidity: { stage: "researching", thesis: "The liquidity / market-structure setup may create an asymmetric trade because…", bullCase: "Liquidity deepens with stable holder distribution…", bearCase: "Liquidity is temporary or exits become crowded…", catalysts: ["Increasing organic volume", "Improving liquidity depth"], risks: ["High slippage", "LP concentration or removal"], invalidation: "Invalidate if liquidity quality deteriorates below my minimum…", entryPlan: "Use limit / staged entries; avoid thin liquidity…", stopPlan: "Define loss in SOL before entry…", targetPlan: "Scale out as liquidity or volume conditions change…", horizon: "Intraday" } }; setDraft((current) => ({ ...current, ...templates[kind] })); setExampleMode(false); event.target.value = ""; }} className="rounded-md border border-[#e3e2de] bg-white px-2.5 py-2 text-xs text-[#5a5957]"><option value="">Apply template…</option><option value="narrative">Narrative momentum</option><option value="catalyst">Catalyst / event</option><option value="liquidity">Liquidity / structure</option></select><button onClick={() => void copyThesis()} disabled={!draft.ca || !draft.name} className="rounded-md border border-[#e3e2de] px-2.5 py-2 text-xs disabled:opacity-40"><Clipboard size={13} className="mr-1 inline"/> Copy</button>{selectedCa && <button onClick={() => void remove()} className="rounded-md border border-rose-200 px-2.5 py-2 text-xs text-rose-700 hover:bg-rose-50"><Trash2 size={13}/></button>}</div></div>
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-2 border-b border-[#f1f1ef] pb-4"><div><h2 className="text-lg font-semibold">{selectedCa ? draft.name || "Coin thesis" : exampleMode ? "Example thesis · not saved" : "New coin thesis"}</h2><p className="text-xs text-[#787774]">Private to your account · autosave is off; use Save to keep edits.</p></div><div className="flex flex-wrap gap-2"><select aria-label="Apply a research template" defaultValue="" onChange={(event) => { const kind = event.target.value; if (!kind) return; if ((draft.thesis || draft.bullCase) && !window.confirm("Replace the current thesis fields with this template?")) { event.target.value = ""; return; } const templates: Record<string, Partial<ResearchItem>> = { narrative: { stage: "researching", thesis: "The market may be underestimating this token because…", bullCase: "Narrative strength, attention, holder growth…", bearCase: "Narrative fades, supply pressure, liquidity falls…", catalysts: ["Sustained organic attention", "Healthy liquidity and volume"], risks: ["Concentrated holders", "Thin liquidity"], invalidation: "The thesis is invalid if…", entryPlan: "Enter only after…", stopPlan: "Risk no more than…", targetPlan: "Scale out at…", horizon: "Days to weeks" }, catalyst: { stage: "researching", thesis: "The market may be underpricing the upcoming catalyst…", bullCase: "Catalyst is confirmed and attracts durable demand…", bearCase: "Catalyst is delayed, already priced in, or has weak follow-through…", catalysts: ["Confirmed event / launch", "Post-event follow-through"], risks: ["Rumor mistaken for confirmation", "Sell-the-news reaction"], invalidation: "Invalidate if the catalyst is cancelled or fails to attract follow-through.", entryPlan: "Wait for confirmation; define the maximum chase price…", stopPlan: "Exit if the catalyst thesis breaks…", targetPlan: "Trim into strength at predefined levels…", horizon: "Event window" }, liquidity: { stage: "researching", thesis: "The liquidity / market-structure setup may create an asymmetric trade because…", bullCase: "Liquidity deepens with stable holder distribution…", bearCase: "Liquidity is temporary or exits become crowded…", catalysts: ["Increasing organic volume", "Improving liquidity depth"], risks: ["High slippage", "LP concentration or removal"], invalidation: "Invalidate if liquidity quality deteriorates below my minimum…", entryPlan: "Use limit / staged entries; avoid thin liquidity…", stopPlan: "Define loss in SOL before entry…", targetPlan: "Scale out as liquidity or volume conditions change…", horizon: "Intraday" } }; setDraft((current) => ({ ...current, ...templates[kind] })); setExampleMode(false); event.target.value = ""; }} className="rounded-md border border-[#e3e2de] bg-white px-2.5 py-2 text-xs text-[#5a5957]"><option value="">Apply template…</option><option value="narrative">Narrative momentum</option><option value="catalyst">Catalyst / event</option><option value="liquidity">Liquidity / structure</option></select><button onClick={() => void copyThesis()} disabled={!draft.ca || !draft.name} title="Copy the complete shareable thesis in Discord-friendly Markdown" className="rounded-md border border-[#e3e2de] px-2.5 py-2 text-xs disabled:opacity-40"><Clipboard size={13} className="mr-1 inline"/> Copy full thesis</button>{selectedCa && <button onClick={() => void remove()} className="rounded-md border border-rose-200 px-2.5 py-2 text-xs text-rose-700 hover:bg-rose-50"><Trash2 size={13}/></button>}</div></div>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Token name"><input value={draft.name} onChange={(e) => update("name", e.target.value)} maxLength={120} placeholder="e.g. BONK" className={inputClass}/></Field>
           <Field label="Ticker"><input value={draft.symbol} onChange={(e) => update("symbol", e.target.value)} maxLength={40} placeholder="BONK" className={inputClass}/></Field>

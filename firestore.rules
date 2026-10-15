@@ -101,6 +101,14 @@ service cloud.firestore {
       return values is list && values.size() <= 20;
     }
 
+    // Research contains four independent string lists. Expanding the strict
+    // 20-item helper for all four exceeds Firestore's 1,000-expression limit
+    // and rejects otherwise valid writes. Keep their shape/count bounded in
+    // rules; the client additionally limits each item before writing.
+    function validResearchList(values) {
+      return values is list && values.size() <= 20;
+    }
+
     function validTrade(data) {
       return data.keys().hasOnly([
           'ca', 'name', 'symbol', 'wallet', 'result', 'setupType', 'mcap',
@@ -257,10 +265,10 @@ service cloud.firestore {
         && validString(data, 'targetPlan', 0, 1000)
         && validString(data, 'horizon', 0, 80)
         && data.confidence is int && data.confidence >= 0 && data.confidence <= 100
-        && validShortStringList(data.catalysts, 20, 500)
-        && validShortStringList(data.risks, 20, 500)
-        && validShortStringList(data.tags, 20, 80)
-        && validShortStringList(data.sources, 20, 500)
+        && validResearchList(data.catalysts)
+        && validResearchList(data.risks)
+        && validResearchList(data.tags)
+        && validResearchList(data.sources)
         && data.snapshots is list && data.snapshots.size() <= 100
         && data.decisions is list && data.decisions.size() <= 100
         && validOptionalNumber(data, 'sizeSol', 0, 100000000)

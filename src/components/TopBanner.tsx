@@ -48,12 +48,12 @@ export default function TopBanner({
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
 
   const tabs = [
-    { id: "dashboard", label: "Dashboard", fullLabel: "MemeCoins Dashboard", icon: LayoutDashboard },
-    { id: "journal", label: "Journal", fullLabel: "Trade Journal", icon: BookOpen },
-    { id: "wallets", label: "Wallets", fullLabel: "Wallets & Paychecks", icon: Wallet },
-    { id: "statistics", label: "Analytics", fullLabel: "Statistics", icon: BarChart3 },
-    { id: "research", label: "Research", fullLabel: "Coin Research & Thesis", icon: Microscope },
-    { id: "ai-coach", label: "AI Coach", fullLabel: "AI Trader Coach", icon: Bot },
+    { id: "dashboard", label: "Dashboard", title: "MemeCoins Dashboard", icon: LayoutDashboard },
+    { id: "journal", label: "Journal", title: "Trade Journal", icon: BookOpen },
+    { id: "wallets", label: "Wallets", title: "Wallets & Paychecks", icon: Wallet },
+    { id: "statistics", label: "Analytics", title: "Statistics", icon: BarChart3 },
+    { id: "research", label: "Research", title: "Coin Research & Thesis", icon: Microscope },
+    { id: "ai-coach", label: "AI Coach", title: "AI Trader Coach", icon: Bot },
   ];
 
   return (
@@ -61,7 +61,7 @@ export default function TopBanner({
       {/* Top Navigation Bar */}
       <div className="bg-[#f7f6f3] border-b border-[#e9e9e7] px-3 sm:px-4 py-2 flex items-center justify-between text-xs text-[#787774] sticky top-0 z-40 backdrop-blur-md">
         {/* Desktop & Mobile Scrollable Tab Bar */}
-        <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5 max-w-[65%] sm:max-w-none">
+        <div className="flex min-w-0 flex-1 items-center gap-1 py-0.5">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = currentTab === tab.id;
@@ -69,15 +69,15 @@ export default function TopBanner({
               <button
                 key={tab.id}
                 onClick={() => setCurrentTab(tab.id)}
-                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-md transition-all whitespace-nowrap text-xs ${
+                title={tab.title}
+                className={`flex items-center gap-1.5 px-2 xl:px-2.5 py-1.5 rounded-md transition-all whitespace-nowrap text-[11px] xl:text-xs ${
                   isActive
                     ? "bg-white text-[#37352f] font-semibold shadow-xs border border-[#e3e2de]"
                     : "hover:bg-[#eeece8] text-[#5a5957]"
                 }`}
               >
                 <Icon size={14} className={isActive ? "text-[#2383e2]" : "text-[#908e89]"} />
-                <span className="hidden md:inline">{tab.fullLabel}</span>
-                <span className="md:hidden">{tab.label}</span>
+                <span>{tab.label}</span>
               </button>
             );
           })}
