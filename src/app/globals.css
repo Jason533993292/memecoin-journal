@@ -35,6 +35,18 @@
   background: #b0b0ad;
 }
 
+/* Keep horizontally scrollable controls usable without showing a browser rail. */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+  height: 0;
+  width: 0;
+}
+
 .notion-card {
   background-color: #ffffff;
   border: 1px solid #e9e9e7;
