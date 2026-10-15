@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@heroui/react";
 import ThemePreviewControl from "./ThemePreviewControl";
 import {
   LayoutDashboard,
@@ -131,13 +132,15 @@ export default function TopBanner({
           </button>
 
           {/* New Trade Primary Action */}
-          <button
-            onClick={onOpenNewTrade}
-            className="bg-[#1a73ca] hover:bg-[#155fa8] text-white px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1 shadow-xs transition-colors"
+          <Button
+            type="button"
+            size="sm"
+            onPress={onOpenNewTrade}
+            className="h-7 min-w-0 rounded-md bg-[#1a73ca] px-2.5 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-[#155fa8] sm:px-3"
           >
             <Plus size={14} className="sm:hidden" />
             <span className="hidden sm:inline">+ New Trade</span>
-          </button>
+          </Button>
 
           {/* User Auth Controls */}
           {user ? (
