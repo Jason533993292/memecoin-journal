@@ -476,7 +476,7 @@ export default function TradeJournalView({
             </div>
             <div className="p-3 bg-white border border-[#e9e9e7] rounded-xl">
               <span className="font-semibold text-[#37352f] block mb-1">3. AI Insights</span>
-              <p className="text-[#787774] text-[11px]">DeepSeek coaches you on your tilt patterns.</p>
+              <p className="text-[#787774] text-[11px]">Your selected AI provider reviews tilt patterns and execution.</p>
             </div>
           </div>
 
@@ -902,7 +902,7 @@ export default function TradeJournalView({
                 onClick={confirmDelete}
                 className="flex-1 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
               >
-                Delete Permanently
+                Delete Trade
               </button>
             </div>
           </div>

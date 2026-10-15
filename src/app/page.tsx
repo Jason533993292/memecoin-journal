@@ -618,7 +618,7 @@ function AuthenticatedApp({ user }: { user: User }) {
                 <span>Delete Trade</span>
               </h3>
               <p className="text-xs text-[#787774]">
-                Are you sure you want to permanently delete this trade from Firestore? This action cannot be undone.
+                This removes the trade from your journal and analytics. You can restore it for 10 seconds using the confirmation toast.
               </p>
             </div>
 
@@ -633,7 +633,7 @@ function AuthenticatedApp({ user }: { user: User }) {
                 onClick={confirmDeleteTradeDirectly}
                 className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white transition-colors shadow-xs"
               >
-                Delete Permanently
+                Delete Trade
               </button>
             </div>
           </div>

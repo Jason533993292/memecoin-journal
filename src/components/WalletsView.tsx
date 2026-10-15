@@ -528,8 +528,13 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
                 <Sparkles size={15} />
               </span>
               <div>
-                <h3 className="text-xs font-bold text-[#37352f]">Paper Trading Capital (Simulated Bag)</h3>
-                <p className="text-[11px] text-[#787774]">Test memecoin strategies without risking real SOL.</p>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xs font-bold text-[#37352f]">Paper Trading Capital</h3>
+                  <span className="rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold tracking-wide text-amber-700">
+                    SIMULATION ONLY
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#787774]">Practice balance only. This is not real SOL and cannot be withdrawn.</p>
               </div>
             </div>
             <button
@@ -563,11 +568,11 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
           ) : (
             <div className="grid grid-cols-2 gap-2 pt-1">
               <div className="p-2.5 bg-[#fbfbfa] border border-[#e9e9e7] rounded-lg">
-                <span className="text-[10px] text-[#787774] block">Initial Paper Capital</span>
+                <span className="text-[10px] text-[#787774] block">Initial Simulated Balance</span>
                 <span className="font-mono font-bold text-xs text-[#37352f]">{paperCapitalSol.toFixed(1)} SOL</span>
               </div>
               <div className="p-2.5 bg-[#fbfbfa] border border-[#e9e9e7] rounded-lg">
-                <span className="text-[10px] text-[#787774] block">Current Paper Equity</span>
+                <span className="text-[10px] text-[#787774] block">Current Simulated Equity</span>
                 <span className={`font-mono font-bold text-xs ${paperPnlSol >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
                   {currentPaperBalance.toFixed(2)} SOL ({paperPnlSol >= 0 ? `+${paperPnlSol.toFixed(2)}` : paperPnlSol.toFixed(2)})
                 </span>

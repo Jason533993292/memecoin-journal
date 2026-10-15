@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { isInputTradeRecord } from "../../../lib/aiInput";
+import { getAiProviderKeyError, isAiProvider } from "../../../lib/aiProvider";
 import {
   consumeUserRateLimits,
   FirebaseAdminConfigurationError,
@@ -10,9 +11,6 @@ import {
 export const maxDuration = 35;
 
 const MAX_BODY_BYTES = 200_000;
-const PROVIDERS = ["deepseek", "gemini", "openai"] as const;
-type Provider = (typeof PROVIDERS)[number];
-
 type InputTrade = {
   symbol?: unknown;
   result?: unknown;
@@ -56,10 +54,6 @@ function getTimestamp(trade: InputTrade) {
     return trade.date.seconds * 1000;
   }
   return 0;
-}
-
-function isProvider(value: unknown): value is Provider {
-  return typeof value === "string" && PROVIDERS.includes(value as Provider);
 }
 
 async function readBoundedResponseText(response: Response, maxBytes: number): Promise<string> {
@@ -146,17 +140,15 @@ export async function POST(request: Request) {
   }
 
   const { trades, research, customPrompt, clientApiKey, provider } = body as Record<string, unknown>;
-  if (!isProvider(provider)) {
+  if (!isAiProvider(provider)) {
     return NextResponse.json({ error: "Select a supported AI provider." }, { status: 400 });
   }
 
   const apiKey = typeof clientApiKey === "string" ? clientApiKey.trim() : "";
-  if (
-    apiKey.length < 8 ||
-    /[\u0000-\u001f\u007f]/.test(apiKey)
-  ) {
+  const apiKeyError = getAiProviderKeyError(provider, apiKey);
+  if (apiKeyError) {
     return NextResponse.json(
-      { error: "Enter a valid API key for the selected provider." },
+      { error: apiKeyError },
       { status: 400 }
     );
   }

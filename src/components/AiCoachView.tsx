@@ -17,8 +17,12 @@ import { useToast } from "./Toast";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { listSupabaseResearch, usesSupabaseJournal } from "@/lib/journalBackend";
-
-type AiProvider = "deepseek" | "gemini" | "openai";
+import {
+  AI_PROVIDER_KEY_HINTS,
+  AI_PROVIDER_LABELS,
+  AiProvider,
+  getAiProviderKeyError,
+} from "@/lib/aiProvider";
 
 interface AiCoachViewProps {
   trades: Trade[];
@@ -66,8 +70,11 @@ export default function AiCoachView({
   const providerChanged = Boolean(savedKeyForSession && effectiveSavedProvider !== provider);
   const apiKey = apiKeyDraft || (providerChanged ? "" : savedKeyForSession);
   const isApiKeySet = Boolean(savedKeyForSession);
-  const isProviderReady = isApiKeySet && !providerChanged;
-  const providerLabel = provider === "deepseek" ? "DeepSeek" : provider === "gemini" ? "Google Gemini" : "OpenAI";
+  const savedKeyError = savedKeyForSession
+    ? getAiProviderKeyError(effectiveSavedProvider, savedKeyForSession)
+    : null;
+  const isProviderReady = isApiKeySet && !providerChanged && !savedKeyError;
+  const providerLabel = AI_PROVIDER_LABELS[provider];
 
   useEffect(() => {
     let active = true;
@@ -89,12 +96,14 @@ export default function AiCoachView({
   const saveProviderSettings = () => {
     const nextKey = apiKeyDraft.trim();
     if (!user) return;
-    if ((providerChanged || !savedKeyForSession) && nextKey.length < 8) {
+    if ((providerChanged || !savedKeyForSession) && !nextKey) {
       showToast("Add a key for this provider", "error", "The key you saved for another provider cannot be reused.");
       return;
     }
-    if (nextKey && nextKey.length > 300) {
-      showToast("That API key does not look valid", "error", "Check the key and try again.");
+    const keyToValidate = nextKey || savedKeyForSession;
+    const keyError = getAiProviderKeyError(provider, keyToValidate);
+    if (keyError) {
+      showToast(`${providerLabel} key does not match`, "error", keyError);
       return;
     }
     let keySaved = true;
@@ -116,7 +125,10 @@ export default function AiCoachView({
     }
     setApiKeyDraft("");
     setProviderOverride(null);
-    showToast(rememberKey ? "Provider settings saved on this device" : "Provider key saved for this tab session", "success");
+    showToast(
+      rememberKey ? `${providerLabel} settings saved on this device` : `${providerLabel} key saved for this tab session`,
+      "success"
+    );
   };
 
   const resetApiKey = () => {
@@ -310,7 +322,7 @@ export default function AiCoachView({
         <div className={`border rounded-xl p-6 shadow-xs space-y-3 ${isProviderReady ? "bg-[#fbfbfa] border-[#e9e9e7]" : "bg-rose-50 border-rose-200"}`}>
           <div className={`flex items-center gap-2 font-semibold text-sm ${isProviderReady ? "text-[#37352f]" : "text-rose-900"}`}>
             <AlertTriangle size={18} />
-            <span>{isApiKeySet ? "AI provider settings" : "Set up an AI provider API key"}</span>
+            <span>{isProviderReady ? "AI provider settings" : "Set up an AI provider API key"}</span>
           </div>
           <p className={`text-xs leading-relaxed ${isProviderReady ? "text-[#787774]" : "text-rose-700"}`}>
               Your key is stored in this browser (not encrypted) and sent over HTTPS to our server only when you request an analysis; it is forwarded to your selected provider and is not intentionally stored by the app. Supported providers: DeepSeek, Google Gemini, and OpenAI.
@@ -349,6 +361,14 @@ export default function AiCoachView({
               </button>
               </div>
             </div>
+            <p className="text-[11px] text-[#787774]">
+              {AI_PROVIDER_KEY_HINTS[provider]} Keys are checked for the selected provider before they are saved.
+            </p>
+            {savedKeyError && !providerChanged && !apiKeyDraft && (
+              <p role="alert" className="text-[11px] font-medium text-rose-700">
+                The saved key does not match {AI_PROVIDER_LABELS[effectiveSavedProvider]}. Enter the correct key and save again.
+              </p>
+            )}
             <button
               onClick={saveProviderSettings}
               disabled={!apiKey.trim() || (providerChanged && !apiKeyDraft.trim())}
