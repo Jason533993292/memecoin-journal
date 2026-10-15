@@ -17,6 +17,7 @@ import { useToast } from "./Toast";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { listSupabaseResearch, usesSupabaseJournal } from "@/lib/journalBackend";
+import BetaBadge from "./BetaBadge";
 import {
   AI_PROVIDER_KEY_HINTS,
   AI_PROVIDER_LABELS,
@@ -251,9 +252,10 @@ export default function AiCoachView({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight text-[#37352f]">
-                AI Trade Review
-              </h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-3xl font-bold tracking-tight text-[#37352f]">AI Trade Review</h1>
+                <BetaBadge />
+              </div>
               <p className="text-xs text-[#787774] mt-0.5">
                 AI analysis reviews your win rate, execution discipline, and mistakes.
               </p>

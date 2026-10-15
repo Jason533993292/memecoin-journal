@@ -9,6 +9,7 @@ import { deleteSupabaseResearch, listSupabaseResearch, saveSupabaseResearch, use
 import { useToast } from "@/components/Toast";
 import { getTradeDate } from "@/lib/utils";
 import ResearchEvidenceImage from "@/components/ResearchEvidenceImage";
+import BetaBadge from "@/components/BetaBadge";
 
 const STAGES: { id: ResearchStage; label: string }[] = [
   { id: "idea", label: "Idea" }, { id: "researching", label: "Researching" },
@@ -203,7 +204,7 @@ export default function ResearchView({ userId, trades }: { userId: string; trade
 
   return <div className="journal-page">
     <header className="flex flex-wrap items-start justify-between gap-4">
-      <div><p className="text-xs text-[#787774]">Journal / Research</p><h1 className="mt-1 text-2xl font-bold tracking-tight">Coin Research</h1><p className="mt-1 text-sm text-[#787774]">Keep the thesis, the plan, and the evidence together—then compare it with your actual trades.</p></div>
+      <div><p className="text-xs text-[#787774]">Journal / Research</p><div className="mt-1 flex items-center gap-2"><h1 className="text-2xl font-bold tracking-tight">Coin Research</h1><BetaBadge /></div><p className="mt-1 text-sm text-[#787774]">Keep the thesis, the plan, and the evidence together—then compare it with your actual trades.</p></div>
       <div className="flex flex-wrap gap-2">
         <button onClick={() => setShowReview((open) => !open)} className="rounded-lg border border-[#e3e2de] px-3 py-2 text-xs font-medium hover:bg-[#f7f6f3]"><BookOpenCheck size={14} className="mr-1 inline"/> Weekly review</button>
         <button onClick={exportJson} disabled={!items.length} className="rounded-lg border border-[#e3e2de] px-3 py-2 text-xs font-medium disabled:opacity-40 hover:bg-[#f7f6f3]"><Download size={14} className="mr-1 inline"/> Backup</button>

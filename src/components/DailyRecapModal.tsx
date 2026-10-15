@@ -7,6 +7,7 @@ import { DEFAULT_GOOD_TAGS } from "../lib/constants";
 import { getUsdValueStatus } from "../lib/tradeCalculations";
 import { X, Calendar, Trophy, AlertTriangle, Sparkles, Copy, Check } from "lucide-react";
 import { useToast } from "./Toast";
+import BetaBadge from "./BetaBadge";
 
 interface DailyRecapModalProps {
   isOpen: boolean;
@@ -129,7 +130,10 @@ ${todaySummary.worstTrade ? `Worst: $${todaySummary.worstTrade.symbol} (${todayS
             <Sparkles size={20} />
           </div>
           <div>
-            <h2 className="text-base font-bold text-[#37352f]">Daily Trading Recap</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-bold text-[#37352f]">Daily Trading Recap</h2>
+              <BetaBadge />
+            </div>
             <p className="text-xs text-[#787774] flex items-center gap-1">
               <Calendar size={11} />
               <span>{todaySummary.dateLabel}</span>

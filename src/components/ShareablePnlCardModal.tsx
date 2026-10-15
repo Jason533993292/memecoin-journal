@@ -19,6 +19,7 @@ import { useAuth } from "../context/AuthContext";
 import { getTradeBoughtUsd, getTradeSoldUsd, getUsdValueStatus } from "../lib/tradeCalculations";
 import { selectSolanaTokenPair } from "../lib/tokenMarketData";
 import { useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
+import BetaBadge from "./BetaBadge";
 
 interface ShareablePnlCardModalProps {
   trade: Trade | null;
@@ -537,6 +538,7 @@ ${traderHandle.trim() ? `Traded by ${traderHandle.trim()}\n` : ""}#Solana #MemeC
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-sm font-bold tracking-tight">P&amp;L Card</h2>
+                <BetaBadge tone="dark" />
                 <span
                   className="text-[10px] font-bold px-1.5 py-0.2 rounded uppercase tracking-wider"
                   style={{

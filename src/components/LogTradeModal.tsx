@@ -30,6 +30,7 @@ import {
 } from "../lib/constants";
 import { compressImage } from "../lib/utils";
 import { getTradeCreateValidationError, parseQuickTradePaste, quoteAmountsToBase, defaultQuoteUsdRate, QUOTE_CURRENCIES, TRADING_VENUES } from "../lib/tradeInput";
+import BetaBadge from "./BetaBadge";
 import { useAuth } from "../context/AuthContext";
 import { parseLocalStorageValue, useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
 import { lookupTokenMetadata } from "../lib/tokenLookupClient";
@@ -492,7 +493,7 @@ export default function LogTradeModal({
             <div>
               <label className="block font-medium text-[#787774] mb-1.5 flex items-center justify-between">
                 <span>Solana Contract Address (CA)</span>
-                <span className="text-[11px] text-[#2383e2]">Autofetches via DexScreener</span>
+                <span className="flex items-center gap-1.5 text-[11px] text-[#2383e2]">Autofetches via DexScreener <BetaBadge /></span>
               </label>
               <div className="flex gap-2">
                 <input
@@ -523,7 +524,7 @@ export default function LogTradeModal({
             </div>
 
             <div className="rounded-lg border border-dashed border-[#cfd8e3] bg-blue-50/30 p-3">
-              <label className="block text-[11px] font-semibold text-[#37352f] mb-1">Quick paste (optional)</label>
+              <label className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold text-[#37352f]">Quick paste (optional) <BetaBadge /></label>
               <textarea
                 value={quickPaste}
                 onChange={(e) => parseQuickPaste(e.target.value)}
@@ -722,7 +723,7 @@ export default function LogTradeModal({
             {/* Financial Numbers with Currency Toggle */}
             <div className="space-y-3 p-3.5 bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl">
               <div className="flex items-center justify-between">
-                <span className="font-semibold text-xs text-[#37352f]">Financial Metrics</span>
+                <span className="flex items-center gap-1.5 font-semibold text-xs text-[#37352f]">Financial Metrics <BetaBadge /></span>
                 <select aria-label="Trade quote currency" value={quoteCurrency || "SOL"} onChange={(e) => { const currency = e.target.value as NonNullable<Trade["quoteCurrency"]>; setQuoteCurrency(currency); const rate = currency === "SOL" ? initialData?.solUsdRate || solPrice : defaultQuoteUsdRate(currency, solPrice); setQuoteUsdRate(rate ? String(rate) : ""); }} className="rounded-md border border-[#e3e2de] bg-white px-2 py-1 text-xs">
                   {QUOTE_CURRENCIES.map((currency) => <option key={currency} value={currency}>{currency}</option>)}
                 </select>

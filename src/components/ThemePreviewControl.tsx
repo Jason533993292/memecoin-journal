@@ -6,6 +6,7 @@ import {
   normalizePreviewTheme,
   type PreviewTheme,
 } from "../lib/themePreview";
+import BetaBadge from "./BetaBadge";
 
 const PREVIEW_STORAGE_KEY = "memecoin-journal:theme-preview";
 
@@ -61,6 +62,7 @@ export default function ThemePreviewControl() {
       <summary aria-label="Choose site theme">
         <span className="theme-preview-label">Theme</span>
         <span className="theme-preview-value">{activeThemeLabel}</span>
+        <BetaBadge />
       </summary>
       <div className="theme-preview-options" role="group" aria-label="Site theme options">
         {PREVIEW_THEME_OPTIONS.map((option) => (
