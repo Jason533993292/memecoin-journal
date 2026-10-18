@@ -24,6 +24,8 @@ export interface Trade {
   executionType?: "discretionary" | "momentum" | "sniper" | "copy" | "other";
   wouldTakeAgain?: boolean;
   tradeQualityScore?: number;
+  processGrade?: "A" | "B" | "C" | "D";
+  confidenceAtEntry?: number;
   price?: number;
   boughtSol: number;
   boughtUsd?: number;

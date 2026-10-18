@@ -46,6 +46,8 @@ export function buildDemoTrades(now = Date.now()): Trade[] {
       initialRiskSol: Math.min(0.25, boughtSol * 0.12),
       feesSol: 0.006 + index * 0.0004,
       tradeQualityScore: result === "Win" ? 84 - index : result === "BE" ? 72 : 48 + index,
+      processGrade: result === "Win" ? (index % 3 === 0 ? "A" : "B") : result === "BE" ? "B" : (index % 2 ? "D" : "C"),
+      confidenceAtEntry: result === "Win" ? 65 + (index % 4) * 8 : result === "BE" ? 55 : 70 + (index % 3) * 7,
       wouldTakeAgain: result !== "Loss",
       executionType: index % 2 ? "momentum" : "discretionary",
       tradeMode: "paper",

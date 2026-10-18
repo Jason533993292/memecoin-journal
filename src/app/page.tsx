@@ -539,6 +539,9 @@ function AuthenticatedApp({ user }: { user: User }) {
         onTradeLogged={fetchTrades}
         initialData={clonedTrade}
         solPrice={solPrice}
+        trades={activeTrades}
+        rules={rules}
+        goals={goals}
       />}
 
       {/* Edit Trade Modal */}

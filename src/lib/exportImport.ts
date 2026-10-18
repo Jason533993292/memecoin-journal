@@ -46,7 +46,7 @@ const CSV_HEADERS = [
   "Price USD",
   "Mistakes / Tags", "Good Tags", "Notes", "Initial Risk SOL", "Fees SOL",
   "Entry Liquidity USD", "Exit Liquidity USD", "Entry MCap USD", "Exit MCap USD",
-  "Slippage %", "Stop Price", "Dex", "Execution Type", "Would Take Again", "Quality Score",
+  "Slippage %", "Stop Price", "Dex", "Execution Type", "Would Take Again", "Quality Score", "Process Grade", "Confidence At Entry",
   "Screenshot URL", "Timezone Offset", "SOL/USD Rate", "SOL/USD Rate Source", "Trade Mode", "Traded At", "Created At",
   "Quote Currency", "Quote Symbol", "Bought Quote", "Sold Quote", "Net PnL Quote", "Quote USD Rate", "Trading Venue"
 ];
@@ -125,7 +125,7 @@ export function buildTradesCsv(trades: Trade[]): string {
       escapeCsvField(t.notes || ""), t.initialRiskSol || "", t.feesSol || "",
       t.entryLiquidityUsd || "", t.exitLiquidityUsd || "", t.entryMarketCapUsd || "", t.exitMarketCapUsd || "",
       t.slippagePct ?? "", t.stopPrice ?? "", escapeCsvField(t.dex || ""), escapeCsvField(t.executionType || ""),
-      t.wouldTakeAgain === undefined ? "" : String(t.wouldTakeAgain), t.tradeQualityScore ?? "",
+      t.wouldTakeAgain === undefined ? "" : String(t.wouldTakeAgain), t.tradeQualityScore ?? "", t.processGrade ?? "", t.confidenceAtEntry ?? "",
       escapeCsvField(t.screenshotUrl || ""), t.entryTimezoneOffset ?? "", t.solUsdRate ?? "",
       escapeCsvField(t.solUsdRateSource || ""), t.tradeMode || (t.isPaper ? "paper" : "real"),
       t.tradedAt || getTradeDate(t).getTime(), t.createdAt ?? "",
@@ -291,6 +291,8 @@ export function parseTradeImport(text: string, format: TradeImportFormat): Impor
       executionType: optionalText(raw.executionType ?? raw["Execution Type"], 40) as Trade["executionType"],
       wouldTakeAgain: typeof raw.wouldTakeAgain === "boolean" ? raw.wouldTakeAgain : raw["Would Take Again"] === "true" ? true : raw["Would Take Again"] === "false" ? false : undefined,
       tradeQualityScore: optionalNumber(raw.tradeQualityScore ?? raw["Quality Score"]),
+      processGrade: (["A", "B", "C", "D"].includes(String(raw.processGrade ?? raw["Process Grade"])) ? String(raw.processGrade ?? raw["Process Grade"]) : undefined) as Trade["processGrade"],
+      confidenceAtEntry: optionalNumber(raw.confidenceAtEntry ?? raw["Confidence At Entry"]),
       entryTimezoneOffset: optionalNumber(raw.entryTimezoneOffset ?? raw["Timezone Offset"]),
       solUsdRate: optionalNumber(raw.solUsdRate ?? raw["SOL/USD Rate"]),
       solUsdRateSource: optionalText(raw.solUsdRateSource ?? raw["SOL/USD Rate Source"], 40) as Trade["solUsdRateSource"],

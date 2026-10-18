@@ -63,6 +63,8 @@ test("JSON backup round-trips every supported trade field without changing its d
     executionType: "momentum" as const,
     wouldTakeAgain: true,
     tradeQualityScore: 8,
+    processGrade: "A" as const,
+    confidenceAtEntry: 75,
     entryTimezoneOffset: -120,
     tradedAt: Date.parse("2024-02-03T10:20:30.000Z"),
     solUsdRate: 90,

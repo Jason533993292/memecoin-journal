@@ -5,7 +5,7 @@ import { Trade } from "../lib/types";
 import { getTradeDate } from "../lib/utils";
 import { DEFAULT_GOOD_TAGS } from "../lib/constants";
 import { getUsdValueStatus } from "../lib/tradeCalculations";
-import { BarChart3, Layers, Target, Clock, Zap, Tag, Trophy, TrendingDown, Lightbulb, CalendarDays } from "lucide-react";
+import { BarChart3, Layers, Target, Clock, Zap, Tag, Trophy, TrendingDown, Lightbulb, CalendarDays, ShieldCheck, Gauge } from "lucide-react";
 import TiltStreakHeatmap from "./TiltStreakHeatmap";
 import TimeOfDayHeatmap from "./TimeOfDayHeatmap";
 
@@ -180,6 +180,50 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
       .sort((a, b) => Math.abs(b.pnlSol) - Math.abs(a.pnlSol));
   }, [trades]);
 
+  const disciplineStats = useMemo(() => {
+    const grades = (["A", "B", "C", "D"] as const).map((grade) => {
+      const group = trades.filter((trade) => trade.processGrade === grade);
+      const wins = group.filter((trade) => trade.pnlSol > 0).length;
+      const pnl = group.reduce((sum, trade) => sum + (trade.pnlSol || 0), 0);
+      return { grade, count: group.length, winRate: group.length ? Math.round((wins / group.length) * 100) : null, pnl };
+    });
+    const confidenceBands = [
+      { label: "0–49%", min: 0, max: 49 },
+      { label: "50–69%", min: 50, max: 69 },
+      { label: "70–84%", min: 70, max: 84 },
+      { label: "85–100%", min: 85, max: 100 },
+    ].map((band) => {
+      const group = trades.filter((trade) => trade.confidenceAtEntry !== undefined && trade.confidenceAtEntry >= band.min && trade.confidenceAtEntry <= band.max);
+      const wins = group.filter((trade) => trade.pnlSol > 0).length;
+      const averageConfidence = group.length ? group.reduce((sum, trade) => sum + (trade.confidenceAtEntry || 0), 0) / group.length : null;
+      const actualWinRate = group.length ? (wins / group.length) * 100 : null;
+      return { ...band, count: group.length, averageConfidence, actualWinRate, pnl: group.reduce((sum, trade) => sum + (trade.pnlSol || 0), 0) };
+    });
+    return {
+      grades,
+      confidenceBands,
+      gradedCount: grades.reduce((sum, grade) => sum + grade.count, 0),
+      confidenceCount: confidenceBands.reduce((sum, band) => sum + band.count, 0),
+    };
+  }, [trades]);
+
+  const monthComparison = useMemo(() => {
+    const now = new Date();
+    const currentStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+    const previousStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime();
+    const current = trades.filter((trade) => getTradeDate(trade).getTime() >= currentStart);
+    const previous = trades.filter((trade) => {
+      const timestamp = getTradeDate(trade).getTime();
+      return timestamp >= previousStart && timestamp < currentStart;
+    });
+    const summarize = (group: Trade[]) => ({
+      count: group.length,
+      pnl: group.reduce((sum, trade) => sum + (trade.pnlSol || 0), 0),
+      winRate: group.length ? Math.round((group.filter((trade) => trade.pnlSol > 0).length / group.length) * 100) : null,
+    });
+    return { current: summarize(current), previous: summarize(previous) };
+  }, [trades]);
+
   if (trades.length === 0) {
     return (
       <div className="journal-page">
@@ -320,6 +364,41 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
             </div>
           </div>}
         </div>
+      </div>
+
+      {/* Discipline, confidence calibration, and period comparison */}
+      <div className="bg-white border border-[#e9e9e7] rounded-xl p-5 shadow-xs space-y-4">
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#f1f1ef] pb-3">
+          <div className="flex items-center gap-2">
+            <ShieldCheck size={16} className="text-[#2383e2]" />
+            <div>
+              <h2 className="text-sm font-semibold text-[#37352f]">Discipline &amp; Confidence Calibration</h2>
+              <p className="text-xs text-[#787774]">Compare execution quality and confidence at entry with actual outcomes.</p>
+            </div>
+          </div>
+          <span className="text-[10px] text-[#9b9a97]">Descriptive only · small samples can mislead</span>
+        </div>
+
+        <div className="grid gap-5 xl:grid-cols-2">
+          <section>
+            <div className="mb-2 flex items-center justify-between"><h3 className="text-xs font-semibold text-[#37352f]">Process grade outcomes</h3><span className="text-[10px] text-[#9b9a97]">{disciplineStats.gradedCount} graded</span></div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {disciplineStats.grades.map((item) => <div key={item.grade} className="rounded-lg border border-[#e9e9e7] bg-[#fbfbfa] p-3"><p className="text-[10px] uppercase text-[#787774]">Grade {item.grade}</p><p className="mt-1 font-mono text-sm font-bold text-[#37352f]">{item.count ? `${item.winRate}% wins` : "—"}</p><p className={`mt-1 text-[10px] font-semibold ${item.pnl >= 0 ? "text-emerald-700" : "text-rose-700"}`}>{item.count ? `${item.pnl >= 0 ? "+" : ""}${item.pnl.toFixed(2)} SOL · ${item.count}` : "No trades"}</p></div>)}
+            </div>
+          </section>
+          <section>
+            <div className="mb-2 flex items-center justify-between"><h3 className="text-xs font-semibold text-[#37352f]">Confidence vs actual win rate</h3><span className="text-[10px] text-[#9b9a97]">{disciplineStats.confidenceCount} tracked</span></div>
+            <div className="space-y-2">
+              {disciplineStats.confidenceBands.map((band) => <div key={band.label} className="grid grid-cols-[62px_1fr_auto] items-center gap-2 text-[11px]"><span className="font-mono text-[#5a5957]">{band.label}</span><div className="h-2 overflow-hidden rounded-full bg-[#f1f1ef]"><div className="h-full rounded-full bg-[#2383e2]" style={{ width: `${band.actualWinRate ?? 0}%` }}/></div><span className="min-w-24 text-right font-mono text-[#37352f]">{band.count ? `${Math.round(band.actualWinRate!)}% actual · ${band.count}` : "No trades"}</span></div>)}
+            </div>
+          </section>
+        </div>
+
+        <section className="grid gap-3 border-t border-[#f1f1ef] pt-4 sm:grid-cols-3">
+          <div className="flex items-center gap-2"><Gauge size={15} className="text-[#2383e2]"/><div><p className="text-[10px] uppercase text-[#787774]">This month</p><p className="font-mono text-sm font-bold text-[#37352f]">{monthComparison.current.pnl >= 0 ? "+" : ""}{monthComparison.current.pnl.toFixed(2)} SOL</p><p className="text-[10px] text-[#9b9a97]">{monthComparison.current.count} trades · {monthComparison.current.winRate ?? "—"}% wins</p></div></div>
+          <div><p className="text-[10px] uppercase text-[#787774]">Previous month</p><p className="font-mono text-sm font-bold text-[#37352f]">{monthComparison.previous.pnl >= 0 ? "+" : ""}{monthComparison.previous.pnl.toFixed(2)} SOL</p><p className="text-[10px] text-[#9b9a97]">{monthComparison.previous.count} trades · {monthComparison.previous.winRate ?? "—"}% wins</p></div>
+          <div><p className="text-[10px] uppercase text-[#787774]">Change</p><p className={`font-mono text-sm font-bold ${monthComparison.current.pnl - monthComparison.previous.pnl >= 0 ? "text-emerald-700" : "text-rose-700"}`}>{monthComparison.current.pnl - monthComparison.previous.pnl >= 0 ? "+" : ""}{(monthComparison.current.pnl - monthComparison.previous.pnl).toFixed(2)} SOL</p><p className="text-[10px] text-[#9b9a97]">Net result vs previous month</p></div>
+        </section>
       </div>
 
       {/* Duration Tracking Analytics Card */}

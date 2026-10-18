@@ -20,7 +20,7 @@ import {
   Upload,
   Layers,
 } from "lucide-react";
-import { Trade } from "../lib/types";
+import { GoalSettings, JournalRules, Trade } from "../lib/types";
 import { useToast } from "./Toast";
 import {
   DEFAULT_GOOD_TAGS,
@@ -43,6 +43,9 @@ interface LogTradeModalProps {
   onTradeLogged: () => void;
   initialData?: Partial<Trade> | null;
   solPrice?: number;
+  trades?: Trade[];
+  rules?: JournalRules;
+  goals?: GoalSettings;
 }
 
 function toLocalDateTimeInput(timestamp: number): string {
@@ -56,6 +59,9 @@ export default function LogTradeModal({
   onTradeLogged,
   initialData = null,
   solPrice = 150,
+  trades = [],
+  rules,
+  goals,
 }: LogTradeModalProps) {
   const { showToast } = useToast();
   const { user } = useAuth();
@@ -125,10 +131,28 @@ export default function LogTradeModal({
   }, [storedCustomTags]);
 
   const [notes, setNotes] = useState(initialData?.notes ? `[Clone] ${initialData.notes}` : "");
+  const [processGrade, setProcessGrade] = useState<Trade["processGrade"]>(initialData?.processGrade);
+  const [confidenceAtEntry, setConfidenceAtEntry] = useState(String(initialData?.confidenceAtEntry ?? 50));
   const [showAdvanced, setShowAdvanced] = useState(
     Boolean(initialData?.initialRiskSol || initialData?.feesSol || initialData?.stopPrice)
   );
   const [showAllTags, setShowAllTags] = useState(false);
+
+  const planReview = useMemo(() => {
+    const start = new Date(); start.setHours(0, 0, 0, 0);
+    const todayCount = trades.filter((trade) => (trade.tradedAt || trade.createdAt || 0) >= start.getTime()).length;
+    const risk = Number(initialRiskSol);
+    const checks = [
+      { label: "Token verified", ok: Boolean(tokenData || initialData?.ca) },
+      { label: "Setup named", ok: Boolean((customSetup || setupType).trim()) },
+      { label: "Risk defined", ok: Number.isFinite(risk) && risk > 0 },
+      { label: "Invalidation / stop defined", ok: Number(stopPrice) > 0 },
+      { label: "Reason recorded", ok: notes.trim().length >= 12 },
+      { label: "Daily trade limit", ok: !goals?.maxDailyTrades || todayCount < goals.maxDailyTrades },
+    ];
+    const failed = checks.filter((check) => !check.ok).length;
+    return { checks, verdict: failed >= 3 ? "Do not trade yet" : failed ? "Pass with modifications" : "Pass", failed, ruleCount: (rules?.tradePlan.length || 0) + (rules?.riskManagement.length || 0) };
+  }, [customSetup, goals?.maxDailyTrades, initialData?.ca, initialRiskSol, notes, rules, setupType, stopPrice, tokenData, trades]);
 
   const parseQuickPaste = (value: string) => {
     setQuickPaste(value);
@@ -421,6 +445,8 @@ export default function LogTradeModal({
         solUsdRate: solUsdRateAtTrade > 0 ? solUsdRateAtTrade : null,
         solUsdRateSource: solPrice > 0 ? "live-at-entry" : "unknown",
         tradeMode: wallet === "Paper" ? "paper" : "real",
+        processGrade,
+        confidenceAtEntry: Math.max(0, Math.min(100, Number(confidenceAtEntry) || 0)),
         goodTags: selectedGoodTags,
         mistakes: selectedMistakes,
         notes: notes.trim(),
@@ -868,6 +894,19 @@ export default function LogTradeModal({
                 </div>
               )}
             </div>
+
+            {/* Pre-trade discipline check */}
+            <section className="rounded-xl border border-[#e3e2de] bg-[#fbfbfa] p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div><p className="text-xs font-semibold text-[#37352f]">Plan check</p><p className="text-[10px] text-[#787774]">A discipline prompt, not financial advice · checks {planReview.ruleCount} saved rules</p></div>
+                <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${planReview.failed === 0 ? "bg-emerald-100 text-emerald-800" : planReview.failed >= 3 ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-800"}`}>{planReview.verdict}</span>
+              </div>
+              <div className="mt-3 grid gap-1.5 sm:grid-cols-2">{planReview.checks.map((check) => <div key={check.label} className="flex items-center gap-2 text-[11px]"><span className={check.ok ? "text-emerald-600" : "text-amber-600"}>{check.ok ? "✓" : "○"}</span><span className="text-[#5a5957]">{check.label}</span></div>)}</div>
+              <div className="mt-3 grid grid-cols-2 gap-3 border-t border-[#e9e9e7] pt-3">
+                <label className="text-[10px] text-[#787774]">Confidence at entry · {confidenceAtEntry}%<input type="range" min="0" max="100" step="5" value={confidenceAtEntry} onChange={(event) => setConfidenceAtEntry(event.target.value)} className="mt-1 w-full accent-[#2383e2]" /></label>
+                <label className="text-[10px] text-[#787774]">Process grade<select value={processGrade || ""} onChange={(event) => setProcessGrade((event.target.value || undefined) as Trade["processGrade"])} className="mt-1 w-full rounded-lg border border-[#e3e2de] bg-white px-2 py-1.5 text-xs text-[#37352f]"><option value="">Not graded</option><option value="A">A · Followed plan</option><option value="B">B · Minor deviation</option><option value="C">C · Poor execution</option><option value="D">D · Broke rules</option></select></label>
+              </div>
+            </section>
 
             {/* Wallet Selection */}
             <div>

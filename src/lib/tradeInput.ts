@@ -74,6 +74,7 @@ const TRADE_CREATE_FIELDS = new Set([
   "entryTimezoneOffset", "tradedAt", "solUsdRate", "solUsdRateSource", "tradeMode",
   "date", "createdAt",
   "quoteCurrency", "quoteSymbol", "boughtQuote", "soldQuote", "pnlQuote", "quoteUsdRate", "venue",
+  "processGrade", "confidenceAtEntry",
 ]);
 
 const OPTIONAL_NUMBER_LIMITS: Record<string, [number, number]> = {
@@ -97,6 +98,7 @@ const OPTIONAL_NUMBER_LIMITS: Record<string, [number, number]> = {
   tradedAt: [0, 10_000_000_000_000],
   solUsdRate: [0, 1_000_000_000],
   tradeQualityScore: [0, 100],
+  confidenceAtEntry: [0, 100],
   boughtQuote: [0, 1_000_000_000_000],
   soldQuote: [0, 1_000_000_000_000],
   pnlQuote: [-1_000_000_000_000, 1_000_000_000_000],
@@ -173,6 +175,7 @@ export function getTradeCreateValidationError(
     return "Execution type is not a supported option.";
   }
   if (value.wouldTakeAgain != null && typeof value.wouldTakeAgain !== "boolean") return "Would-take-again must be yes or no.";
+  if (value.processGrade != null && !["A", "B", "C", "D"].includes(String(value.processGrade))) return "Process grade must be A, B, C, or D.";
   if (value.isPaper != null && typeof value.isPaper !== "boolean") return "Paper-trade status must be yes or no.";
   if (value.solUsdRateSource != null && !["user", "live-at-entry", "imported", "unknown"].includes(String(value.solUsdRateSource))) {
     return "SOL price source is not a supported option.";

@@ -63,7 +63,7 @@ function optionalNumber(value: unknown): number | null {
 
 function toTradeRow(userId: string, id: string, trade: Omit<Trade, "id">): JsonRecord {
   const currencyExtra = Object.fromEntries(
-    (["quoteCurrency", "quoteSymbol", "boughtQuote", "soldQuote", "pnlQuote", "quoteUsdRate", "venue"] as const)
+    (["quoteCurrency", "quoteSymbol", "boughtQuote", "soldQuote", "pnlQuote", "quoteUsdRate", "venue", "processGrade", "confidenceAtEntry"] as const)
       .filter((field) => trade[field] !== undefined)
       .map((field) => [field, trade[field]])
   );
@@ -139,6 +139,8 @@ function fromTradeRow(row: JsonRecord): Trade {
     executionType: row.execution_type as Trade["executionType"],
     wouldTakeAgain: typeof row.would_take_again === "boolean" ? row.would_take_again : undefined,
     tradeQualityScore: optionalNumber(row.trade_quality_score) ?? undefined,
+    processGrade: ["A", "B", "C", "D"].includes(String(extra.processGrade)) ? extra.processGrade as Trade["processGrade"] : undefined,
+    confidenceAtEntry: optionalNumber(extra.confidenceAtEntry) ?? undefined,
     price: optionalNumber(row.price) ?? undefined,
     boughtSol: Number(row.bought_sol ?? 0),
     boughtUsd: optionalNumber(row.bought_usd) ?? undefined,
