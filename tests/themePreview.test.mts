@@ -12,10 +12,12 @@ test("keeps the public site on its default appearance until a valid theme is cho
   assert.equal(normalizePreviewTheme("terminal"), "terminal");
 });
 
-test("provides the three labelled theme choices for the public picker", () => {
+test("provides the five labelled theme choices for the public picker", () => {
   assert.deepEqual(PREVIEW_THEME_OPTIONS, [
     { id: "terminal", label: "Terminal" },
     { id: "premium-journal", label: "Journal" },
     { id: "modern-platform", label: "Platform" },
+    { id: "ocean", label: "Ocean" },
+    { id: "graphite", label: "Graphite" },
   ]);
 });

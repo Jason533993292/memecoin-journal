@@ -12,7 +12,7 @@ const metadataBase = new URL(
 
 export const metadata: Metadata = {
   title: "Memecoin Journal",
-  description: "Track your degenerate crypto plays.",
+  description: "A private trading journal for reviewing crypto trades, risk, discipline, and performance.",
   metadataBase,
   openGraph: {
     title: "Memecoin Journal",

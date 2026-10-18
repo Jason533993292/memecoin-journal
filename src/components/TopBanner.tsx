@@ -13,6 +13,8 @@ import {
   Sparkles,
   Plus,
   Microscope,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
@@ -30,6 +32,8 @@ interface TopBannerProps {
   solChange24h?: number;
   solPriceStatus?: "live" | "cached" | "stale" | "unavailable";
   solPriceUpdatedAt?: number | null;
+  sidebarCollapsed?: boolean;
+  onSidebarCollapsedChange?: (collapsed: boolean) => void;
 }
 
 export default function TopBanner({
@@ -43,10 +47,18 @@ export default function TopBanner({
   solChange24h = 0,
   solPriceStatus = "unavailable",
   solPriceUpdatedAt = null,
+  sidebarCollapsed = false,
+  onSidebarCollapsedChange,
 }: TopBannerProps) {
   const { user, loginWithGoogle, logout, resendVerification } = useAuth();
   const { showToast } = useToast();
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+
+  const toggleSidebar = () => {
+    const next = !sidebarCollapsed;
+    onSidebarCollapsedChange?.(next);
+    setAccountMenuOpen(false);
+  };
 
   const tabs = [
     { id: "dashboard", label: "Dashboard", title: "MemeCoins Dashboard", icon: LayoutDashboard },
@@ -57,37 +69,140 @@ export default function TopBanner({
     { id: "ai-coach", label: "AI Coach", title: "AI Trader Coach", icon: Bot },
   ];
 
+  const activeTab = tabs.find((tab) => tab.id === currentTab) ?? tabs[0];
+  const ActiveTabIcon = activeTab.icon;
+
   return (
-    <div className="w-full">
-      {/* Top Navigation Bar */}
-      <div className="bg-[#f7f6f3] border-b border-[#e9e9e7] px-3 sm:px-4 py-2 flex items-center justify-between text-xs text-[#787774] sticky top-0 z-40 backdrop-blur-md">
-        {/* Desktop & Mobile Scrollable Tab Bar */}
-        <div className="flex min-w-0 flex-1 items-center gap-1 py-0.5">
+    <>
+      <aside className={`fixed inset-y-0 left-0 z-50 hidden flex-col border-r border-white/8 bg-[#0b0c0e] text-white transition-[width] duration-200 md:flex ${sidebarCollapsed ? "w-[4.5rem]" : "w-60"}`}>
+        <div className={`flex h-16 items-center border-b border-white/8 ${sidebarCollapsed ? "justify-center px-2" : "gap-3 px-5"}`}>
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#2383e2] text-xs font-black tracking-tight text-white shadow-lg shadow-blue-950/30">MJ</div>
+          <div className={`min-w-0 ${sidebarCollapsed ? "hidden" : "block"}`}>
+            <p className="truncate text-sm font-semibold tracking-tight">Memecoin Journal</p>
+            <p className="text-[10px] text-neutral-500">Trading workspace</p>
+          </div>
+        </div>
+
+        {user && !sidebarCollapsed && (
+          <div className="mx-3 mt-4 flex items-center gap-3 rounded-xl border border-white/8 bg-white/[0.035] px-3 py-3">
+            {user.photoURL ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={user.photoURL} alt="" className="h-9 w-9 rounded-full border border-white/10" />
+            ) : (
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#24272c] text-xs font-bold text-neutral-200">
+                {user.email?.charAt(0).toUpperCase() || "U"}
+              </span>
+            )}
+            <div className="min-w-0">
+              <p className="truncate text-xs font-semibold">{user.displayName || "Trader"}</p>
+              <p className="truncate text-[10px] text-neutral-500">{user.email}</p>
+            </div>
+          </div>
+        )}
+
+        <nav className="mt-5 flex flex-1 flex-col gap-1 px-3" aria-label="Journal sections">
+          {!sidebarCollapsed && <p className="mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-neutral-600">Workspace</p>}
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = currentTab === tab.id;
             return (
               <button
                 key={tab.id}
+                type="button"
                 onClick={() => setCurrentTab(tab.id)}
                 title={tab.title}
-                className={`flex items-center gap-1.5 px-2 xl:px-2.5 py-1.5 rounded-md transition-all whitespace-nowrap text-[11px] xl:text-xs ${
+                aria-current={isActive ? "page" : undefined}
+                className={`flex w-full items-center rounded-xl py-2.5 text-left text-xs font-medium transition-colors ${sidebarCollapsed ? "justify-center px-2" : "gap-3 px-3"} ${
                   isActive
-                    ? "bg-white text-[#37352f] font-semibold shadow-xs border border-[#e3e2de]"
-                    : "hover:bg-[#eeece8] text-[#5a5957]"
+                    ? "bg-white/[0.11] text-white"
+                    : "text-neutral-400 hover:bg-white/[0.06] hover:text-neutral-100"
                 }`}
               >
-                <Icon size={14} className={isActive ? "text-[#2383e2]" : "text-[#908e89]"} />
-                <span>{tab.label}</span>
+                <Icon size={16} className={isActive ? "text-[#55a7f1]" : "text-neutral-500"} />
+                {!sidebarCollapsed && <span>{tab.title}</span>}
               </button>
             );
           })}
+        </nav>
+
+        <div className="relative space-y-2 border-t border-white/8 p-3">
+          <div className={sidebarCollapsed ? "hidden" : "block"}>
+            <ThemePreviewControl />
+          </div>
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className={`flex w-full items-center rounded-xl px-3 py-2.5 text-xs text-neutral-400 transition-colors hover:bg-white/[0.06] hover:text-white ${sidebarCollapsed ? "justify-center" : "gap-3"}`}
+          >
+            {sidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+            {!sidebarCollapsed && <span>Collapse sidebar</span>}
+          </button>
+          {user && !sidebarCollapsed && (
+            <button
+              type="button"
+              onClick={() => setAccountMenuOpen((open) => !open)}
+              aria-label="Open account menu"
+              aria-expanded={accountMenuOpen}
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-xs text-neutral-400 transition-colors hover:bg-white/[0.06] hover:text-white"
+            >
+              <UserIcon size={16} />
+              <span className="flex-1 text-left">Account & privacy</span>
+            </button>
+          )}
+          {accountMenuOpen && user && (
+            <div className="absolute bottom-14 left-3 right-3 z-50 rounded-xl border border-white/10 bg-[#17191d] p-2 shadow-2xl">
+              {!user.emailVerified && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    void resendVerification()
+                      .then(() => {
+                        setAccountMenuOpen(false);
+                        showToast("Verification email sent", "success", "Check your inbox and spam folder.");
+                      })
+                      .catch(() => showToast("Could not send verification email", "error", "Wait a moment and try again."));
+                  }}
+                  className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs text-amber-300 hover:bg-white/[0.06]"
+                >
+                  <MailCheck size={14} /> Resend verification email
+                </button>
+              )}
+              {onDeleteAccount && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAccountMenuOpen(false);
+                    onDeleteAccount();
+                  }}
+                  className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs text-rose-300 hover:bg-white/[0.06]"
+                >
+                  <Trash2 size={14} /> Delete account and data
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => void logout()}
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs text-neutral-300 hover:bg-white/[0.06]"
+              >
+                <LogOut size={14} /> Sign out
+              </button>
+            </div>
+          )}
+        </div>
+      </aside>
+
+      <header className={`fixed left-0 right-0 top-0 z-40 flex h-16 items-center justify-between border-b border-white/8 bg-[#0f1015]/95 px-4 backdrop-blur-xl transition-[left] duration-200 md:px-6 ${sidebarCollapsed ? "md:left-[4.5rem]" : "md:left-60"}`}>
+        <div className="flex min-w-0 items-center gap-3">
+          <ActiveTabIcon size={17} className="shrink-0 text-[#2383e2]" />
+          <div className="min-w-0">
+            <h1 className="truncate text-sm font-semibold text-neutral-100">{activeTab.title}</h1>
+            <p className="hidden text-[10px] text-neutral-500 sm:block">Private trading workspace</p>
+          </div>
         </div>
 
-        {/* Right side controls */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          <ThemePreviewControl />
-
+        <div className="flex shrink-0 items-center gap-2">
           {/* Live SOL Price Badge */}
           <div
             className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 bg-white border border-[#e3e2de] rounded-md text-[11px] font-mono shadow-xs"
@@ -142,76 +257,7 @@ export default function TopBanner({
             <span className="hidden sm:inline">+ New Trade</span>
           </Button>
 
-          {/* User Auth Controls */}
-          {user ? (
-            <div className="relative flex items-center gap-1 pl-1 border-l border-[#e3e2de]">
-              <button
-                type="button"
-                onClick={() => setAccountMenuOpen((open) => !open)}
-                aria-label="Open account menu"
-                aria-expanded={accountMenuOpen}
-                className="flex items-center gap-1.5 rounded-md p-1 hover:bg-[#eeece8]"
-              >
-                {user.photoURL ? (
-                  // User profile images come from the authenticated identity provider.
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={user.photoURL}
-                    alt=""
-                    className="h-6 w-6 rounded-full border border-neutral-300"
-                  />
-                ) : (
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full border border-neutral-300 bg-neutral-200 text-[10px] font-bold text-neutral-700">
-                    {user.email?.charAt(0).toUpperCase() || "U"}
-                  </span>
-                )}
-                <UserIcon size={13} className="text-[#787774]" />
-              </button>
-              {accountMenuOpen && (
-                <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-[#e3e2de] bg-white p-2 shadow-xl">
-                  <p className="truncate px-2 py-2 text-[11px] text-[#787774]">{user.email}</p>
-                  {!user.emailVerified && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        void resendVerification()
-                          .then(() => {
-                            setAccountMenuOpen(false);
-                            showToast("Verification email sent", "success", "Check your inbox and spam folder.");
-                          })
-                          .catch(() => showToast("Could not send verification email", "error", "Wait a moment and try again."));
-                      }}
-                      className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs text-amber-700 hover:bg-amber-50"
-                    >
-                      <MailCheck size={14} />
-                      Resend verification email
-                    </button>
-                  )}
-                  {onDeleteAccount && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAccountMenuOpen(false);
-                        onDeleteAccount();
-                      }}
-                      className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs text-rose-700 hover:bg-rose-50"
-                    >
-                      <Trash2 size={14} />
-                      Delete account and data
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => void logout()}
-                    className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs text-[#37352f] hover:bg-[#f7f6f3]"
-                  >
-                    <LogOut size={14} />
-                    Sign out
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : (
+          {!user && (
             <button
               onClick={loginWithGoogle}
               className="flex items-center gap-1 px-2.5 py-1.5 bg-white border border-[#e3e2de] hover:bg-[#f1f1ef] text-[#37352f] rounded-md text-xs font-medium shadow-xs transition-colors"
@@ -221,11 +267,11 @@ export default function TopBanner({
             </button>
           )}
         </div>
-      </div>
+      </header>
 
       {/* Mobile Bottom Dock for fast 1-thumb navigation */}
       <div
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#e9e9e7] px-2 pt-1.5 flex items-center justify-around shadow-lg"
+        className="mobile-bottom-dock md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-[#e9e9e7] px-2 pt-1.5 flex items-center justify-around shadow-lg"
         style={{ paddingBottom: "max(8px, env(safe-area-inset-bottom))" }}
       >
         {tabs.map((tab) => {
@@ -235,6 +281,7 @@ export default function TopBanner({
             <button
               key={tab.id}
               onClick={() => setCurrentTab(tab.id)}
+              aria-current={isActive ? "page" : undefined}
               className={`flex flex-col items-center justify-center py-1 px-2 rounded-lg transition-colors text-[10px] ${
                 isActive ? "text-[#2383e2] font-bold" : "text-[#787774]"
               }`}
@@ -245,6 +292,6 @@ export default function TopBanner({
           );
         })}
       </div>
-    </div>
+    </>
   );
 }

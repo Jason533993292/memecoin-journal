@@ -1,5 +1,17 @@
 import type { NextConfig } from "next";
 
+const reportOnlyScriptSources = [
+  "'self'",
+  "'unsafe-inline'",
+  ...(process.env.NODE_ENV === "development" ? ["'unsafe-eval'"] : []),
+  "https://www.google.com",
+  "https://apis.google.com",
+  "https://www.recaptcha.net",
+  "https://www.gstatic.com",
+].join(" ");
+
+const contentSecurityPolicy = `default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src ${reportOnlyScriptSources}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; frame-src 'self' https://www.google.com https://apis.google.com https://www.recaptcha.net https://memecoin-journal.firebaseapp.com; connect-src 'self' https://tndqtaouizztihzggwnh.supabase.co https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com https://firebaseinstallations.googleapis.com https://api.dexscreener.com https://www.google.com https://apis.google.com https://www.recaptcha.net https://recaptchaenterprise.googleapis.com https://content-firebaseappcheck.googleapis.com`;
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   async rewrites() {
@@ -28,12 +40,10 @@ const nextConfig: NextConfig = {
         { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
         { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(), usb=()" },
         {
-          key: "Content-Security-Policy",
-          value: "base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'",
-        },
-        {
-          key: "Content-Security-Policy-Report-Only",
-          value: "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' https://www.google.com https://apis.google.com https://www.recaptcha.net https://www.gstatic.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; frame-src 'self' https://www.google.com https://apis.google.com https://www.recaptcha.net https://memecoin-journal.firebaseapp.com; connect-src 'self' https://tndqtaouizztihzggwnh.supabase.co https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com https://firebaseinstallations.googleapis.com https://api.dexscreener.com https://www.google.com https://apis.google.com https://www.recaptcha.net https://recaptchaenterprise.googleapis.com https://content-firebaseappcheck.googleapis.com",
+          key: process.env.NODE_ENV === "production"
+            ? "Content-Security-Policy"
+            : "Content-Security-Policy-Report-Only",
+          value: contentSecurityPolicy,
         },
       ],
     }];

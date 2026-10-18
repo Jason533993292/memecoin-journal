@@ -148,6 +148,33 @@
   color: #ffffff;
 }
 
+.journal-app-shell aside .theme-preview-control {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.035);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+}
+
+.journal-app-shell aside .theme-preview-control summary {
+  justify-content: space-between;
+  padding: 10px 12px;
+}
+
+.journal-app-shell aside .theme-preview-label {
+  color: #a3a3a3;
+  font-size: 11px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.journal-app-shell aside .theme-preview-options {
+  bottom: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  top: auto;
+  width: 100%;
+}
+
 html[data-theme-preview] {
   color-scheme: dark;
 }
@@ -155,6 +182,14 @@ html[data-theme-preview] {
 html[data-theme-preview] body,
 html[data-theme-preview] [class*="min-h-screen"] {
   transition: background-color 160ms ease, color 160ms ease;
+}
+
+html[data-theme-preview] body,
+html[data-theme-preview] .journal-app-shell,
+html[data-theme-preview] .journal-app-shell > main,
+html[data-theme-preview] .journal-page {
+  background-color: var(--preview-page) !important;
+  color: var(--preview-text);
 }
 
 html[data-theme-preview] .bg-white,
@@ -176,6 +211,136 @@ html[data-theme-preview] [class*="border-[#f7f6f5]"] {
   border-color: var(--preview-border) !important;
 }
 
+html[data-theme-preview] [class*="divide-[#e9e9e7]"] > :not(:last-child),
+html[data-theme-preview] [class*="divide-[#f1f1ef]"] > :not(:last-child) {
+  border-color: var(--preview-border) !important;
+}
+
+html[data-theme-preview] .journal-app-shell [class*="bg-gray-50"],
+html[data-theme-preview] .journal-app-shell [class*="bg-gray-100"],
+html[data-theme-preview] .journal-app-shell [class*="bg-neutral-50"],
+html[data-theme-preview] .journal-app-shell [class*="bg-neutral-100"] {
+  background-color: var(--preview-raised) !important;
+}
+
+html[data-theme-preview] .journal-app-shell [class*="border-gray-100"],
+html[data-theme-preview] .journal-app-shell [class*="border-gray-200"],
+html[data-theme-preview] .journal-app-shell [class*="border-neutral-200"],
+html[data-theme-preview] .journal-app-shell [class*="border-neutral-300"] {
+  border-color: var(--preview-border) !important;
+}
+
+html[data-theme-preview] .journal-app-shell [class*="text-gray-900"],
+html[data-theme-preview] .journal-app-shell [class*="text-gray-800"],
+html[data-theme-preview] .journal-app-shell [class*="text-gray-700"],
+html[data-theme-preview] .journal-app-shell [class*="text-neutral-900"],
+html[data-theme-preview] .journal-app-shell [class*="text-neutral-800"],
+html[data-theme-preview] .journal-app-shell [class*="text-neutral-700"] {
+  color: var(--preview-text) !important;
+}
+
+html[data-theme-preview] .journal-app-shell [class*="text-gray-600"],
+html[data-theme-preview] .journal-app-shell [class*="text-gray-500"],
+html[data-theme-preview] .journal-app-shell [class*="text-gray-400"],
+html[data-theme-preview] .journal-app-shell [class*="text-neutral-600"],
+html[data-theme-preview] .journal-app-shell [class*="text-neutral-500"],
+html[data-theme-preview] .journal-app-shell [class*="text-neutral-400"] {
+  color: var(--preview-muted) !important;
+}
+
+/* Semantic values must remain vivid enough to read on every dark surface. */
+html[data-theme-preview] .journal-app-shell [class*="text-emerald-900"],
+html[data-theme-preview] .journal-app-shell [class*="text-emerald-800"],
+html[data-theme-preview] .journal-app-shell [class*="text-emerald-700"],
+html[data-theme-preview] .journal-app-shell [class*="text-emerald-600"] {
+  color: #34d399 !important;
+}
+
+html[data-theme-preview] .journal-app-shell [class*="text-rose-900"],
+html[data-theme-preview] .journal-app-shell [class*="text-rose-800"],
+html[data-theme-preview] .journal-app-shell [class*="text-rose-700"],
+html[data-theme-preview] .journal-app-shell [class*="text-rose-600"] {
+  color: #fb7185 !important;
+}
+
+html[data-theme-preview] .journal-app-shell [class*="text-amber-900"],
+html[data-theme-preview] .journal-app-shell [class*="text-amber-800"],
+html[data-theme-preview] .journal-app-shell [class*="text-amber-700"],
+html[data-theme-preview] .journal-app-shell [class*="text-amber-600"] {
+  color: #fbbf24 !important;
+}
+
+html[data-theme-preview] .journal-app-shell [class*="text-blue-950"],
+html[data-theme-preview] .journal-app-shell [class*="text-blue-900"],
+html[data-theme-preview] .journal-app-shell [class*="text-blue-800"],
+html[data-theme-preview] .journal-app-shell [class*="text-blue-700"] {
+  color: #60a5fa !important;
+}
+
+html[data-theme-preview] .demo-data-banner {
+  background: var(--preview-raised) !important;
+  border-color: var(--preview-accent) !important;
+  color: var(--preview-text) !important;
+}
+
+html[data-theme-preview] .demo-data-banner button {
+  background: var(--preview-input) !important;
+  border-color: var(--preview-border) !important;
+  color: var(--preview-text) !important;
+}
+
+/* The phone navigation is outside .journal-page and needs its own theme surface. */
+html[data-theme-preview] .mobile-bottom-dock {
+  background-color: color-mix(in srgb, var(--preview-surface) 96%, transparent) !important;
+  border-color: var(--preview-border) !important;
+  box-shadow: 0 -12px 32px rgba(0, 0, 0, 0.34);
+}
+
+html[data-theme-preview] .mobile-bottom-dock button {
+  color: var(--preview-muted) !important;
+}
+
+html[data-theme-preview] .mobile-bottom-dock button svg {
+  color: var(--preview-muted) !important;
+}
+
+html[data-theme-preview] .mobile-bottom-dock button[aria-current="page"] {
+  background-color: color-mix(in srgb, var(--preview-accent) 16%, transparent);
+  color: var(--preview-accent) !important;
+}
+
+html[data-theme-preview] .mobile-bottom-dock button[aria-current="page"] svg {
+  color: var(--preview-accent) !important;
+}
+
+/* Toasts live outside the page container, so they need explicit theme surfaces. */
+html[data-theme-preview] .app-toast {
+  background-color: color-mix(in srgb, var(--preview-surface) 94%, transparent) !important;
+  color: var(--preview-text) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.38);
+}
+
+html[data-theme-preview] .app-toast-success {
+  border-color: #34d399 !important;
+}
+
+html[data-theme-preview] .app-toast-error {
+  border-color: #fb7185 !important;
+}
+
+html[data-theme-preview] .app-toast-info {
+  border-color: #60a5fa !important;
+}
+
+html[data-theme-preview] .app-toast [class*="text-[#37352f]"] {
+  color: var(--preview-text) !important;
+}
+
+html[data-theme-preview] .app-toast [class*="text-[#787774]"],
+html[data-theme-preview] .app-toast [class*="text-[#9b9a97]"] {
+  color: var(--preview-muted) !important;
+}
+
 html[data-theme-preview] [class*="text-[#37352f]"],
 html[data-theme-preview] [class*="text-[#5a5957]"] {
   color: var(--preview-text) !important;
@@ -185,6 +350,101 @@ html[data-theme-preview] [class*="text-[#787774]"],
 html[data-theme-preview] [class*="text-[#9b9a97]"],
 html[data-theme-preview] [class*="text-[#908e89]"] {
   color: var(--preview-muted) !important;
+}
+
+/* Components without an explicit text utility inherit a reliable theme color. */
+html[data-theme-preview] .journal-page h1,
+html[data-theme-preview] .journal-page h2,
+html[data-theme-preview] .journal-page h3,
+html[data-theme-preview] .journal-page h4,
+html[data-theme-preview] .journal-page label,
+html[data-theme-preview] .journal-page legend,
+html[data-theme-preview] .journal-page th,
+html[data-theme-preview] .journal-page strong {
+  color: var(--preview-text);
+}
+
+html[data-theme-preview] .journal-page p,
+html[data-theme-preview] .journal-page time,
+html[data-theme-preview] .journal-page figcaption {
+  color: inherit;
+}
+
+html[data-theme-preview] .journal-page input,
+html[data-theme-preview] .journal-page select,
+html[data-theme-preview] .journal-page textarea {
+  background-color: var(--preview-input) !important;
+  border-color: var(--preview-border) !important;
+  color: var(--preview-text) !important;
+  color-scheme: dark;
+}
+
+html[data-theme-preview] .journal-page input::placeholder,
+html[data-theme-preview] .journal-page textarea::placeholder {
+  color: var(--preview-subtle) !important;
+  opacity: 1;
+}
+
+html[data-theme-preview] .journal-page input:focus,
+html[data-theme-preview] .journal-page select:focus,
+html[data-theme-preview] .journal-page textarea:focus {
+  border-color: var(--preview-accent) !important;
+  outline-color: var(--preview-accent);
+}
+
+html[data-theme-preview] .journal-page button:not([class*="text-white"]):not([class*="text-rose"]):not([class*="text-emerald"]):not([class*="text-amber"]):not([class*="text-blue"]):not([class*="text-purple"]):not([class*="text-indigo"]) {
+  color: var(--preview-text);
+}
+
+html[data-theme-preview] .journal-page button:disabled {
+  color: var(--preview-subtle) !important;
+}
+
+html[data-theme-preview] .journal-page .provider-save-button,
+html[data-theme-preview] .journal-page .provider-save-button:disabled {
+  color: #ffffff !important;
+}
+
+html[data-theme-preview] .goal-progress-track {
+  background-color: color-mix(in srgb, var(--preview-border) 74%, var(--preview-raised)) !important;
+}
+
+html[data-theme-preview] .journal-page svg:not([class*="text-"]) {
+  color: currentColor;
+}
+
+/* Preserve meaning while avoiding glaring light alert panels in dark themes. */
+html[data-theme-preview] [class*="bg-rose-50"],
+html[data-theme-preview] [class*="bg-red-50"] {
+  background-color: color-mix(in srgb, #7f1d2d 30%, var(--preview-surface)) !important;
+}
+
+html[data-theme-preview] [class*="bg-amber-50"],
+html[data-theme-preview] [class*="bg-yellow-50"] {
+  background-color: color-mix(in srgb, #78350f 28%, var(--preview-surface)) !important;
+}
+
+html[data-theme-preview] [class*="bg-blue-50"],
+html[data-theme-preview] [class*="bg-indigo-50"] {
+  background-color: color-mix(in srgb, var(--preview-accent) 18%, var(--preview-surface)) !important;
+}
+
+html[data-theme-preview] [class*="bg-emerald-50"] {
+  background-color: color-mix(in srgb, #065f46 28%, var(--preview-surface)) !important;
+}
+
+html[data-theme-preview] .journal-page [role="tablist"],
+html[data-theme-preview] .journal-page [class*="shadow-xs"],
+html[data-theme-preview] .journal-page [class*="shadow-sm"] {
+  --tw-shadow-color: rgba(0, 0, 0, 0.28);
+}
+
+html[data-theme-preview] ::-webkit-scrollbar-track {
+  background: var(--preview-page);
+}
+
+html[data-theme-preview] ::-webkit-scrollbar-thumb {
+  background: var(--preview-border);
 }
 
 html[data-theme-preview] [class*="bg-[#2383e2]"] {
@@ -214,33 +474,68 @@ html[data-theme-preview] .notion-table-td {
 }
 
 html[data-theme-preview="terminal"] {
+  --preview-page: #0c1114;
   --preview-surface: #111619;
   --preview-raised: #182024;
+  --preview-input: #0e1518;
   --preview-border: #2a383e;
   --preview-text: #e6f0ed;
   --preview-muted: #91a39f;
+  --preview-subtle: #71847f;
   --preview-accent: #38d39f;
   --preview-hover: #223036;
 }
 
 html[data-theme-preview="premium-journal"] {
+  --preview-page: #151312;
   --preview-surface: #1c1a19;
   --preview-raised: #282421;
+  --preview-input: #171513;
   --preview-border: #413a35;
   --preview-text: #f1e9dc;
   --preview-muted: #a99d90;
+  --preview-subtle: #82766b;
   --preview-accent: #c5874e;
   --preview-hover: #35302b;
 }
 
 html[data-theme-preview="modern-platform"] {
+  --preview-page: #0d0e14;
   --preview-surface: #12131b;
   --preview-raised: #1a1d2a;
+  --preview-input: #10121a;
   --preview-border: #30364d;
   --preview-text: #f2f5ff;
   --preview-muted: #9aa4bf;
+  --preview-subtle: #737d98;
   --preview-accent: #6d7dff;
   --preview-hover: #292e43;
+}
+
+html[data-theme-preview="ocean"] {
+  --preview-page: #071419;
+  --preview-surface: #0d2027;
+  --preview-raised: #14303a;
+  --preview-input: #09191f;
+  --preview-border: #2b5260;
+  --preview-text: #ebf9fc;
+  --preview-muted: #9abdc7;
+  --preview-subtle: #7399a4;
+  --preview-accent: #22b8cf;
+  --preview-hover: #1b3e49;
+}
+
+html[data-theme-preview="graphite"] {
+  --preview-page: #111214;
+  --preview-surface: #191b1f;
+  --preview-raised: #24272c;
+  --preview-input: #141619;
+  --preview-border: #3a3f47;
+  --preview-text: #f4f5f7;
+  --preview-muted: #adb3bc;
+  --preview-subtle: #858d98;
+  --preview-accent: #a78bfa;
+  --preview-hover: #30343b;
 }
 
 html[data-theme-preview] .theme-preview-control {

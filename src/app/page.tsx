@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { db, type User } from "../lib/firebase";
 import { collection, onSnapshot, query, orderBy, doc, deleteDoc, setDoc } from "firebase/firestore";
@@ -35,6 +35,7 @@ import {
 
 import { useAuth } from "../context/AuthContext";
 import AuthModal from "../components/AuthModal";
+import { buildDemoTrades } from "../lib/demoTrades";
 
 const DEFAULT_RULES: JournalRules = {
   riskManagement: [
@@ -96,6 +97,8 @@ function MainApp() {
 function AuthenticatedApp({ user }: { user: User }) {
   const { showToast } = useToast();
   const [currentTab, setCurrentTab] = useState<string>("dashboard");
+  const sidebarCollapsed = useLocalStorageValue("memecoin_journal_sidebar_collapsed") === "true";
+  const demoMode = useLocalStorageValue(`memecoin_journal_${user.uid}_demo_mode`) === "true";
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -157,7 +160,8 @@ function AuthenticatedApp({ user }: { user: User }) {
     };
   }, []);
 
-  const activeTrades = trades;
+  const demoTrades = useMemo(() => buildDemoTrades(), []);
+  const activeTrades = demoMode ? demoTrades : trades;
   const activeRules = rules;
   const activeGoals = goals;
   const activeAiBrief = aiBrief;
@@ -421,7 +425,7 @@ function AuthenticatedApp({ user }: { user: User }) {
   }, [activeTrades, aiBriefStorageKey, providerApiKey, selectedProvider, showToast, user]);
 
   return (
-    <div className="min-h-screen bg-white text-[#37352f] flex flex-col font-sans">
+    <div className="journal-app-shell min-h-screen bg-white text-[#37352f] font-sans">
       <TopBanner
         currentTab={currentTab}
         setCurrentTab={setCurrentTab}
@@ -433,10 +437,18 @@ function AuthenticatedApp({ user }: { user: User }) {
         solChange24h={solChange24h}
         solPriceStatus={solPriceStatus}
         solPriceUpdatedAt={solPriceUpdatedAt}
+        sidebarCollapsed={sidebarCollapsed}
+        onSidebarCollapsedChange={(collapsed) => writeLocalStorageValue("memecoin_journal_sidebar_collapsed", String(collapsed))}
       />
 
       {/* Main Content View Container */}
-      <div className="mx-auto w-full max-w-[1440px] flex-1 px-6 pb-16 lg:px-10 xl:px-14">
+      <main className={`mx-auto min-h-screen w-full max-w-[1680px] px-5 pb-16 pt-16 transition-[padding] duration-200 md:pr-8 lg:pr-10 xl:pr-12 ${sidebarCollapsed ? "md:pl-[calc(4.5rem+2rem)] lg:pl-[calc(4.5rem+2.5rem)] xl:pl-[calc(4.5rem+3rem)]" : "md:pl-[calc(15rem+2rem)] lg:pl-[calc(15rem+2.5rem)] xl:pl-[calc(15rem+3rem)]"}`}>
+        {demoMode && (
+          <div className="demo-data-banner mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs text-blue-950">
+            <div><strong>Demo data is active.</strong> These paper trades are only for previewing the interface and are never saved.</div>
+            <button type="button" onClick={() => writeLocalStorageValue(`memecoin_journal_${user.uid}_demo_mode`, null)} className="rounded-lg border border-blue-300 bg-white px-3 py-1.5 font-semibold text-blue-800 hover:bg-blue-100">Return to my data</button>
+          </div>
+        )}
         {/* Firestore Permission Alert Banner */}
         {permissionError && (
           <div className="mt-4 p-4 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
@@ -478,6 +490,10 @@ function AuthenticatedApp({ user }: { user: User }) {
             loadingAi={loadingAi}
             loading={activeLoading}
             solPrice={solPrice}
+            preferencesStorageKey={`memecoin_journal_${user.uid}_dashboard_cards`}
+            onSelectTrade={setInspectingTrade}
+            demoMode={demoMode}
+            onDemoModeChange={(enabled) => writeLocalStorageValue(`memecoin_journal_${user.uid}_demo_mode`, enabled ? "true" : null)}
           />
         )}
 
@@ -491,6 +507,7 @@ function AuthenticatedApp({ user }: { user: User }) {
             onUndoAvailable={offerTradeUndo}
             onOpenEditTrade={(trade) => setEditingTrade(trade)}
             onSelectTrade={(trade) => setInspectingTrade(trade)}
+            readOnly={demoMode}
           />
         )}
 
@@ -509,7 +526,7 @@ function AuthenticatedApp({ user }: { user: User }) {
             loadingAi={loadingAi}
           />
         )}
-      </div>
+      </main>
 
       {/* Log New Trade Modal */}
       {isNewTradeModalOpen && <LogTradeModal
@@ -548,6 +565,7 @@ function AuthenticatedApp({ user }: { user: User }) {
         }}
         onShare={(trade) => setSharingTrade(trade)}
         solPrice={solPrice}
+        readOnly={demoMode}
       />}
 
       {/* Rule Editor Modal */}

@@ -31,7 +31,12 @@ function getStoredPreviewTheme(): PreviewTheme | null {
   } catch {
     return null;
   }
-  return isPreviewTheme(storedTheme) ? storedTheme : null;
+  if (storedTheme === "default") return null;
+  return storedTheme === null
+    ? "modern-platform"
+    : isPreviewTheme(storedTheme)
+      ? storedTheme
+      : null;
 }
 
 export default function ThemePreviewControl() {
@@ -83,7 +88,7 @@ export default function ThemePreviewControl() {
           type="button"
           onClick={(event) => {
             try {
-              window.localStorage.removeItem(PREVIEW_STORAGE_KEY);
+              window.localStorage.setItem(PREVIEW_STORAGE_KEY, "default");
             } catch {
               return;
             }

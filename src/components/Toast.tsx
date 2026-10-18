@@ -39,7 +39,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`pointer-events-auto flex items-start gap-3 p-3.5 rounded-xl border shadow-lg backdrop-blur-md transition-all animate-in fade-in slide-in-from-bottom-2 duration-200 ${
+            role={toast.type === "error" ? "alert" : "status"}
+            aria-live={toast.type === "error" ? "assertive" : "polite"}
+            className={`app-toast app-toast-${toast.type} pointer-events-auto flex items-start gap-3 p-3.5 rounded-xl border shadow-lg backdrop-blur-md transition-all animate-in fade-in slide-in-from-bottom-2 duration-200 ${
               toast.type === "success"
                 ? "bg-white/95 border-emerald-200 text-[#37352f]"
                 : toast.type === "error"
@@ -64,7 +66,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               )}
             </div>
             <button
+              type="button"
               onClick={() => removeToast(toast.id)}
+              aria-label="Dismiss notification"
               className="text-[#9b9a97] hover:text-[#37352f] p-0.5 rounded transition-colors"
             >
               <X size={13} />

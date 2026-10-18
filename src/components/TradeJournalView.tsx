@@ -32,6 +32,7 @@ interface TradeJournalViewProps {
   onUndoAvailable?: (trade: Trade) => void;
   onOpenEditTrade: (trade: Trade) => void;
   onSelectTrade: (trade: Trade) => void;
+  readOnly?: boolean;
 }
 
 export default function TradeJournalView({
@@ -42,6 +43,7 @@ export default function TradeJournalView({
   onUndoAvailable,
   onOpenEditTrade,
   onSelectTrade,
+  readOnly = false,
 }: TradeJournalViewProps) {
   const now = useCurrentTime();
   const { showToast } = useToast();
@@ -242,7 +244,7 @@ export default function TradeJournalView({
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#e3e2de] bg-[#fbfbfa] text-[#2383e2]">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-[#2383e2]">
               <BookOpen size={20} />
             </span>
             <div>
@@ -349,6 +351,7 @@ export default function TradeJournalView({
             </summary>
             <div className="absolute left-0 top-full z-30 mt-2 w-64 space-y-2 rounded-xl border border-[#e3e2de] bg-white p-3 shadow-xl">
           <select
+            aria-label="Filter by setup"
             value={filterSetup}
             onChange={(e) => setFilterSetup(e.target.value)}
             className="w-full bg-[#f7f6f3] border border-[#e9e9e7] rounded-md px-2 py-1.5 text-[11px] text-[#37352f] focus:outline-none"
@@ -363,6 +366,7 @@ export default function TradeJournalView({
 
           {/* Wallet Dropdown Filter */}
           <select
+            aria-label="Filter by wallet"
             value={filterWallet}
             onChange={(e) => setFilterWallet(e.target.value)}
             className="w-full bg-[#f7f6f3] border border-[#e9e9e7] rounded-md px-2 py-1.5 text-[11px] text-[#37352f] focus:outline-none"
@@ -377,6 +381,7 @@ export default function TradeJournalView({
           {/* Mistakes Filter */}
           {uniqueMistakes.length > 0 && (
             <select
+              aria-label="Filter by emotion tag"
               value={filterMistake}
               onChange={(e) => setFilterMistake(e.target.value)}
               className="w-full bg-[#f7f6f3] border border-[#e9e9e7] rounded-md px-2 py-1.5 text-[11px] text-[#37352f] focus:outline-none"
@@ -417,6 +422,7 @@ export default function TradeJournalView({
           </div>
           {/* Date Range Filter */}
           <select
+            aria-label="Filter by date range"
             value={dateRange}
             onChange={(e) => setDateRange(e.target.value)}
             className="bg-[#f7f6f3] border border-[#e9e9e7] rounded-md px-2 py-1 text-[11px] text-[#37352f] focus:outline-none"
@@ -431,6 +437,7 @@ export default function TradeJournalView({
         {/* Search and Sort */}
         <div className="flex items-center gap-2">
           <select
+            aria-label="Sort trades"
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
             className="bg-[#fbfbfa] border border-[#e3e2de] rounded-md px-2 py-1 text-xs text-[#37352f] focus:outline-none"
@@ -445,6 +452,7 @@ export default function TradeJournalView({
           <div className="relative">
             <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#9b9a97]" />
             <input
+              aria-label="Search trades"
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -555,10 +563,10 @@ export default function TradeJournalView({
                       <span
                         className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                           trade.result === "Win"
-                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            ? "text-emerald-700"
                             : trade.result === "Loss"
-                            ? "bg-rose-50 text-rose-700 border border-rose-200"
-                            : "bg-neutral-100 text-neutral-700 border border-neutral-200"
+                            ? "text-rose-700"
+                            : "text-neutral-700"
                         }`}
                       >
                         {trade.result}
@@ -570,12 +578,12 @@ export default function TradeJournalView({
                   {(trade.setupType || trade.durationMinutes) && (
                     <div className="flex flex-wrap items-center gap-1 mb-2 text-[10px]">
                       {trade.setupType && (
-                        <span className="px-2 py-0.5 rounded bg-blue-50 text-[#2383e2] border border-blue-100 font-medium">
+                        <span className="px-2 py-0.5 rounded bg-blue-50 text-[#2383e2] font-medium">
                           {trade.setupType}
                         </span>
                       )}
                       {trade.durationMinutes && (
-                        <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-100 font-medium flex items-center gap-0.5">
+                        <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-900 font-medium flex items-center gap-0.5">
                           <Clock size={10} />
                           <span>{formatDuration(trade.durationMinutes)}</span>
                         </span>
@@ -611,7 +619,7 @@ export default function TradeJournalView({
                       {trade.goodTags?.slice(0, 2).map((g, idx) => (
                         <span
                           key={`good-${idx}`}
-                          className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-800 border border-emerald-200/60"
+                          className="rounded border border-[#e3e2de] bg-[#f7f6f3] px-1.5 py-0.5 text-[10px] font-medium text-[#5a5957]"
                         >
                           {g}
                         </span>
@@ -619,7 +627,7 @@ export default function TradeJournalView({
                       {trade.mistakes?.slice(0, 2).map((m, idx) => (
                         <span
                           key={`mistake-${idx}`}
-                          className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-rose-50 text-rose-800 border border-rose-200/60"
+                          className="rounded border border-[#e3e2de] bg-[#f7f6f3] px-1.5 py-0.5 text-[10px] font-medium text-rose-700"
                         >
                           {m}
                         </span>
@@ -634,7 +642,7 @@ export default function TradeJournalView({
                 <div className="flex items-center justify-between text-[11px] text-[#787774] pt-2 border-t border-[#f7f6f5]">
                   <span>{dateStr}</span>
                   <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                    <button
+                    {!readOnly && <button
                       onClick={(e) => {
                         e.stopPropagation();
                         onOpenEditTrade(trade);
@@ -643,14 +651,14 @@ export default function TradeJournalView({
                       title="Edit"
                     >
                       <Edit2 size={13} />
-                    </button>
-                    <button
+                    </button>}
+                    {!readOnly && <button
                       onClick={(e) => requestDelete(e, trade.id)}
                       className="p-1 hover:text-rose-600 rounded"
                       title="Delete"
                     >
                       <Trash2 size={13} />
-                    </button>
+                    </button>}
                   </div>
                 </div>
               </div>
@@ -721,7 +729,7 @@ export default function TradeJournalView({
                       {/* Setup Strategy */}
                       <td className="notion-table-td">
                         {trade.setupType ? (
-                          <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-blue-50 text-[#2383e2] border border-blue-100 whitespace-nowrap">
+                          <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-blue-50 text-[#2383e2] whitespace-nowrap">
                             {trade.setupType}
                           </span>
                         ) : (
@@ -732,7 +740,7 @@ export default function TradeJournalView({
                       {/* Trade Duration */}
                       <td className="notion-table-td font-mono text-[11px] text-[#787774] whitespace-nowrap">
                         {trade.durationMinutes ? (
-                          <span className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-100 font-medium">
+                          <span className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-900 font-medium">
                             {formatDuration(trade.durationMinutes)}
                           </span>
                         ) : (
@@ -780,10 +788,10 @@ export default function TradeJournalView({
                         <span
                           className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                             trade.result === "Win"
-                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                              ? "text-emerald-700"
                               : trade.result === "Loss"
-                              ? "bg-rose-50 text-rose-700 border border-rose-200"
-                              : "bg-neutral-100 text-neutral-700 border border-neutral-200"
+                              ? "text-rose-700"
+                              : "text-neutral-700"
                           }`}
                         >
                           {trade.result}
@@ -819,7 +827,7 @@ export default function TradeJournalView({
                           {trade.goodTags?.map((g, idx) => (
                             <span
                               key={`tgood-${idx}`}
-                              className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-800 border border-emerald-200/60"
+                              className="rounded border border-[#e3e2de] bg-[#f7f6f3] px-1.5 py-0.5 text-[10px] font-medium text-[#5a5957]"
                             >
                               {g}
                             </span>
@@ -827,7 +835,7 @@ export default function TradeJournalView({
                           {trade.mistakes?.map((m, idx) => (
                             <span
                               key={`tmistake-${idx}`}
-                              className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-rose-50 text-rose-800 border border-rose-200/60"
+                              className="rounded border border-[#e3e2de] bg-[#f7f6f3] px-1.5 py-0.5 text-[10px] font-medium text-rose-700"
                             >
                               {m}
                             </span>
@@ -843,20 +851,20 @@ export default function TradeJournalView({
                       {/* Actions */}
                       <td className="notion-table-td text-center" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-center gap-1">
-                          <button
+                          {!readOnly && <button
                             onClick={() => onOpenEditTrade(trade)}
                             className="p-1 hover:text-[#2383e2] rounded"
                             title="Edit"
                           >
                             <Edit2 size={13} />
-                          </button>
-                          <button
+                          </button>}
+                          {!readOnly && <button
                             onClick={(e) => requestDelete(e, trade.id)}
                             className="p-1 hover:text-rose-600 rounded"
                             title="Delete"
                           >
                             <Trash2 size={13} />
-                          </button>
+                          </button>}
                         </div>
                       </td>
                     </tr>

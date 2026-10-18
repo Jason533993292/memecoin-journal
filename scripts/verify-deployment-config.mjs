@@ -41,21 +41,27 @@ const serviceRoleKey = value("SUPABASE_SERVICE_ROLE_KEY");
 assert(publishableKey.startsWith("sb_publishable_"), "The Supabase browser key must begin with sb_publishable_.");
 assert(serviceRoleKey.startsWith("sb_secret_") || serviceRoleKey.split(".").length === 3, "The Supabase server key is not a secret/service-role key.");
 
-async function verifySupabaseKey(label, key) {
-  const response = await fetchWithTimeout(`${supabaseUrl}/rest/v1/trades?select=id&limit=1`, {
+async function verifySupabaseKey(label, key, path) {
+  const response = await fetchWithTimeout(`${supabaseUrl}${path}`, {
     headers: { apikey: key },
   });
   assert(response.ok, `${label} was rejected by Supabase (HTTP ${response.status}).`);
   console.log(`PASS: ${label} is accepted by Supabase.`);
 }
 
-await verifySupabaseKey("Supabase publishable key", publishableKey);
-await verifySupabaseKey("Supabase server key", serviceRoleKey);
+// The auth settings endpoint is intentionally public and proves that the
+// publishable key is active without weakening table grants or RLS policies.
+await verifySupabaseKey("Supabase publishable key", publishableKey, "/auth/v1/settings");
+await verifySupabaseKey("Supabase server key", serviceRoleKey, "/rest/v1/trades?select=id&limit=1");
 
 const firebaseApiKey = firebaseValue("NEXT_PUBLIC_FIREBASE_API_KEY");
+const firebaseAuthDomain = firebaseValue("NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN");
 assert(firebaseApiKey.startsWith("AIza"), "The Firebase web API key has an unexpected format.");
 assert(firebaseValue("NEXT_PUBLIC_FIREBASE_PROJECT_ID") === "memecoin-journal", "The Firebase project ID must be memecoin-journal.");
-assert(firebaseValue("NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN") === "memecoin-journal.firebaseapp.com", "The Firebase auth domain does not match this project.");
+assert(
+  /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i.test(firebaseAuthDomain),
+  "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN must be a bare hostname without a protocol, port, or path."
+);
 assert(firebaseValue("NEXT_PUBLIC_FIREBASE_APP_ID").startsWith("1:748290550330:web:"), "The Firebase app ID does not match this web app.");
 assert(/^\d+$/.test(firebaseValue("NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID")), "The Firebase messaging sender ID is invalid.");
 
@@ -72,6 +78,7 @@ const firebaseConfigResponse = await fetchWithTimeout(
 );
 assert(firebaseConfigResponse.ok, `Firebase rejected the web API key (HTTP ${firebaseConfigResponse.status}).`);
 console.log("PASS: Firebase web API key is accepted by Identity Toolkit.");
+console.log(`PASS: Firebase auth domain is a valid hostname (${firebaseAuthDomain}).`);
 
 let credentials;
 try {

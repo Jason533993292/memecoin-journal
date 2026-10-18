@@ -166,7 +166,7 @@ export default function EquityCurveCard({ trades, solPrice = 150 }: EquityCurveC
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#f1f1ef]">
         <div className="flex items-center gap-2.5">
-          <div className={`p-2 rounded-lg border ${isUnderwater ? "bg-rose-50 text-rose-600 border-rose-200" : "bg-blue-50 text-[#2383e2] border-blue-100"}`}>
+          <div className={`p-2 rounded-lg ${isUnderwater ? "bg-rose-50 text-rose-600" : "bg-blue-50 text-[#2383e2]"}`}>
             {isUnderwater ? <ShieldAlert size={18} /> : <TrendingUp size={18} />}
           </div>
           <div>

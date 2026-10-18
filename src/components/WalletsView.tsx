@@ -489,6 +489,7 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
               type="text"
               value={lookupAddress}
               onChange={(e) => setLookupAddress(e.target.value)}
+              aria-label="Solana wallet address"
               placeholder="Paste your Phantom/Solflare address..."
               className="flex-1 bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-3 py-1.5 text-xs text-[#37352f] font-mono focus:outline-none focus:border-[#2383e2]"
             />

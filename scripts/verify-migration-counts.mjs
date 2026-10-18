@@ -1,5 +1,6 @@
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
+import { createHash } from "node:crypto";
 
 const credentialsRaw = process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT_JSON;
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim().replace(/\/$/, "");
@@ -117,15 +118,25 @@ const countFields = ["trades", "wallets", "walletTransactions", "settings"];
 const aggregateFields = [...fields, "balanceSol", "transactionAmountSol", "transactionAmountUsd"];
 const accountIds = new Set([...source.keys(), ...destination.keys()]);
 let mismatchedAccounts = 0;
+const mismatchDetails = [];
 for (const id of accountIds) {
   const left = source.get(id) ?? createAccount();
   const right = destination.get(id) ?? createAccount();
-  const countsMatch = countFields.every((field) => left[field] === right[field]);
-  const aggregatesMatch = aggregateFields.every((field) => {
+  const countMismatches = countFields.filter((field) => left[field] !== right[field]);
+  const aggregateMismatches = aggregateFields.filter((field) => {
     const a = left[field]; const b = right[field];
-    return Math.abs(a - b) <= Math.max(1, Math.abs(a), Math.abs(b)) * 1e-8;
+    return Math.abs(a - b) > Math.max(1, Math.abs(a), Math.abs(b)) * 1e-8;
   });
-  if (!countsMatch || !aggregatesMatch) mismatchedAccounts++;
+  if (countMismatches.length > 0 || aggregateMismatches.length > 0) {
+    mismatchedAccounts++;
+    mismatchDetails.push({
+      fingerprint: createHash("sha256").update(id).digest("hex").slice(0, 12),
+      location: !source.has(id) ? "Supabase only" : !destination.has(id) ? "Firebase only" : "both backends",
+      countMismatches,
+      countSummary: countMismatches.map((field) => `${field} Firebase ${left[field]} / Supabase ${right[field]}`),
+      aggregateMismatches,
+    });
+  }
 }
 
 for (const field of countFields) {
@@ -134,6 +145,13 @@ for (const field of countFields) {
   console.log(`${field}: Firebase ${sourceTotal}; Supabase ${destinationTotal}; ${sourceTotal === destinationTotal ? "row totals match" : "row totals differ"}`);
 }
 console.log(`Compared ${accountIds.size} accounts without printing account IDs or financial totals.`);
+for (const detail of mismatchDetails) {
+  const categories = [
+    detail.countMismatches.length > 0 ? `counts: ${detail.countSummary.join(", ")}` : null,
+    detail.aggregateMismatches.length > 0 ? `aggregates: ${detail.aggregateMismatches.join(", ")}` : null,
+  ].filter(Boolean).join("; ");
+  console.log(`Mismatch ${detail.fingerprint} (${detail.location}) — ${categories}.`);
+}
 console.log(mismatchedAccounts === 0
   ? "PASS: per-account row counts and financial aggregates match. This verifies counts and core totals, not every note, tag, image, or setting value."
   : `CHECK REQUIRED: ${mismatchedAccounts} account(s) differ in row counts or financial aggregates. No data was changed.`);

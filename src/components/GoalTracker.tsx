@@ -120,7 +120,7 @@ export default function GoalTracker({
       {/* Header */}
       <div className="flex items-center justify-between pb-3 border-b border-[#f1f1ef]">
         <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100">
+          <div className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600">
             <Target size={16} />
           </div>
           <div>
@@ -160,13 +160,13 @@ export default function GoalTracker({
             </span>
           </div>
 
-          <div className="w-full bg-neutral-100 h-2 rounded-full overflow-hidden">
+          <div className="goal-progress-track w-full bg-neutral-100 h-2.5 rounded-full overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-500 ${
                 stats.weeklyPct >= 100
-                  ? "bg-emerald-500"
+                  ? "bg-emerald-400"
                   : stats.weeklyPct > 0
-                  ? "bg-indigo-500"
+                  ? "bg-indigo-400"
                   : "bg-rose-400"
               }`}
               style={{ width: `${Math.min(Math.max(stats.weeklyPct, 0), 100)}%` }}
@@ -195,13 +195,13 @@ export default function GoalTracker({
             </span>
           </div>
 
-          <div className="w-full bg-neutral-100 h-2 rounded-full overflow-hidden">
+          <div className="goal-progress-track w-full bg-neutral-100 h-2.5 rounded-full overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-500 ${
                 stats.monthlyPct >= 100
-                  ? "bg-emerald-500"
+                  ? "bg-emerald-400"
                   : stats.monthlyPct > 0
-                  ? "bg-indigo-500"
+                  ? "bg-indigo-400"
                   : "bg-rose-400"
               }`}
               style={{ width: `${Math.min(Math.max(stats.monthlyPct, 0), 100)}%` }}
@@ -228,10 +228,10 @@ export default function GoalTracker({
             </span>
           </div>
 
-          <div className="w-full bg-neutral-100 h-2 rounded-full overflow-hidden">
+          <div className="goal-progress-track w-full bg-neutral-100 h-2.5 rounded-full overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-500 ${
-                stats.weeklyWinRate >= (goals.targetWinRate || 60) ? "bg-emerald-500" : "bg-amber-400"
+                stats.weeklyWinRate >= (goals.targetWinRate || 60) ? "bg-emerald-400" : "bg-amber-300"
               }`}
               style={{ width: `${Math.min(stats.winRatePct, 100)}%` }}
             ></div>

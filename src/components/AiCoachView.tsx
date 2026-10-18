@@ -373,7 +373,7 @@ export default function AiCoachView({
             <button
               onClick={saveProviderSettings}
               disabled={!apiKey.trim() || (providerChanged && !apiKeyDraft.trim())}
-              className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-medium rounded-lg disabled:opacity-50 transition-colors"
+              className="provider-save-button px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-medium rounded-lg disabled:opacity-50 transition-colors"
             >
               Save Provider Settings
             </button>
@@ -427,6 +427,7 @@ export default function AiCoachView({
               type="text"
               value={customQuestion}
               onChange={(e) => setCustomQuestion(e.target.value)}
+              aria-label="Ask the AI coach"
               placeholder="e.g. Look at my trades and tell me what my worst habit is..."
               className="flex-1 bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-3 py-2 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]"
             />

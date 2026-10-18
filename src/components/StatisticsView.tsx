@@ -190,7 +190,7 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#e3e2de] bg-[#fbfbfa] text-[#2383e2]">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-[#2383e2]">
             <BarChart3 size={20} />
           </span>
           <div>
@@ -227,7 +227,7 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#e3e2de] bg-[#fbfbfa] text-[#2383e2]">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-[#2383e2]">
             <BarChart3 size={20} />
           </span>
           <div>
@@ -424,18 +424,16 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
                       <Target size={13} className="text-[#2383e2]" />
                       <span>{item.setup}</span>
                     </td>
-                    <td className="py-2.5 px-3 font-mono text-[#787774]">{item.count}</td>
+                    <td className="py-2.5 px-3 font-mono font-semibold text-[#5a5957]">{item.count}</td>
                     <td className="py-2.5 px-3">
-                      <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
-                        Number(item.winRate) >= 60 ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-neutral-100 text-neutral-700"
-                      }`}>
+                      <span className="rounded border border-[#e3e2de] bg-[#f7f6f3] px-2 py-0.5 text-[11px] font-bold text-[#37352f]">
                         {item.winRate}% ({item.wins}W / {item.count - item.wins}L)
                       </span>
                     </td>
                     <td className={`py-2.5 px-3 font-mono font-bold ${item.pnlSol >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
                       {item.pnlSol >= 0 ? `+${item.pnlSol}` : item.pnlSol} SOL
                     </td>
-                    <td className="py-2.5 px-3 font-mono text-[#787774]">
+                    <td className="py-2.5 px-3 font-mono font-semibold text-[#5a5957]">
                       ${item.pnlUsd.toFixed(2)}
                     </td>
                   </tr>

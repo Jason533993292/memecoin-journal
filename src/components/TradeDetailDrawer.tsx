@@ -33,6 +33,7 @@ interface TradeDetailDrawerProps {
   onDuplicate?: (trade: Trade) => void;
   onShare?: (trade: Trade) => void;
   solPrice?: number;
+  readOnly?: boolean;
 }
 
 export default function TradeDetailDrawer({
@@ -44,6 +45,7 @@ export default function TradeDetailDrawer({
   onDuplicate,
   onShare,
   solPrice = 0,
+  readOnly = false,
 }: TradeDetailDrawerProps) {
   const { showToast } = useToast();
   const [copied, setCopied] = useState(false);
@@ -127,7 +129,7 @@ export default function TradeDetailDrawer({
               </div>
 
               <div className="flex items-center gap-1">
-                <button
+                {!readOnly && <button
                   onClick={() => {
                     onClose();
                     onEdit(trade);
@@ -136,8 +138,8 @@ export default function TradeDetailDrawer({
                   title="Edit trade"
                 >
                   <Edit2 size={15} />
-                </button>
-                <button
+                </button>}
+                {!readOnly && <button
                   onClick={() => {
                     onClose();
                     onDelete(trade.id);
@@ -146,7 +148,7 @@ export default function TradeDetailDrawer({
                   title="Delete trade"
                 >
                   <Trash2 size={15} />
-                </button>
+                </button>}
                 <button
                   onClick={onClose}
                   className="p-1.5 rounded-md hover:bg-[#f1f1ef] text-[#787774] hover:text-[#37352f] transition-colors ml-0.5"
@@ -199,14 +201,14 @@ export default function TradeDetailDrawer({
               {(trade.setupType || trade.durationMinutes) && (
                 <div className="flex flex-wrap items-center gap-2">
                   {trade.setupType && (
-                    <div className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-blue-50 text-[#2383e2] border border-blue-200">
+                    <div className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-blue-50 text-[#2383e2]">
                       <Layers size={12} />
                       <span>{trade.setupType}</span>
                     </div>
                   )}
 
                   {trade.durationMinutes && (
-                    <div className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-amber-50 text-amber-900 border border-amber-200">
+                    <div className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-amber-50 text-amber-900">
                       <Clock size={12} />
                       <span>Hold Time: {formatDuration(trade.durationMinutes)}</span>
                     </div>
@@ -406,7 +408,7 @@ export default function TradeDetailDrawer({
               Delete Trade
             </button>
             <div className="flex items-center gap-2">
-              {onDuplicate && (
+              {onDuplicate && !readOnly && (
                 <button
                   onClick={() => {
                     onClose();
