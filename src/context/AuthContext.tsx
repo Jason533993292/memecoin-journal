@@ -5,7 +5,7 @@ import {
   auth,
   googleProvider,
   getRedirectResult,
-  signInWithPopup,
+  signInWithRedirect,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   sendEmailVerification,
@@ -116,10 +116,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [retryCount]);
 
   const loginWithGoogle = async () => {
-    // A closed or blocked popup must not start a second OAuth navigation.
-    // In particular, a late popup rejection can arrive after session recovery.
+    // Use a full-page redirect so Google sign-in also works in browsers that
+    // block, isolate, or prematurely close authentication popups.
     if (auth.currentUser) return;
-    await signInWithPopup(auth, googleProvider);
+    await signInWithRedirect(auth, googleProvider);
   };
 
   const loginWithEmail = async (email: string, pass: string) => {
