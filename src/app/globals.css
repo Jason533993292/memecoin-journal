@@ -10,6 +10,7 @@
     --text-main: #37352f;
     --text-muted: #787774;
     --notion-blue: #2383e2;
+    --heatmap-empty: rgba(55, 53, 47, 0.035);
   }
 
   body {
@@ -478,12 +479,13 @@ html[data-theme-preview="terminal"] {
   --preview-surface: #111619;
   --preview-raised: #182024;
   --preview-input: #0e1518;
-  --preview-border: #2a383e;
+  --preview-border: #40535b;
   --preview-text: #e6f0ed;
   --preview-muted: #91a39f;
   --preview-subtle: #71847f;
   --preview-accent: #38d39f;
   --preview-hover: #223036;
+  --heatmap-empty: #172126;
 }
 
 html[data-theme-preview="premium-journal"] {
@@ -491,12 +493,13 @@ html[data-theme-preview="premium-journal"] {
   --preview-surface: #1c1a19;
   --preview-raised: #282421;
   --preview-input: #171513;
-  --preview-border: #413a35;
+  --preview-border: #5d5047;
   --preview-text: #f1e9dc;
   --preview-muted: #a99d90;
   --preview-subtle: #82766b;
   --preview-accent: #c5874e;
   --preview-hover: #35302b;
+  --heatmap-empty: #25211e;
 }
 
 html[data-theme-preview="modern-platform"] {
@@ -504,12 +507,13 @@ html[data-theme-preview="modern-platform"] {
   --preview-surface: #12131b;
   --preview-raised: #1a1d2a;
   --preview-input: #10121a;
-  --preview-border: #30364d;
+  --preview-border: #465073;
   --preview-text: #f2f5ff;
   --preview-muted: #9aa4bf;
   --preview-subtle: #737d98;
   --preview-accent: #6d7dff;
   --preview-hover: #292e43;
+  --heatmap-empty: #191c29;
 }
 
 html[data-theme-preview="ocean"] {
@@ -517,12 +521,13 @@ html[data-theme-preview="ocean"] {
   --preview-surface: #0d2027;
   --preview-raised: #14303a;
   --preview-input: #09191f;
-  --preview-border: #2b5260;
+  --preview-border: #3d7183;
   --preview-text: #ebf9fc;
   --preview-muted: #9abdc7;
   --preview-subtle: #7399a4;
   --preview-accent: #22b8cf;
   --preview-hover: #1b3e49;
+  --heatmap-empty: #12303a;
 }
 
 html[data-theme-preview="graphite"] {
@@ -530,12 +535,13 @@ html[data-theme-preview="graphite"] {
   --preview-surface: #191b1f;
   --preview-raised: #24272c;
   --preview-input: #141619;
-  --preview-border: #3a3f47;
+  --preview-border: #515964;
   --preview-text: #f4f5f7;
   --preview-muted: #adb3bc;
   --preview-subtle: #858d98;
   --preview-accent: #a78bfa;
   --preview-hover: #30343b;
+  --heatmap-empty: #23262b;
 }
 
 html[data-theme-preview] .theme-preview-control {

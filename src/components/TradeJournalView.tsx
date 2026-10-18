@@ -595,12 +595,16 @@ export default function TradeJournalView({
                   <div className="grid grid-cols-2 gap-2 text-xs py-2 border-y border-[#f1f1ef]">
                     <div>
                       <span className="text-[10px] text-[#9b9a97] block">Size ({currencyMode})</span>
-                      <span className="font-mono font-medium">{currencyMode === "SOL" ? (trade.boughtSol || 0) : (getTradeBoughtUsd(trade, solPrice).value ?? 0).toFixed(2)} {currencyMode}</span>
+                      <span className="whitespace-nowrap font-mono text-[11px] font-medium">
+                        {currencyMode === "SOL"
+                          ? (trade.boughtSol || 0).toFixed(2)
+                          : (getTradeBoughtUsd(trade, solPrice).value ?? 0).toFixed(2)} {currencyMode}
+                      </span>
                     </div>
                     <div>
                       <span className="text-[10px] text-[#9b9a97] block">Net P&L</span>
                       <span
-                        className={`font-mono font-bold ${
+                        className={`whitespace-nowrap font-mono text-[11px] font-bold ${
                           (trade.pnlSol || 0) > 0
                             ? "text-emerald-600"
                             : (trade.pnlSol || 0) < 0
@@ -608,7 +612,7 @@ export default function TradeJournalView({
                             : "text-[#787774]"
                         }`}
                       >
-                        {currencyMode === "SOL" ? ((trade.pnlSol || 0) > 0 ? `+${trade.pnlSol} SOL` : `${trade.pnlSol || 0} SOL`) : (() => { const value = getUsdValueStatus(trade, solPrice).value ?? 0; return value > 0 ? `+$${value.toFixed(2)}` : value < 0 ? `-$${Math.abs(value).toFixed(2)}` : "$0.00"; })()}
+                        {currencyMode === "SOL" ? ((trade.pnlSol || 0) > 0 ? `+${(trade.pnlSol || 0).toFixed(2)} SOL` : `${(trade.pnlSol || 0).toFixed(2)} SOL`) : (() => { const value = getUsdValueStatus(trade, solPrice).value ?? 0; return value > 0 ? `+$${value.toFixed(2)}` : value < 0 ? `-$${Math.abs(value).toFixed(2)}` : "$0.00"; })()}
                       </span>
                     </div>
                   </div>

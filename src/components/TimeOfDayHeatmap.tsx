@@ -147,7 +147,7 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
   // Color for a cell
   const getCellColor = useCallback(
     (cell: CellData) => {
-      if (cell.tradeCount < minimumSample) return "rgba(0,0,0,0.03)";
+      if (cell.tradeCount < minimumSample) return "var(--heatmap-empty)";
 
       const value = metricValue(cell);
       if (value > 0) {
@@ -310,7 +310,7 @@ export default function TimeOfDayHeatmap({ trades, solPrice = 150 }: TimeOfDayHe
                 <button
                   type="button"
                   key={hour}
-                  className={`flex-1 h-7 mx-[1px] rounded-[3px] flex items-center justify-center cursor-pointer transition-all relative ${
+                  className={`flex-1 h-7 mx-[1px] rounded-[3px] border border-gray-100 flex items-center justify-center cursor-pointer transition-all relative ${
                     expandedDay === dayIdx && (expandedHour === null || expandedHour === hour)
                       ? "ring-1 ring-emerald-400/50"
                       : dayIdx === currentDayIdx && hour === currentHour

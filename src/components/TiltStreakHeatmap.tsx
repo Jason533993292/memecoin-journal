@@ -252,7 +252,7 @@ export default function TiltStreakHeatmap({ trades, solPrice = 150 }: TiltStreak
                 <span className="text-[10px] font-mono block opacity-70">
                   {day.date.getDate()}
                 </span>
-                <span className="text-[11px] font-mono font-bold truncate">
+                <span className="whitespace-nowrap text-[9px] font-mono font-bold tracking-tight sm:text-[10px]">
                   {formatDayPnl(day)}
                 </span>
               </div>
