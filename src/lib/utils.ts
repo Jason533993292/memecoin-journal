@@ -1,4 +1,4 @@
-import { Trade } from "./types";
+import type { Trade } from "./types";
 
 /**
  * Normalizes timestamp from any valid Trade representation (Firestore Timestamp, epoch ms, ISO string, createdAt)
@@ -37,11 +37,13 @@ export function getLocalDayKey(d: Date): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-/** Format SOL without hiding lamport-scale balances through two-decimal rounding. */
-export function formatSol(value: number, maximumFractionDigits = 9): string {
+/** Format displayed SOL amounts consistently while retaining full stored precision. */
+export function formatSol(value: number, maximumFractionDigits = 2): string {
   if (!Number.isFinite(value)) return "—";
+  const digits = Math.min(9, Math.max(0, maximumFractionDigits));
   return new Intl.NumberFormat(undefined, {
-    maximumFractionDigits: Math.min(9, Math.max(0, maximumFractionDigits)),
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
   }).format(value);
 }
 

@@ -507,7 +507,7 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
               <div>
                 <span className="text-[11px] text-emerald-800 font-medium block">Verified On-Chain Balance:</span>
                 <span className="text-sm font-bold font-mono text-emerald-950">
-                  {lookupResult.balanceSol} SOL <span className="text-xs font-normal text-emerald-700">(≈ ${(lookupResult.balanceSol * solPrice).toFixed(2)})</span>
+                  {formatSol(lookupResult.balanceSol)} SOL <span className="text-xs font-normal text-emerald-700">(≈ ${(lookupResult.balanceSol * solPrice).toFixed(2)})</span>
                 </span>
               </div>
               <button
@@ -569,7 +569,7 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
             <div className="grid grid-cols-2 gap-2 pt-1">
               <div className="p-2.5 bg-[#fbfbfa] border border-[#e9e9e7] rounded-lg">
                 <span className="text-[10px] text-[#787774] block">Initial Simulated Balance</span>
-                <span className="font-mono font-bold text-xs text-[#37352f]">{paperCapitalSol.toFixed(1)} SOL</span>
+                <span className="font-mono font-bold text-xs text-[#37352f]">{paperCapitalSol.toFixed(2)} SOL</span>
               </div>
               <div className="p-2.5 bg-[#fbfbfa] border border-[#e9e9e7] rounded-lg">
                 <span className="text-[10px] text-[#787774] block">Current Simulated Equity</span>

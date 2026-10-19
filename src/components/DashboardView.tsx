@@ -138,7 +138,7 @@ export default function DashboardView({
       pnlTodaySol,
       todayLossSol,
       isDailyLossExceeded,
-      expectancySol: expectancySol.toFixed(3),
+      expectancySol: expectancySol.toFixed(2),
       profitFactor,
     };
   }, [trades, solPrice, goals.maxDailyLossSol]);

@@ -97,9 +97,9 @@ export default function DailyRecapModal({
     const formatted = `MemeCoin Trading Daily Recap — ${todaySummary.dateLabel}
 Trades: ${todaySummary.total} (${todaySummary.winsCount}W / ${todaySummary.lossesCount}L / ${todaySummary.beCount}BE)
 Win Rate: ${todaySummary.winRate}%
-Net P&L: ${todaySummary.netPnlSol >= 0 ? "+" : ""}${todaySummary.netPnlSol} SOL ($${todaySummary.netPnlUsd.toFixed(2)})
-${todaySummary.bestTrade ? `Best: $${todaySummary.bestTrade.symbol} (+${todaySummary.bestTrade.pnlSol} SOL)` : ""}
-${todaySummary.worstTrade ? `Worst: $${todaySummary.worstTrade.symbol} (${todaySummary.worstTrade.pnlSol} SOL)` : ""}
+Net P&L: ${todaySummary.netPnlSol >= 0 ? "+" : ""}${todaySummary.netPnlSol.toFixed(2)} SOL ($${todaySummary.netPnlUsd.toFixed(2)})
+${todaySummary.bestTrade ? `Best: $${todaySummary.bestTrade.symbol} (+${todaySummary.bestTrade.pnlSol.toFixed(2)} SOL)` : ""}
+${todaySummary.worstTrade ? `Worst: $${todaySummary.worstTrade.symbol} (${todaySummary.worstTrade.pnlSol.toFixed(2)} SOL)` : ""}
 #Solana #Memecoins #TradingJournal`;
 
     navigator.clipboard.writeText(formatted.trim());
@@ -163,7 +163,7 @@ ${todaySummary.worstTrade ? `Worst: $${todaySummary.worstTrade.symbol} (${todayS
                   Today&apos;s Net Realized
                 </span>
                 <div className="text-2xl font-mono font-extrabold mt-0.5">
-                  {todaySummary.netPnlSol >= 0 ? `+${todaySummary.netPnlSol}` : todaySummary.netPnlSol} SOL
+                  {todaySummary.netPnlSol >= 0 ? `+${todaySummary.netPnlSol.toFixed(2)}` : todaySummary.netPnlSol.toFixed(2)} SOL
                 </div>
                 <div className="text-xs font-mono font-medium opacity-85">
                   {todaySummary.netPnlUsd >= 0 ? `+$${todaySummary.netPnlUsd.toFixed(2)}` : `-$${Math.abs(todaySummary.netPnlUsd).toFixed(2)}`} USD
@@ -196,7 +196,7 @@ ${todaySummary.worstTrade ? `Worst: $${todaySummary.worstTrade.symbol} (${todayS
                       ${todaySummary.bestTrade.symbol}
                     </div>
                     <div className="font-mono text-emerald-600 font-semibold text-xs mt-0.5">
-                      +{todaySummary.bestTrade.pnlSol} SOL
+                      +{todaySummary.bestTrade.pnlSol.toFixed(2)} SOL
                     </div>
                   </div>
                 ) : (
@@ -215,7 +215,7 @@ ${todaySummary.worstTrade ? `Worst: $${todaySummary.worstTrade.symbol} (${todayS
                       ${todaySummary.worstTrade.symbol}
                     </div>
                     <div className="font-mono text-rose-600 font-semibold text-xs mt-0.5">
-                      {todaySummary.worstTrade.pnlSol} SOL
+                      {todaySummary.worstTrade.pnlSol.toFixed(2)} SOL
                     </div>
                   </div>
                 ) : (

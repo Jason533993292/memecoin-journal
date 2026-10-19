@@ -46,14 +46,14 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
       winRate: (winRate * 100).toFixed(1),
       grossProfitSol: grossProfitSol.toFixed(2),
       grossLossSol: grossLossSol.toFixed(2),
-      avgWinSol: avgWinSol.toFixed(3),
-      avgLossSol: avgLossSol.toFixed(3),
+      avgWinSol: avgWinSol.toFixed(2),
+      avgLossSol: avgLossSol.toFixed(2),
       profitFactor: profitFactor.toFixed(2),
       payoffRatio: payoffRatio.toFixed(2),
-      expectancySol: expectancySol.toFixed(3),
+      expectancySol: expectancySol.toFixed(2),
       expectancyUsd: solPrice > 0 ? (expectancySol * solPrice).toFixed(2) : null,
       avgR: avgR !== null ? (avgR >= 0 ? `+${avgR.toFixed(2)}R` : `${avgR.toFixed(2)}R`) : null,
-      totalFeesSol: totalFeesSol.toFixed(3),
+      totalFeesSol: totalFeesSol.toFixed(2),
       hasRData: rTrades.length > 0,
     };
   }, [trades, solPrice]);
@@ -510,7 +510,7 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
                       </span>
                     </td>
                     <td className={`py-2.5 px-3 font-mono font-bold ${item.pnlSol >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
-                      {item.pnlSol >= 0 ? `+${item.pnlSol}` : item.pnlSol} SOL
+                      {item.pnlSol >= 0 ? `+${item.pnlSol.toFixed(2)}` : item.pnlSol.toFixed(2)} SOL
                     </td>
                     <td className="py-2.5 px-3 font-mono font-semibold text-[#5a5957]">
                       ${item.pnlUsd.toFixed(2)}

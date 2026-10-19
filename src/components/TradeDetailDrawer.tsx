@@ -1,7 +1,7 @@
 "use client";
 
 import { Trade } from "../lib/types";
-import { getTradeTimestamp } from "../lib/utils";
+import { formatSol, getTradeTimestamp } from "../lib/utils";
 import {
   X,
   ExternalLink,
@@ -189,7 +189,7 @@ export default function TradeDetailDrawer({
                     Net Realized
                   </span>
                   <div className="text-base font-mono font-bold">
-                    {(trade.pnlSol || 0) > 0 ? `+${trade.pnlSol} SOL` : `${trade.pnlSol || 0} SOL`}
+                    {(trade.pnlSol || 0) > 0 ? `+${formatSol(trade.pnlSol || 0)} SOL` : `${formatSol(trade.pnlSol || 0)} SOL`}
                   </div>
                   <div className="text-[11px] font-mono opacity-80">
                     {(getUsdValueStatus(trade, solPrice).value ?? 0) >= 0 ? `+$${(getUsdValueStatus(trade, solPrice).value ?? 0).toFixed(2)}` : `-$${Math.abs(getUsdValueStatus(trade, solPrice).value ?? 0).toFixed(2)}`}
@@ -328,7 +328,7 @@ export default function TradeDetailDrawer({
                   <div className="p-2.5 bg-[#fbfbfa] border border-[#e9e9e7] rounded-lg">
                     <span className="text-[10px] text-[#787774] block">Bought (Position)</span>
                     <div className="font-mono font-semibold text-xs text-[#37352f] mt-0.5">
-                      {trade.boughtSol || 0} SOL
+                      {formatSol(trade.boughtSol || 0)} SOL
                     </div>
                     <span className="text-[10px] text-[#9b9a97]">${(getTradeBoughtUsd(trade, solPrice).value ?? 0).toFixed(2)}</span>
                   </div>
@@ -336,7 +336,7 @@ export default function TradeDetailDrawer({
                   <div className="p-2.5 bg-[#fbfbfa] border border-[#e9e9e7] rounded-lg">
                     <span className="text-[10px] text-[#787774] block">Sold (Proceeds)</span>
                     <div className="font-mono font-semibold text-xs text-[#37352f] mt-0.5">
-                      {trade.soldSol || 0} SOL
+                      {formatSol(trade.soldSol || 0)} SOL
                     </div>
                     <span className="text-[10px] text-[#9b9a97]">${(getTradeSoldUsd(trade, solPrice).value ?? 0).toFixed(2)}</span>
                   </div>

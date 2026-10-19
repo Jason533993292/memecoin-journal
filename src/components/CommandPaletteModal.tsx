@@ -182,7 +182,7 @@ export default function CommandPaletteModal({
                       (trade.pnlSol || 0) >= 0 ? "text-emerald-600" : "text-rose-600"
                     }`}
                   >
-                    {(trade.pnlSol || 0) >= 0 ? `+${trade.pnlSol}` : trade.pnlSol} SOL
+                    {(trade.pnlSol || 0) >= 0 ? `+${(trade.pnlSol || 0).toFixed(2)}` : (trade.pnlSol || 0).toFixed(2)} SOL
                   </span>
                 </button>
               ))}

@@ -466,7 +466,7 @@ export default function LogTradeModal({
       showToast(
         "Trade saved to Cloud",
         "success",
-        `${tokenData?.name || "Token"} logged (${quoteBase.pnlSol >= 0 ? "+" : ""}${quoteBase.pnlSol.toFixed(3)} SOL)`
+        `${tokenData?.name || "Token"} logged (${quoteBase.pnlSol >= 0 ? "+" : ""}${quoteBase.pnlSol.toFixed(2)} SOL)`
       );
       onTradeLogged();
       onClose();

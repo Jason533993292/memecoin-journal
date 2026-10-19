@@ -804,12 +804,12 @@ export default function TradeJournalView({
 
                       {/* Bought SOL */}
                       <td className="notion-table-td font-mono text-[#37352f]">
-                        {currencyMode === "SOL" ? trade.boughtSol || 0 : "$" + (getTradeBoughtUsd(trade, solPrice).value ?? 0).toFixed(2)}
+                        {currencyMode === "SOL" ? (trade.boughtSol || 0).toFixed(2) : "$" + (getTradeBoughtUsd(trade, solPrice).value ?? 0).toFixed(2)}
                       </td>
 
                       {/* Sold SOL */}
                       <td className="notion-table-td font-mono text-[#37352f]">
-                        {currencyMode === "SOL" ? trade.soldSol || 0 : "$" + (getTradeSoldUsd(trade, solPrice).value ?? 0).toFixed(2)}
+                        {currencyMode === "SOL" ? (trade.soldSol || 0).toFixed(2) : "$" + (getTradeSoldUsd(trade, solPrice).value ?? 0).toFixed(2)}
                       </td>
 
                       {/* Net PnL SOL */}
@@ -822,7 +822,7 @@ export default function TradeJournalView({
                             : "text-[#787774]"
                         }`}
                       >
-                        {currencyMode === "SOL" ? ((trade.pnlSol || 0) > 0 ? `+${trade.pnlSol}` : trade.pnlSol || 0) : (() => { const value = getUsdValueStatus(trade, solPrice).value ?? 0; return value > 0 ? `+$${value.toFixed(2)}` : value < 0 ? `-$${Math.abs(value).toFixed(2)}` : "$0.00"; })()}
+                        {currencyMode === "SOL" ? ((trade.pnlSol || 0) > 0 ? `+${(trade.pnlSol || 0).toFixed(2)}` : (trade.pnlSol || 0).toFixed(2)) : (() => { const value = getUsdValueStatus(trade, solPrice).value ?? 0; return value > 0 ? `+$${value.toFixed(2)}` : value < 0 ? `-$${Math.abs(value).toFixed(2)}` : "$0.00"; })()}
                       </td>
 
                       {/* Tags */}

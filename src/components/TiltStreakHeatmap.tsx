@@ -233,7 +233,7 @@ export default function TiltStreakHeatmap({ trades, solPrice = 150 }: TiltStreak
             const isGreen = day.pnlSol > 0;
             const isRed = day.pnlSol < 0;
 
-            const tooltipText = `${day.dayLabel}: ${day.tradeCount} trade${day.tradeCount > 1 ? "s" : ""} | ${day.pnlSol >= 0 ? `+${day.pnlSol}` : day.pnlSol} SOL (${day.pnlUsd >= 0 ? "+$" : "-$"}${Math.abs(day.pnlUsd).toFixed(2)})`;
+            const tooltipText = `${day.dayLabel}: ${day.tradeCount} trade${day.tradeCount > 1 ? "s" : ""} | ${day.pnlSol >= 0 ? `+${day.pnlSol.toFixed(2)}` : day.pnlSol.toFixed(2)} SOL (${day.pnlUsd >= 0 ? "+$" : "-$"}${Math.abs(day.pnlUsd).toFixed(2)})`;
 
             return (
               <div
