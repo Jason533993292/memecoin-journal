@@ -401,6 +401,23 @@ html[data-theme-preview] .journal-page button:disabled {
   color: var(--preview-subtle) !important;
 }
 
+/* Keep semantic trade tags distinct without pale outlines on dark themes. */
+html[data-theme-preview] .trade-tag-option {
+  background-color: color-mix(in srgb, var(--preview-raised) 82%, transparent) !important;
+  border-color: color-mix(in srgb, var(--preview-border) 72%, transparent) !important;
+  box-shadow: none !important;
+}
+
+html[data-theme-preview] .trade-tag-option-good[data-selected="true"] {
+  background-color: color-mix(in srgb, #10b981 14%, var(--preview-surface)) !important;
+  border-color: color-mix(in srgb, #34d399 46%, var(--preview-border)) !important;
+}
+
+html[data-theme-preview] .trade-tag-option-mistake[data-selected="true"] {
+  background-color: color-mix(in srgb, #f43f5e 14%, var(--preview-surface)) !important;
+  border-color: color-mix(in srgb, #fb7185 46%, var(--preview-border)) !important;
+}
+
 html[data-theme-preview] .journal-page .provider-save-button,
 html[data-theme-preview] .journal-page .provider-save-button:disabled {
   color: #ffffff !important;
