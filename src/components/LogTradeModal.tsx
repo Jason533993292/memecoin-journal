@@ -20,6 +20,7 @@ import {
   Upload,
   Layers,
 } from "lucide-react";
+import TradeDateTimePicker from "./TradeDateTimePicker";
 import { GoalSettings, JournalRules, Trade } from "../lib/types";
 import { useToast } from "./Toast";
 import {
@@ -661,14 +662,7 @@ export default function LogTradeModal({
 
             <div>
               <label htmlFor="new-trade-date" className="mb-1.5 block font-medium text-[#787774]">Trade date and time</label>
-              <input
-                id="new-trade-date"
-                type="datetime-local"
-                value={tradedAtInput}
-                onChange={(event) => setTradedAtInput(event.target.value)}
-                className="w-full rounded-lg border border-[#e3e2de] bg-[#fbfbfa] px-3 py-2 text-xs text-[#37352f] focus:border-[#2383e2] focus:outline-none"
-                required
-              />
+              <TradeDateTimePicker id="new-trade-date" value={tradedAtInput} onChange={setTradedAtInput} />
             </div>
 
             {/* Optional chart screenshot */}

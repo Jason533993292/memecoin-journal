@@ -11,6 +11,7 @@ import { getLocalDayKey, getTradeDate } from "../lib/utils";
 interface TiltStreakHeatmapProps {
   trades: Trade[];
   solPrice?: number;
+  onSelectTrade?: (trade: Trade) => void;
 }
 
 type CalendarDay = {
@@ -24,13 +25,14 @@ type CalendarDay = {
 
 const weekdayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-export default function TiltStreakHeatmap({ trades, solPrice = 150 }: TiltStreakHeatmapProps) {
+export default function TiltStreakHeatmap({ trades, solPrice = 150, onSelectTrade }: TiltStreakHeatmapProps) {
   const { user } = useAuth();
   const currentDate = new Date();
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth();
   const todayKey = getLocalDayKey(currentDate);
   const [visibleMonth, setVisibleMonth] = useState(() => ({ year: currentYear, month: currentMonth }));
+  const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
 
   const currencyStorageKey = user ? `memecoin_journal_${user.uid}_calendar_currency` : "calendar_currency";
   const storedCurrency = useLocalStorageValue(currencyStorageKey);
@@ -97,6 +99,7 @@ export default function TiltStreakHeatmap({ trades, solPrice = 150 }: TiltStreak
   });
 
   const changeMonth = (offset: number) => {
+    setSelectedDayKey(null);
     setVisibleMonth((current) => {
       const next = new Date(current.year, current.month + offset, 1, 12);
       return { year: next.getFullYear(), month: next.getMonth() };
@@ -114,6 +117,10 @@ export default function TiltStreakHeatmap({ trades, solPrice = 150 }: TiltStreak
   };
 
   const monthlyPnl = currency === "SOL" ? monthlyProfitInfo.pnlSol : monthlyProfitInfo.pnlUsd;
+  const selectedTrades = selectedDayKey ? (dailyBuckets.get(selectedDayKey) ?? []) : [];
+  const selectedDayLabel = selectedDayKey
+    ? new Date(`${selectedDayKey}T12:00:00`).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })
+    : null;
 
   return (
     <section aria-labelledby="monthly-calendar-title" className="bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl p-4 sm:p-5 shadow-xs space-y-4">
@@ -210,30 +217,57 @@ export default function TiltStreakHeatmap({ trades, solPrice = 150 }: TiltStreak
             const tooltipText = `${day.dayLabel}: ${day.tradeCount} trade${day.tradeCount === 1 ? "" : "s"}; ${day.pnlSol >= 0 ? "+" : ""}${day.pnlSol.toFixed(2)} SOL; ${day.pnlUsd >= 0 ? "+$" : "−$"}${Math.abs(day.pnlUsd).toFixed(2)}`;
 
             return (
-              <div
+              <button
+                type="button"
                 key={day.dayKey}
                 title={tooltipText}
-                className={`relative flex min-h-16 flex-col justify-between rounded-lg border p-1.5 text-center transition-colors sm:min-h-20 sm:p-2 ${
+                onClick={() => hasTrades && setSelectedDayKey((current) => current === day.dayKey ? null : day.dayKey)}
+                disabled={!hasTrades}
+                aria-pressed={selectedDayKey === day.dayKey}
+                className={`calendar-day relative flex min-h-12 flex-col justify-between rounded-lg border p-1 text-center transition-colors sm:min-h-16 sm:p-1.5 ${
                   !hasTrades
-                    ? "bg-white border-[#e9e9e7] text-[#9b9a97]"
+                    ? "cursor-default bg-white border-[#e9e9e7] text-[#9b9a97]"
                     : isGreen
-                      ? "bg-emerald-50/80 border-emerald-300 text-emerald-900 hover:border-emerald-500"
+                      ? "bg-emerald-50/80 border-emerald-300/70 text-emerald-900 hover:bg-emerald-50"
                       : isRed
-                        ? "bg-rose-50/80 border-rose-300 text-rose-900 hover:border-rose-500"
+                        ? "bg-rose-50/80 border-rose-300/70 text-rose-900 hover:bg-rose-50"
                         : "bg-neutral-100 border-neutral-300 text-neutral-800"
-                } ${isToday ? "ring-2 ring-[#2383e2] ring-offset-1" : ""}`}
+                } ${selectedDayKey === day.dayKey ? "calendar-day-selected" : ""}`}
               >
-                <span className="text-[10px] font-mono opacity-75 sm:text-[11px]">{day.date.getDate()}</span>
+                <span className="text-[10px] font-mono opacity-75 sm:text-[11px]">{day.date.getDate()}{isToday ? <span className="ml-1 text-[8px] font-sans">Today</span> : null}</span>
                 <span className="truncate whitespace-nowrap text-[9px] font-mono font-bold tracking-tight sm:text-[11px]">
                   {formatDayPnl(day)}
                 </span>
                 <span className={`text-[8px] sm:text-[9px] ${hasTrades ? "opacity-70" : "invisible"}`}>
                   {day.tradeCount} {day.tradeCount === 1 ? "trade" : "trades"}
                 </span>
-              </div>
+              </button>
             );
           })}
         </div>
+
+        {selectedDayKey && (
+          <div className="mt-4 border-t border-[#e9e9e7] pt-4">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <div>
+                <h4 className="text-xs font-bold text-[#37352f]">{selectedDayLabel}</h4>
+                <p className="text-[10px] text-[#787774]">{selectedTrades.length} trade{selectedTrades.length === 1 ? "" : "s"} recorded</p>
+              </div>
+              <button type="button" onClick={() => setSelectedDayKey(null)} className="rounded-lg px-2 py-1 text-[10px] font-semibold text-[#787774] hover:bg-[#f1f1ef]">Close</button>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {selectedTrades.map((trade) => {
+                const pnl = trade.pnlSol || 0;
+                return (
+                  <button key={trade.id} type="button" onClick={() => onSelectTrade?.(trade)} className="calendar-trade-card flex items-center justify-between gap-3 rounded-lg border border-[#e9e9e7] bg-white p-3 text-left transition-colors hover:bg-[#f7f6f3]">
+                    <span className="min-w-0"><span className="block truncate text-xs font-bold text-[#37352f]">{trade.name || trade.symbol}</span><span className="block text-[10px] text-[#787774]">${trade.symbol} · {getTradeDate(trade).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</span></span>
+                    <span className={`shrink-0 font-mono text-xs font-bold ${pnl > 0 ? "text-emerald-600" : pnl < 0 ? "text-rose-600" : "text-[#787774]"}`}>{pnl > 0 ? "+" : ""}{pnl.toFixed(2)} SOL</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <div className="flex flex-wrap items-center justify-center gap-3 pt-3 text-[10px] text-[#787774]">
           <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded border border-emerald-400 bg-emerald-200" /> Profit day</span>

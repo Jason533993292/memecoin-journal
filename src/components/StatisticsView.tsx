@@ -5,57 +5,16 @@ import { Trade } from "../lib/types";
 import { getTradeDate } from "../lib/utils";
 import { DEFAULT_GOOD_TAGS } from "../lib/constants";
 import { getUsdValueStatus } from "../lib/tradeCalculations";
-import { BarChart3, Layers, Target, Clock, Zap, Tag, Trophy, TrendingDown, Lightbulb, CalendarDays, ShieldCheck, Gauge } from "lucide-react";
+import { BarChart3, Layers, Target, Clock, Tag, Lightbulb, CalendarDays, ShieldCheck, Gauge } from "lucide-react";
 import TiltStreakHeatmap from "./TiltStreakHeatmap";
 
 interface StatisticsViewProps {
   trades: Trade[];
   solPrice?: number;
+  onSelectTrade?: (trade: Trade) => void;
 }
 
-export default function StatisticsView({ trades, solPrice = 150 }: StatisticsViewProps) {
-  // Quant & Strategy Expectancy Metrics
-  const quantMetrics = useMemo(() => {
-    const total = trades.length;
-    const wins = trades.filter((t) => (t.pnlSol || 0) > 0);
-    const losses = trades.filter((t) => (t.pnlSol || 0) < 0);
-    const winRate = total > 0 ? wins.length / total : 0;
-    const lossRate = total > 0 ? losses.length / total : 0;
-
-    const grossProfitSol = wins.reduce((sum, t) => sum + (t.pnlSol || 0), 0);
-    const grossLossSol = losses.reduce((sum, t) => sum + Math.abs(t.pnlSol || 0), 0);
-
-    const avgWinSol = wins.length > 0 ? grossProfitSol / wins.length : 0;
-    const avgLossSol = losses.length > 0 ? grossLossSol / losses.length : 0;
-
-    const profitFactor = grossLossSol > 0 ? grossProfitSol / grossLossSol : grossProfitSol > 0 ? 99.9 : 0;
-    const payoffRatio = avgLossSol > 0 ? avgWinSol / avgLossSol : 0;
-    const expectancySol = (winRate * avgWinSol) - (lossRate * avgLossSol);
-
-    // R-multiples for trades with initialRiskSol > 0
-    const rTrades = trades.filter((t) => t.initialRiskSol && t.initialRiskSol > 0);
-    const avgR = rTrades.length > 0
-      ? rTrades.reduce((sum, t) => sum + ((t.pnlSol || 0) / (t.initialRiskSol || 1)), 0) / rTrades.length
-      : null;
-
-    const totalFeesSol = trades.reduce((sum, t) => sum + (t.feesSol || 0), 0);
-
-    return {
-      total,
-      winRate: (winRate * 100).toFixed(1),
-      grossProfitSol: grossProfitSol.toFixed(2),
-      grossLossSol: grossLossSol.toFixed(2),
-      avgWinSol: avgWinSol.toFixed(2),
-      avgLossSol: avgLossSol.toFixed(2),
-      profitFactor: profitFactor.toFixed(2),
-      payoffRatio: payoffRatio.toFixed(2),
-      expectancySol: expectancySol.toFixed(2),
-      expectancyUsd: solPrice > 0 ? (expectancySol * solPrice).toFixed(2) : null,
-      avgR: avgR !== null ? (avgR >= 0 ? `+${avgR.toFixed(2)}R` : `${avgR.toFixed(2)}R`) : null,
-      totalFeesSol: totalFeesSol.toFixed(2),
-      hasRData: rTrades.length > 0,
-    };
-  }, [trades, solPrice]);
+export default function StatisticsView({ trades, solPrice = 150, onSelectTrade }: StatisticsViewProps) {
 
   // 1. Results Breakdown
   const results = useMemo(() => {
@@ -285,82 +244,7 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
       </div>
 
       {/* Tilt & Streak Heatmap */}
-      <TiltStreakHeatmap trades={trades} solPrice={solPrice} />
-
-      {/* Quant Performance & Strategy Expectancy Card */}
-      <div className="bg-white border border-[#e9e9e7] rounded-xl p-5 shadow-xs space-y-4">
-        <div className="flex items-center justify-between pb-2 border-b border-[#f1f1ef]">
-          <div className="flex items-center gap-2">
-            <Zap size={16} className="text-[#2383e2]" />
-            <div>
-              <h2 className="text-sm font-semibold text-[#37352f]">Quant Expectancy & Performance Ratios</h2>
-              <p className="text-xs text-[#787774]">
-                Mathematical system expectancy, profit factor, win/loss payoffs, and execution drag.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className={`grid grid-cols-2 gap-3 sm:gap-4 ${quantMetrics.hasRData || parseFloat(quantMetrics.totalFeesSol) > 0 ? "md:grid-cols-4" : "md:grid-cols-3"}`}>
-          {/* Mathematical Expectancy */}
-          <div className="p-3.5 bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl">
-            <div className="text-[11px] uppercase tracking-wider text-[#787774] font-semibold">
-              Expectancy / Trade
-            </div>
-            <div className={`text-xl font-mono font-bold tabular-nums mt-1 ${
-              parseFloat(quantMetrics.expectancySol) > 0 ? "text-emerald-600" : parseFloat(quantMetrics.expectancySol) < 0 ? "text-rose-600" : "text-[#37352f]"
-            }`}>
-              {parseFloat(quantMetrics.expectancySol) >= 0 ? `+${quantMetrics.expectancySol}` : quantMetrics.expectancySol} SOL
-            </div>
-            <div className="text-[10px] text-[#9b9a97] mt-0.5">
-              {quantMetrics.expectancyUsd === null ? "USD conversion unavailable" : `≈ $${quantMetrics.expectancyUsd} / trade`}
-            </div>
-          </div>
-
-          {/* Profit Factor */}
-          <div className="p-3.5 bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl">
-            <div className="text-[11px] uppercase tracking-wider text-[#787774] font-semibold">
-              Profit Factor
-            </div>
-            <div className="text-xl font-mono font-bold tabular-nums mt-1 text-[#37352f]">
-              {quantMetrics.profitFactor}
-            </div>
-            <div className="text-[10px] text-[#9b9a97] mt-0.5">
-              Gross Win: {quantMetrics.grossProfitSol} / Loss: {quantMetrics.grossLossSol}
-            </div>
-          </div>
-
-          {/* Payoff Ratio */}
-          <div className="p-3.5 bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl">
-            <div className="text-[11px] uppercase tracking-wider text-[#787774] font-semibold">
-              Payoff (Win / Loss)
-            </div>
-            <div className="text-xl font-mono font-bold tabular-nums mt-1 text-[#37352f]">
-              {quantMetrics.payoffRatio} : 1
-            </div>
-            <div className="text-[10px] text-[#9b9a97] mt-0.5">
-              Avg +{quantMetrics.avgWinSol} / -{quantMetrics.avgLossSol} SOL
-            </div>
-          </div>
-
-          {/* Execution Fees / R-Multiple */}
-          {(quantMetrics.hasRData || parseFloat(quantMetrics.totalFeesSol) > 0) && <div className="p-3.5 bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl">
-            <div className="text-[11px] uppercase tracking-wider text-[#787774] font-semibold">
-              {quantMetrics.hasRData ? "Average R-Multiple" : "Solana Fees Drag"}
-            </div>
-            <div className="text-xl font-mono font-bold tabular-nums mt-1 text-amber-600">
-              {quantMetrics.hasRData ? quantMetrics.avgR : `${quantMetrics.totalFeesSol} SOL`}
-            </div>
-            <div className="text-[10px] text-[#9b9a97] mt-0.5">
-              {quantMetrics.hasRData && parseFloat(quantMetrics.totalFeesSol) > 0
-                ? `Fees paid: ${quantMetrics.totalFeesSol} SOL`
-                : quantMetrics.hasRData
-                  ? "Average return relative to initial risk"
-                  : "Jito tips + priority fees"}
-            </div>
-          </div>}
-        </div>
-      </div>
+      <TiltStreakHeatmap trades={trades} solPrice={solPrice} onSelectTrade={onSelectTrade} />
 
       {/* Discipline, confidence calibration, and period comparison */}
       <div className="bg-white border border-[#e9e9e7] rounded-xl p-5 shadow-xs space-y-4">
@@ -412,7 +296,7 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="p-4 bg-emerald-50/50 border border-emerald-200 rounded-xl flex items-center justify-between">
+          <div className="p-4 bg-emerald-50/50 border border-emerald-200 rounded-xl">
             <div>
               <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider block">
                 Avg Winner Holding Time
@@ -422,12 +306,9 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
               </div>
               <span className="text-[10px] text-emerald-700">Time to hit profit targets</span>
             </div>
-            <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-lg">
-              <Trophy size={18} />
-            </div>
           </div>
 
-          <div className="p-4 bg-rose-50/50 border border-rose-200 rounded-xl flex items-center justify-between">
+          <div className="p-4 bg-rose-50/50 border border-rose-200 rounded-xl">
             <div>
               <span className="text-[11px] font-bold text-rose-800 uppercase tracking-wider block">
                 Avg Loser Holding Time
@@ -436,9 +317,6 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
                 {durationStats.avgLossFormatted}
               </div>
               <span className="text-[10px] text-rose-700">Time held before cutting loss</span>
-            </div>
-            <div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center text-lg">
-              <TrendingDown size={18} />
             </div>
           </div>
         </div>

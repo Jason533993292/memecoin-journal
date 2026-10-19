@@ -522,7 +522,7 @@ export default function TradeJournalView({
               <div
                 key={trade.id}
                 onClick={() => onSelectTrade(trade)}
-                className="bg-white border border-[#e9e9e7] hover:border-[#2383e2] rounded-xl p-4 shadow-xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between space-y-3 group"
+                className="trade-journal-card bg-white border border-[#e9e9e7] rounded-xl p-4 shadow-xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between space-y-3 group"
               >
                 <div>
                   <div className="flex items-center justify-between mb-2">
@@ -541,7 +541,7 @@ export default function TradeJournalView({
 
                     <div className="flex items-center gap-1.5">
                       {(trade.wallet === "Paper" || trade.isPaper) && (
-                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                        <span className="paper-trade-badge px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-50 text-indigo-700">
                           PAPER
                         </span>
                       )}
@@ -651,15 +651,15 @@ export default function TradeJournalView({
                         e.stopPropagation();
                         onOpenEditTrade(trade);
                       }}
-                      className="p-1 hover:text-[#2383e2] rounded"
-                      title="Edit"
+                      className="trade-card-action p-1.5 rounded-lg transition-all hover:bg-blue-50 hover:text-[#2383e2] hover:shadow-sm"
+                      aria-label="Edit trade"
                     >
                       <Edit2 size={13} />
                     </button>}
                     {!readOnly && <button
                       onClick={(e) => requestDelete(e, trade.id)}
-                      className="p-1 hover:text-rose-600 rounded"
-                      title="Delete"
+                      className="trade-card-action p-1.5 rounded-lg transition-all hover:bg-rose-50 hover:text-rose-600 hover:shadow-sm"
+                      aria-label="Delete trade"
                     >
                       <Trash2 size={13} />
                     </button>}
@@ -777,7 +777,7 @@ export default function TradeJournalView({
                       {/* Wallet */}
                       <td className="notion-table-td text-[#787774] text-[11px]">
                         {trade.wallet === "Paper" || trade.isPaper ? (
-                          <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-bold">
+                          <span className="paper-trade-badge px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 text-[10px] font-bold">
                             Paper
                           </span>
                         ) : (
@@ -857,15 +857,15 @@ export default function TradeJournalView({
                         <div className="flex items-center justify-center gap-1">
                           {!readOnly && <button
                             onClick={() => onOpenEditTrade(trade)}
-                            className="p-1 hover:text-[#2383e2] rounded"
-                            title="Edit"
+                            className="trade-card-action p-1.5 rounded-lg transition-all hover:bg-blue-50 hover:text-[#2383e2] hover:shadow-sm"
+                            aria-label="Edit trade"
                           >
                             <Edit2 size={13} />
                           </button>}
                           {!readOnly && <button
                             onClick={(e) => requestDelete(e, trade.id)}
-                            className="p-1 hover:text-rose-600 rounded"
-                            title="Delete"
+                            className="trade-card-action p-1.5 rounded-lg transition-all hover:bg-rose-50 hover:text-rose-600 hover:shadow-sm"
+                            aria-label="Delete trade"
                           >
                             <Trash2 size={13} />
                           </button>}
@@ -892,6 +892,9 @@ export default function TradeJournalView({
       {/* Delete Confirmation Modal */}
       {tradeToDelete && (
         <div 
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-trade-title"
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4"
           onClick={() => setTradeToDelete(null)}
         >
@@ -902,7 +905,7 @@ export default function TradeJournalView({
             <div className="w-10 h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mb-4 border border-rose-100">
               <Trash2 size={18} />
             </div>
-            <h3 className="text-base font-bold text-[#37352f] mb-1">Delete Trade?</h3>
+            <h3 id="delete-trade-title" className="text-base font-bold text-[#37352f] mb-1">Delete this trade?</h3>
             <p className="text-xs text-[#787774] mb-6">
               This removes the trade from your journal and analytics. You can restore it for 10 seconds using the confirmation toast.
             </p>

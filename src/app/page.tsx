@@ -516,7 +516,7 @@ function AuthenticatedApp({ user }: { user: User }) {
 
         {currentTab === "wallets" && <WalletsView key={user.uid} trades={activeTrades} solPrice={solPrice} />}
 
-        {currentTab === "statistics" && <StatisticsView key={user.uid} trades={activeTrades} solPrice={solPrice} />}
+        {currentTab === "statistics" && <StatisticsView key={user.uid} trades={activeTrades} solPrice={solPrice} onSelectTrade={setInspectingTrade} />}
 
         {currentTab === "research" && <ResearchView key={user.uid} userId={user.uid} trades={activeTrades} />}
 

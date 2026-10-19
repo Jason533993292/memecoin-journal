@@ -61,6 +61,24 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
+.trade-journal-card {
+  border-color: #e3e2de;
+}
+
+.trade-journal-card:hover {
+  border-color: #c8c7c3;
+}
+
+.paper-trade-badge {
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.calendar-day-selected {
+  border-color: color-mix(in srgb, #2383e2 45%, #e3e2de) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #2383e2 18%, transparent);
+}
+
 .notion-table-th {
   background-color: #fcfbf9;
   color: #787774;
@@ -502,6 +520,36 @@ html[data-theme-preview] .notion-table-td {
 
 html[data-theme-preview] .notion-card {
   background-color: var(--preview-surface);
+}
+
+html[data-theme-preview] .trade-journal-card,
+html[data-theme-preview] .calendar-trade-card,
+html[data-theme-preview] .calendar-day {
+  border-color: color-mix(in srgb, var(--preview-border) 62%, transparent) !important;
+}
+
+html[data-theme-preview] .trade-journal-card:hover {
+  border-color: color-mix(in srgb, var(--preview-accent) 35%, var(--preview-border)) !important;
+}
+
+html[data-theme-preview] .trade-card-action:hover {
+  background-color: color-mix(in srgb, currentColor 12%, var(--preview-raised)) !important;
+  box-shadow: 0 0 14px color-mix(in srgb, currentColor 20%, transparent);
+}
+
+html[data-theme-preview] .paper-trade-badge {
+  background-color: color-mix(in srgb, #6366f1 20%, var(--preview-raised)) !important;
+  border: 0 !important;
+}
+
+html[data-theme-preview] .calendar-day-selected {
+  border-color: color-mix(in srgb, var(--preview-accent) 38%, var(--preview-border)) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--preview-accent) 14%, transparent) !important;
+}
+
+html[data-theme-preview] .trade-date-picker {
+  background-color: var(--preview-surface) !important;
+  border-color: color-mix(in srgb, var(--preview-border) 72%, transparent) !important;
 }
 
 html[data-theme-preview] .notion-table-th,
