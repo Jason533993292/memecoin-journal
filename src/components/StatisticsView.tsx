@@ -7,7 +7,6 @@ import { DEFAULT_GOOD_TAGS } from "../lib/constants";
 import { getUsdValueStatus } from "../lib/tradeCalculations";
 import { BarChart3, Layers, Target, Clock, Zap, Tag, Trophy, TrendingDown, Lightbulb, CalendarDays, ShieldCheck, Gauge } from "lucide-react";
 import TiltStreakHeatmap from "./TiltStreakHeatmap";
-import TimeOfDayHeatmap from "./TimeOfDayHeatmap";
 
 interface StatisticsViewProps {
   trades: Trade[];
@@ -287,9 +286,6 @@ export default function StatisticsView({ trades, solPrice = 150 }: StatisticsVie
 
       {/* Tilt & Streak Heatmap */}
       <TiltStreakHeatmap trades={trades} solPrice={solPrice} />
-
-      {/* Time-of-Day Performance Heatmap (Axiom-style) */}
-      <TimeOfDayHeatmap trades={trades} solPrice={solPrice} />
 
       {/* Quant Performance & Strategy Expectancy Card */}
       <div className="bg-white border border-[#e9e9e7] rounded-xl p-5 shadow-xs space-y-4">
