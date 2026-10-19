@@ -30,7 +30,34 @@ export async function deleteSupabaseJournalData(userId: string) {
     admin.from("wallet_transactions").delete().eq("user_id", userId),
     admin.from("wallets").delete().eq("user_id", userId),
     admin.from("user_settings").delete().eq("user_id", userId),
+    admin.from("user_feedback").delete().eq("user_id", userId),
   ]);
   const failed = deletions.find(({ error }) => error);
   if (failed?.error) throw new Error(failed.error.message);
+}
+
+export async function createUserFeedback(input: {
+  userId: string;
+  category: "bug" | "suggestion" | "other";
+  message: string;
+  contactEmail: string | null;
+  page: string;
+  device: string;
+  browser: string;
+  viewport: string;
+  theme: string;
+}) {
+  const admin = getSupabaseAdminClient();
+  const { error } = await admin.from("user_feedback").insert({
+    user_id: input.userId,
+    category: input.category,
+    message: input.message,
+    contact_email: input.contactEmail,
+    page: input.page,
+    device: input.device,
+    browser: input.browser,
+    viewport: input.viewport,
+    theme: input.theme,
+  });
+  if (error) throw new Error(error.message);
 }

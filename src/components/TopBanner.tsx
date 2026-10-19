@@ -15,6 +15,7 @@ import {
   Microscope,
   PanelLeftClose,
   PanelLeftOpen,
+  MessageSquarePlus,
 } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
@@ -28,6 +29,7 @@ interface TopBannerProps {
   onOpenCommandPalette?: () => void;
   onOpenDailyRecap?: () => void;
   onDeleteAccount?: () => void;
+  onOpenFeedback?: () => void;
   solPrice?: number;
   solChange24h?: number;
   solPriceStatus?: "live" | "cached" | "stale" | "unavailable";
@@ -43,6 +45,7 @@ export default function TopBanner({
   onOpenCommandPalette,
   onOpenDailyRecap,
   onDeleteAccount,
+  onOpenFeedback,
   solPrice = 0,
   solChange24h = 0,
   solPriceStatus = "unavailable",
@@ -139,6 +142,18 @@ export default function TopBanner({
             {sidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
             {!sidebarCollapsed && <span>Collapse sidebar</span>}
           </button>
+          {onOpenFeedback && (
+            <button
+              type="button"
+              onClick={onOpenFeedback}
+              title="Send feedback"
+              aria-label="Send feedback"
+              className={`flex w-full items-center rounded-xl px-3 py-2.5 text-xs text-neutral-400 transition-colors hover:bg-white/[0.06] hover:text-white ${sidebarCollapsed ? "justify-center" : "gap-3"}`}
+            >
+              <MessageSquarePlus size={16} />
+              {!sidebarCollapsed && <span>Feedback</span>}
+            </button>
+          )}
           {user && !sidebarCollapsed && (
             <button
               type="button"
@@ -292,6 +307,11 @@ export default function TopBanner({
           );
         })}
       </div>
+      {onOpenFeedback && (
+        <button type="button" onClick={onOpenFeedback} aria-label="Send feedback" title="Send feedback" className="fixed bottom-[5.6rem] right-4 z-40 flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-[#1a73ca] text-white shadow-xl transition hover:bg-[#155fa8] md:hidden">
+          <MessageSquarePlus size={19} />
+        </button>
+      )}
     </>
   );
 }

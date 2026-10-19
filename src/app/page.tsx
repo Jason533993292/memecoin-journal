@@ -21,6 +21,7 @@ const ShareablePnlCardModal = dynamic(() => import("../components/ShareablePnlCa
 const GoalEditorModal = dynamic(() => import("../components/GoalEditorModal"));
 const DailyRecapModal = dynamic(() => import("../components/DailyRecapModal"));
 const AccountDeletionModal = dynamic(() => import("../components/AccountDeletionModal"));
+const FeedbackModal = dynamic(() => import("../components/FeedbackModal"));
 import { ToastProvider, useToast } from "../components/Toast";
 import { parseLocalStorageValue, readSessionStorageValue, useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
 import { AlertTriangle, Trash2 } from "lucide-react";
@@ -120,6 +121,7 @@ function AuthenticatedApp({ user }: { user: User }) {
   const [clonedTrade, setClonedTrade] = useState<Partial<Trade> | null>(null);
   const [tradeToDeleteDirectly, setTradeToDeleteDirectly] = useState<string | null>(null);
   const [isAccountDeletionOpen, setIsAccountDeletionOpen] = useState(false);
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
 
   // Rules and goals are stored in Firestore per account, not in shared browser keys.
   const [rules, setRules] = useState<JournalRules>(DEFAULT_RULES);
@@ -433,6 +435,7 @@ function AuthenticatedApp({ user }: { user: User }) {
         onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         onOpenDailyRecap={() => setIsDailyRecapOpen(true)}
         onDeleteAccount={() => setIsAccountDeletionOpen(true)}
+        onOpenFeedback={() => setIsFeedbackOpen(true)}
         solPrice={solPrice}
         solChange24h={solChange24h}
         solPriceStatus={solPriceStatus}
@@ -622,6 +625,13 @@ function AuthenticatedApp({ user }: { user: User }) {
         isOpen={isAccountDeletionOpen}
         onClose={() => setIsAccountDeletionOpen(false)}
       />}
+
+      <FeedbackModal
+        isOpen={isFeedbackOpen}
+        onClose={() => setIsFeedbackOpen(false)}
+        user={user}
+        currentSection={currentTab}
+      />
 
       {/* Custom Delete Trade Confirmation Modal */}
       {tradeToDeleteDirectly && (

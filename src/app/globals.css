@@ -199,6 +199,24 @@ html[data-theme-preview] [class*="bg-[#fbfbfa]"] {
   background-color: var(--preview-surface) !important;
 }
 
+html[data-theme-preview] .feedback-modal {
+  background-color: var(--preview-surface) !important;
+  border-color: var(--preview-border) !important;
+  color: var(--preview-text) !important;
+}
+
+html[data-theme-preview] .feedback-modal .feedback-input,
+html[data-theme-preview] .feedback-modal .feedback-category {
+  background-color: var(--preview-raised) !important;
+  border-color: var(--preview-border) !important;
+  color: var(--preview-text) !important;
+}
+
+html[data-theme-preview] .feedback-modal .feedback-category[aria-pressed="true"] {
+  border-color: var(--preview-accent) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--preview-accent) 60%, transparent);
+}
+
 html[data-theme-preview] [class*="bg-[#f7f6f3]"],
 html[data-theme-preview] [class*="bg-[#fcfbf9]"],
 html[data-theme-preview] [class*="bg-[#f1f1ef]"] {

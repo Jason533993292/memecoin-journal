@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description: "How Memecoin Journal collects, uses, stores, and protects personal data.",
 };
 
-const LAST_UPDATED = "15 October 2026";
+const LAST_UPDATED = "19 October 2026";
 const CONTACT_EMAIL = "orders@rewind-stores.com";
 
 function Section({ id, title, children }: Readonly<{ id: string; title: string; children: React.ReactNode }>) {
@@ -67,7 +67,10 @@ export default function PrivacyPage() {
               <div className="grid gap-1 border-b border-[#e9e9e7] bg-[#fbfbfa] px-4 py-3 sm:grid-cols-[11rem_1fr] sm:gap-5">
                 <dt className="font-semibold text-[#37352f]">Browser-only settings</dt><dd>Your AI provider choice and API key, theme choice, and similar presentation preferences stored in your browser profile.</dd>
               </div>
-              <div className="grid gap-1 px-4 py-3 sm:grid-cols-[11rem_1fr] sm:gap-5">
+              <div className="grid gap-1 border-b border-[#e9e9e7] px-4 py-3 sm:grid-cols-[11rem_1fr] sm:gap-5">
+                <dt className="font-semibold text-[#37352f]">Feedback data</dt><dd>Bug reports, suggestions, the app section you were viewing, theme, general device and browser type, viewport size, and—only if you allow a reply—your verified account email.</dd>
+              </div>
+              <div className="grid gap-1 bg-[#fbfbfa] px-4 py-3 sm:grid-cols-[11rem_1fr] sm:gap-5">
                 <dt className="font-semibold text-[#37352f]">Technical data</dt><dd>Limited request, security, and rate-limit information needed to operate and protect the service.</dd>
               </div>
             </dl>
@@ -80,6 +83,7 @@ export default function PrivacyPage() {
               <li>To store and synchronize saved trade records, rules, and goals.</li>
               <li>To provide optional token, price, and public wallet-balance lookups.</li>
               <li>To provide an optional AI review only after you choose a provider and make a request.</li>
+              <li>To review bug reports and suggestions, and to reply when you ask us to contact you.</li>
               <li>To prevent abuse, troubleshoot reliability, and comply with applicable law.</li>
             </ul>
             <p>Where the GDPR applies, we process account and journal data to provide the service you request; process security data for our legitimate interest in protecting the service; and process optional AI requests when you choose to use that feature.</p>
