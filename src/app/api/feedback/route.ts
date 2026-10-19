@@ -6,6 +6,7 @@ import {
   verifyFirebaseUser,
 } from "@/lib/firebase-admin";
 import { parseFeedbackPayload } from "@/lib/feedback";
+import { sendFeedbackNotification } from "@/lib/feedbackEmail";
 import { createUserFeedback } from "@/lib/supabase-admin";
 
 export async function POST(request: Request) {
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "You have sent several reports recently. Please try again later." }, { status: 429 });
     }
 
-    await createUserFeedback({
+    const storedFeedback = {
       userId: user.uid,
       category: feedback.category,
       message: feedback.message,
@@ -51,7 +52,18 @@ export async function POST(request: Request) {
       browser: feedback.browser,
       viewport: feedback.viewport,
       theme: feedback.theme,
-    });
+    };
+    await createUserFeedback(storedFeedback);
+    try {
+      const emailStatus = await sendFeedbackNotification(storedFeedback);
+      if (emailStatus === "not_configured") console.warn("Feedback email notification is not configured.");
+    } catch (emailError) {
+      // The database remains the durable inbox. A provider outage should not
+      // make the user resubmit and create a duplicate report.
+      console.error("Feedback email notification failed", {
+        reason: emailError instanceof Error ? emailError.message : "unknown",
+      });
+    }
     return NextResponse.json({ submitted: true }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     console.error("Feedback submission failed", {
