@@ -12,7 +12,6 @@ import {
   CalendarDays,
   ArrowUpRight,
   ArrowRight,
-  Zap,
   AlertOctagon,
   SlidersHorizontal,
 } from "lucide-react";
@@ -89,34 +88,13 @@ export default function DashboardView({
     pnlTodaySol,
     todayLossSol,
     isDailyLossExceeded,
-    expectancySol,
-    profitFactor,
   } = useMemo(() => {
     const totalTrades = trades.length;
     const wins = trades.filter((t) => t.result === "Win");
     const winRate = totalTrades > 0 ? ((wins.length / totalTrades) * 100).toFixed(0) : "0";
 
-    const solGained = trades
-      .filter((t) => (t.pnlSol || 0) > 0)
-      .reduce((acc, t) => acc + (t.pnlSol || 0), 0);
-
-    const solLost = trades
-      .filter((t) => (t.pnlSol || 0) < 0)
-      .reduce((acc, t) => acc + Math.abs(t.pnlSol || 0), 0);
-
     const netPnlSol = trades.reduce((acc, t) => acc + (t.pnlSol || 0), 0);
     const netPnlUsd = trades.reduce((acc, trade) => acc + (getUsdValueStatus(trade, solPrice).value ?? 0), 0);
-
-    // Quant Expectancy & Profit Factor
-    const grossProfitSol = solGained;
-    const grossLossSol = solLost;
-    const profitableTrades = trades.filter((t) => (t.pnlSol || 0) > 0);
-    const losingTrades = trades.filter((t) => (t.pnlSol || 0) < 0);
-    const avgWinSol = profitableTrades.length > 0 ? grossProfitSol / profitableTrades.length : 0;
-    const avgLossSol = losingTrades.length > 0 ? grossLossSol / losingTrades.length : 0;
-    const expectancySol = ((profitableTrades.length / Math.max(totalTrades, 1)) * avgWinSol)
-      - ((losingTrades.length / Math.max(totalTrades, 1)) * avgLossSol);
-    const profitFactor = grossLossSol > 0 ? (grossProfitSol / grossLossSol).toFixed(2) : grossProfitSol > 0 ? "99.9" : "0.00";
 
     // Calculate Today's calendar bounds
     const now = new Date();
@@ -138,8 +116,6 @@ export default function DashboardView({
       pnlTodaySol,
       todayLossSol,
       isDailyLossExceeded,
-      expectancySol: expectancySol.toFixed(2),
-      profitFactor,
     };
   }, [trades, solPrice, goals.maxDailyLossSol]);
 
@@ -291,28 +267,6 @@ export default function DashboardView({
             <div className="mt-1 text-[11px] text-[#787774]">{tradesToday.length} {tradesToday.length === 1 ? "trade" : "trades"}</div>
           </div>
         </div>}
-      </div>
-
-      {/* Quant Strategy Edge Bar */}
-      <div className="bg-[#fcfbf9] border border-[#e9e9e7] rounded-xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs">
-        <div className="flex items-center gap-2">
-          <Zap size={14} className="text-[#2383e2]" />
-          <span className="font-semibold text-[#37352f]">Quant Expectancy:</span>
-          <span className={`font-mono font-bold tabular-nums ${parseFloat(expectancySol) >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
-            {parseFloat(expectancySol) >= 0 ? `+${expectancySol}` : expectancySol} SOL / trade
-          </span>
-        </div>
-
-        <div className="flex items-center gap-4 text-[#787774]">
-          <div>
-            Profit Factor: <span className="font-mono font-semibold text-[#37352f] tabular-nums">{profitFactor}</span>
-          </div>
-          {tradesToday.length > 0 && <div>
-            Today P&L: <span className={`font-mono font-semibold tabular-nums ${pnlTodaySol >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
-              {pnlTodaySol >= 0 ? `+${pnlTodaySol.toFixed(2)}` : pnlTodaySol.toFixed(2)} SOL
-            </span>
-          </div>}
-        </div>
       </div>
 
       {/* Primary analysis and recent activity */}

@@ -211,7 +211,7 @@ export default function StatisticsView({ trades, solPrice = 150, onSelectTrade }
           </div>
           <h3 className="text-base font-bold text-[#37352f] mb-1.5">No Historical Trades Yet</h3>
           <p className="text-xs text-[#787774] max-w-sm mx-auto leading-relaxed">
-            Log your trades in the journal or dashboard to unlock win-rate analytics, setup performance, tilt & streak heatmaps, and expectancy calculations.
+            Log your trades in the journal or dashboard to unlock win-rate analytics, setup performance, holding-time patterns, and tilt & streak heatmaps.
           </p>
         </div>
       </div>

@@ -126,7 +126,7 @@ ${todaySummary.worstTrade ? `Worst: $${todaySummary.worstTrade.symbol} (${todayS
 
         {/* Header */}
         <div className="flex items-center gap-2.5 mb-5 pb-3.5 border-b border-[#f1f1ef]">
-          <div className="p-2 rounded-xl bg-amber-50 text-amber-600 border border-amber-100">
+          <div className="p-2 rounded-xl bg-amber-50 text-amber-600">
             <Sparkles size={20} />
           </div>
           <div>
@@ -152,10 +152,10 @@ ${todaySummary.worstTrade ? `Worst: $${todaySummary.worstTrade.symbol} (${todayS
           <div className="space-y-4 text-xs">
             {/* Net P&L Big Tile */}
             <div
-              className={`p-4 rounded-xl border flex items-center justify-between ${
+              className={`daily-recap-metric p-4 rounded-xl flex items-center justify-between ${
                 todaySummary.netPnlSol >= 0
-                  ? "bg-emerald-50/70 border-emerald-200 text-emerald-950"
-                  : "bg-rose-50/70 border-rose-200 text-rose-950"
+                  ? "daily-recap-metric-positive bg-emerald-50/70"
+                  : "daily-recap-metric-negative bg-rose-50/70"
               }`}
             >
               <div>
@@ -226,7 +226,7 @@ ${todaySummary.worstTrade ? `Worst: $${todaySummary.worstTrade.symbol} (${todayS
 
             {/* Psychology & Discipline Tags Today */}
             {(todaySummary.goodTags.length > 0 || todaySummary.mistakes.length > 0) && (
-              <div className="p-3 bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl space-y-2">
+              <div className="daily-recap-discipline p-3 bg-[#fbfbfa] rounded-xl space-y-2">
                 <h4 className="text-[11px] font-bold text-[#787774] uppercase tracking-wider">
                   Today&apos;s Discipline Breakdown
                 </h4>

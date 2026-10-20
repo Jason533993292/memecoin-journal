@@ -224,7 +224,7 @@ export default function TiltStreakHeatmap({ trades, solPrice = 150, onSelectTrad
                 onClick={() => hasTrades && setSelectedDayKey((current) => current === day.dayKey ? null : day.dayKey)}
                 disabled={!hasTrades}
                 aria-pressed={selectedDayKey === day.dayKey}
-                className={`calendar-day relative flex min-h-12 flex-col justify-between rounded-lg border p-1 text-center transition-colors sm:min-h-16 sm:p-1.5 ${
+                className={`calendar-day relative flex h-12 flex-col justify-center gap-0.5 rounded-lg border px-1 py-0.5 text-center transition-colors sm:h-14 sm:px-1.5 ${
                   !hasTrades
                     ? "cursor-default bg-white border-[#e9e9e7] text-[#9b9a97]"
                     : isGreen

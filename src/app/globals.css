@@ -72,6 +72,15 @@
 .paper-trade-badge {
   border: 0 !important;
   box-shadow: none !important;
+  color: #4338ca !important;
+}
+
+.daily-recap-metric-positive {
+  color: #065f46;
+}
+
+.daily-recap-metric-negative {
+  color: #9f1239;
 }
 
 .calendar-day-selected {
@@ -385,7 +394,8 @@ html[data-theme-preview] [class*="text-[#5a5957]"] {
 
 html[data-theme-preview] [class*="text-[#787774]"],
 html[data-theme-preview] [class*="text-[#9b9a97]"],
-html[data-theme-preview] [class*="text-[#908e89]"] {
+html[data-theme-preview] [class*="text-[#908e89]"],
+html[data-theme-preview] [class*="text-[#4a4946]"] {
   color: var(--preview-muted) !important;
 }
 
@@ -540,6 +550,19 @@ html[data-theme-preview] .trade-card-action:hover {
 html[data-theme-preview] .paper-trade-badge {
   background-color: color-mix(in srgb, #6366f1 20%, var(--preview-raised)) !important;
   border: 0 !important;
+  color: #c7d2fe !important;
+}
+
+html[data-theme-preview] .daily-recap-metric-positive {
+  color: #6ee7b7 !important;
+}
+
+html[data-theme-preview] .daily-recap-metric-negative {
+  color: #fda4af !important;
+}
+
+html[data-theme-preview] .daily-recap-discipline {
+  color: var(--preview-text) !important;
 }
 
 html[data-theme-preview] .calendar-day-selected {
