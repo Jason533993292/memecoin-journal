@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "../context/AuthContext";
 import ErrorBoundary from "../components/ErrorBoundary";
+import { connection } from "next/server";
 
 const publicDomain = process.env.RAILWAY_PUBLIC_DOMAIN?.trim();
 const metadataBase = new URL(
@@ -27,11 +28,14 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Next applies the per-request CSP nonce to its bootstrap scripts only when
+  // the response is rendered dynamically.
+  await connection();
   return (
     <html lang="en">
       <head>

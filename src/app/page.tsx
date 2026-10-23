@@ -75,7 +75,7 @@ function MainApp() {
 
   if (authLoading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-white text-sm text-[#787774]">
+      <main className="flex min-h-screen items-center justify-center bg-white text-sm text-[#6b6a67]">
         Loading your private journal…
       </main>
     );
