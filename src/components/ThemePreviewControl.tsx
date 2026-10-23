@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import {
   PREVIEW_THEME_OPTIONS,
   normalizePreviewTheme,
@@ -40,6 +40,7 @@ function getStoredPreviewTheme(): PreviewTheme | null {
 }
 
 export default function ThemePreviewControl() {
+  const detailsRef = useRef<HTMLDetailsElement>(null);
   const theme = useSyncExternalStore(
     subscribeToPreviewChanges,
     getStoredPreviewTheme,
@@ -59,8 +60,24 @@ export default function ThemePreviewControl() {
     };
   }, [theme]);
 
+  useEffect(() => {
+    const dismiss = (event: PointerEvent) => {
+      const details = detailsRef.current;
+      if (details?.open && !details.contains(event.target as Node)) details.removeAttribute("open");
+    };
+    const dismissOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") detailsRef.current?.removeAttribute("open");
+    };
+    window.addEventListener("pointerdown", dismiss);
+    window.addEventListener("keydown", dismissOnEscape);
+    return () => {
+      window.removeEventListener("pointerdown", dismiss);
+      window.removeEventListener("keydown", dismissOnEscape);
+    };
+  }, []);
+
   return (
-    <details className="theme-preview-control">
+    <details ref={detailsRef} className="theme-preview-control">
       <summary aria-label="Choose site theme">
         <span className="theme-preview-label">Theme</span>
       </summary>

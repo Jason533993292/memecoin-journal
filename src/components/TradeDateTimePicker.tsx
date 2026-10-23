@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, Clock } from "lucide-react";
 
 interface TradeDateTimePickerProps {
@@ -24,7 +24,24 @@ function serializeLocalValue(date: Date) {
 export default function TradeDateTimePicker({ id, value, onChange }: TradeDateTimePickerProps) {
   const selected = parseLocalValue(value);
   const [isOpen, setIsOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
   const [visibleMonth, setVisibleMonth] = useState(() => ({ year: selected.getFullYear(), month: selected.getMonth() }));
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const dismiss = (event: PointerEvent) => {
+      if (!pickerRef.current?.contains(event.target as Node)) setIsOpen(false);
+    };
+    const dismissOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsOpen(false);
+    };
+    window.addEventListener("pointerdown", dismiss);
+    window.addEventListener("keydown", dismissOnEscape);
+    return () => {
+      window.removeEventListener("pointerdown", dismiss);
+      window.removeEventListener("keydown", dismissOnEscape);
+    };
+  }, [isOpen]);
 
   const days = useMemo(() => {
     const first = new Date(visibleMonth.year, visibleMonth.month, 1);
@@ -74,7 +91,7 @@ export default function TradeDateTimePicker({ id, value, onChange }: TradeDateTi
   });
 
   return (
-    <div className="relative">
+    <div ref={pickerRef} className="relative">
       <button
         id={id}
         type="button"

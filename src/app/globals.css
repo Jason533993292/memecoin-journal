@@ -370,6 +370,35 @@ html[data-theme-preview] .demo-data-banner button {
   color: var(--preview-text) !important;
 }
 
+/* Keep the recommended roadmap readable in every dark preview theme. */
+html[data-theme-preview] .recommended-next-section {
+  background: color-mix(in srgb, var(--preview-accent) 8%, var(--preview-surface)) !important;
+  border-color: var(--preview-border) !important;
+}
+
+html[data-theme-preview] .recommended-next-card {
+  background: var(--preview-raised) !important;
+  border-color: var(--preview-border) !important;
+}
+
+html[data-theme-preview] .recommended-next-section h2,
+html[data-theme-preview] .recommended-next-section h3 {
+  color: var(--preview-text) !important;
+}
+
+html[data-theme-preview] .recommended-next-section p {
+  color: var(--preview-muted) !important;
+}
+
+html[data-theme-preview] .recommended-next-section > div > div > p:first-child,
+html[data-theme-preview] .recommended-next-number {
+  color: var(--preview-accent) !important;
+}
+
+html[data-theme-preview] .recommended-next-number {
+  background: color-mix(in srgb, var(--preview-accent) 18%, var(--preview-raised)) !important;
+}
+
 /* The phone navigation is outside .journal-page and needs its own theme surface. */
 html[data-theme-preview] .mobile-bottom-dock {
   background-color: color-mix(in srgb, var(--preview-surface) 96%, transparent) !important;

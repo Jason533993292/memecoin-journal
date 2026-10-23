@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@heroui/react";
 import { Trade, JournalRules, AiCoachBrief, GoalSettings } from "../lib/types";
 import { getTradeTimestamp } from "../lib/utils";
@@ -71,6 +71,23 @@ export default function DashboardView({
     return valid.length > 0 ? valid : ["pnl", "winRate", "totalTrades", "today"];
   }, [storedVisibleMetrics]);
   const [customizeOpen, setCustomizeOpen] = useState(false);
+  const customizeRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!customizeOpen) return;
+    const dismiss = (event: PointerEvent) => {
+      if (!customizeRef.current?.contains(event.target as Node)) setCustomizeOpen(false);
+    };
+    const dismissOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setCustomizeOpen(false);
+    };
+    window.addEventListener("pointerdown", dismiss);
+    window.addEventListener("keydown", dismissOnEscape);
+    return () => {
+      window.removeEventListener("pointerdown", dismiss);
+      window.removeEventListener("keydown", dismissOnEscape);
+    };
+  }, [customizeOpen]);
 
   const toggleMetric = (metric: MetricKey) => {
     const next = visibleMetrics.includes(metric)
@@ -163,12 +180,12 @@ export default function DashboardView({
           <Button type="button" size="sm" variant="ghost" onPress={() => onDemoModeChange(!demoMode)} className={`h-8 min-w-0 rounded-lg border px-3 text-xs ${demoMode ? "border-blue-300 bg-blue-50 text-blue-800" : "border-[#e3e2de] bg-white text-[#5a5957]"}`}>
             {demoMode ? "Hide demo data" : "Preview demo data"}
           </Button>
-          <Button type="button" size="sm" variant="ghost" onPress={() => setCustomizeOpen((open) => !open)} className="h-8 min-w-0 rounded-lg border border-[#e3e2de] bg-white px-3 text-xs text-[#5a5957]">
-            <SlidersHorizontal size={13} /> Customize
-          </Button>
-        </div>
+          <div ref={customizeRef} className="relative">
+            <Button type="button" size="sm" variant="ghost" onPress={() => setCustomizeOpen((open) => !open)} className="h-8 min-w-0 rounded-lg border border-[#e3e2de] bg-white px-3 text-xs text-[#5a5957]">
+              <SlidersHorizontal size={13} /> Customize
+            </Button>
         {customizeOpen && (
-          <div className="absolute right-0 top-16 z-20 w-56 rounded-xl border border-[#e3e2de] bg-white p-3 shadow-xl">
+          <div className="absolute right-0 top-10 z-20 w-56 rounded-xl border border-[#e3e2de] bg-white p-3 shadow-xl">
             <p className="text-xs font-semibold text-[#37352f]">Dashboard cards</p>
             <p className="mt-1 text-[10px] text-[#787774]">Choose the metrics shown on this device.</p>
             <div className="mt-3 space-y-1">
@@ -181,6 +198,8 @@ export default function DashboardView({
             </div>
           </div>
         )}
+          </div>
+        </div>
       </div>
 
       {/* Daily Loss Limit Enforcement Banner */}

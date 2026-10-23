@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { Trade } from "../lib/types";
 import { db, auth } from "../lib/firebase";
 import { doc, deleteDoc, collection, Timestamp, writeBatch } from "firebase/firestore";
@@ -72,6 +72,23 @@ export default function TradeJournalView({
 
   const [lightboxImage, setLightboxImage] = useState<{ url: string; title: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const moreFiltersRef = useRef<HTMLDetailsElement | null>(null);
+
+  useEffect(() => {
+    const dismiss = (event: PointerEvent) => {
+      const details = moreFiltersRef.current;
+      if (details?.open && !details.contains(event.target as Node)) details.removeAttribute("open");
+    };
+    const dismissOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") moreFiltersRef.current?.removeAttribute("open");
+    };
+    window.addEventListener("pointerdown", dismiss);
+    window.addEventListener("keydown", dismissOnEscape);
+    return () => {
+      window.removeEventListener("pointerdown", dismiss);
+      window.removeEventListener("keydown", dismissOnEscape);
+    };
+  }, []);
 
   // Collect unique mistakes across all trades
   const uniqueMistakes = useMemo(() => {
@@ -389,7 +406,7 @@ export default function TradeJournalView({
           </div>
 
           {/* Less-used filters */}
-          <details className="relative">
+          <details ref={moreFiltersRef} className="relative">
             <summary className="cursor-pointer list-none bg-[#f7f6f3] border border-[#e9e9e7] rounded-md px-2.5 py-1 text-[11px] text-[#37352f]">
               More filters{[filterSetup, filterWallet, filterMistake].filter((value) => value !== "All").length > 0
                 ? ` (${[filterSetup, filterWallet, filterMistake].filter((value) => value !== "All").length})`

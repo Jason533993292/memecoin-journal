@@ -121,15 +121,15 @@ export default function GuideView({ onStartTour }: { onStartTour: () => void }) 
         </div>
       </section>
 
-      <section aria-labelledby="recommended-next-title" className="rounded-2xl border border-blue-200 bg-blue-50/60 p-5 sm:p-6">
+      <section aria-labelledby="recommended-next-title" className="recommended-next-section rounded-2xl border border-blue-200 bg-blue-50/60 p-5 sm:p-6">
         <div className="flex items-start gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#2383e2] text-white"><Rocket size={19}/></span>
           <div><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#176bbd]">Recommended next</p><h2 id="recommended-next-title" className="mt-1 text-lg font-bold text-[#173f73]">The next ten improvements to prioritize</h2><p className="mt-1 text-xs leading-5 text-[#4f6f93]">Ordered by user-data safety, reliability, and the amount of day-to-day friction they remove.</p></div>
         </div>
         <ol className="mt-5 grid gap-3 lg:grid-cols-2">
           {RECOMMENDED_NEXT.map((item, index) => (
-            <li key={item.title} className="flex gap-3 rounded-xl border border-blue-100 bg-white/85 p-4">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[11px] font-bold text-[#176bbd]">{index + 1}</span>
+            <li key={item.title} className="recommended-next-card flex gap-3 rounded-xl border border-blue-100 bg-white/85 p-4">
+              <span className="recommended-next-number flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[11px] font-bold text-[#176bbd]">{index + 1}</span>
               <div><h3 className="text-xs font-bold text-[#263d57]">{item.title}</h3><p className="mt-1 text-[11px] leading-4 text-[#607892]">{item.detail}</p></div>
             </li>
           ))}

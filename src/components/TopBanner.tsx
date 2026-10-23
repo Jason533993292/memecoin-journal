@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@heroui/react";
 import ThemePreviewControl from "./ThemePreviewControl";
 import CursorPicker from "./CursorPicker";
@@ -20,6 +20,7 @@ import {
   BookOpenCheck,
   Wifi,
   WifiOff,
+  KeyRound,
 } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
@@ -59,9 +60,10 @@ export default function TopBanner({
   sidebarCollapsed = false,
   onSidebarCollapsedChange,
 }: TopBannerProps) {
-  const { user, loginWithGoogle, logout, resendVerification } = useAuth();
+  const { user, loginWithGoogle, logout, resendVerification, resetPassword } = useAuth();
   const { showToast } = useToast();
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
   const [connectionState, setConnectionState] = useState<"online" | "offline" | "reconnecting">("online");
 
   useEffect(() => {
@@ -81,6 +83,22 @@ export default function TopBanner({
       window.removeEventListener("online", goOnline);
     };
   }, []);
+
+  useEffect(() => {
+    if (!accountMenuOpen) return;
+    const closeOutside = (event: PointerEvent) => {
+      if (!accountMenuRef.current?.contains(event.target as Node)) setAccountMenuOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setAccountMenuOpen(false);
+    };
+    window.addEventListener("pointerdown", closeOutside);
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      window.removeEventListener("pointerdown", closeOutside);
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [accountMenuOpen]);
 
   const toggleSidebar = () => {
     const next = !sidebarCollapsed;
@@ -195,6 +213,7 @@ export default function TopBanner({
               {!sidebarCollapsed && <span>Guide & improvements</span>}
             </button>
           )}
+          <div ref={accountMenuRef} className="relative">
           {user && !sidebarCollapsed && (
             <button
               type="button"
@@ -208,7 +227,7 @@ export default function TopBanner({
             </button>
           )}
           {accountMenuOpen && user && (
-            <div className="absolute bottom-14 left-3 right-3 z-50 rounded-xl border border-white/10 bg-[#17191d] p-2 shadow-2xl">
+            <div className="absolute bottom-full left-0 right-0 z-50 mb-2 rounded-xl border border-white/10 bg-[#17191d] p-2 shadow-2xl">
               {!user.emailVerified && (
                 <button
                   type="button"
@@ -223,6 +242,22 @@ export default function TopBanner({
                   className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs text-amber-300 hover:bg-white/[0.06]"
                 >
                   <MailCheck size={14} /> Resend verification email
+                </button>
+              )}
+              {user.email && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    void resetPassword(user.email!)
+                      .then(() => {
+                        setAccountMenuOpen(false);
+                        showToast("Password reset email sent", "success", "Check your inbox and spam folder.");
+                      })
+                      .catch(() => showToast("Could not send password reset", "error", "Wait a moment and try again."));
+                  }}
+                  className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs text-sky-300 hover:bg-white/[0.06]"
+                >
+                  <KeyRound size={14} /> Send password reset email
                 </button>
               )}
               {onDeleteAccount && (
@@ -246,6 +281,7 @@ export default function TopBanner({
               </button>
             </div>
           )}
+          </div>
         </div>
       </aside>
 
