@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { DEFAULT_FEEDBACK_EMAIL_TO, sendFeedbackNotification } from "../src/lib/feedbackEmail.ts";
+import { DEFAULT_FEEDBACK_EMAIL_TO, sendFeedbackNotification, sendFeedbackNotificationWithRetry } from "../src/lib/feedbackEmail.ts";
 
 const feedback = {
   category: "bug" as const,
@@ -48,4 +48,18 @@ test("feedback notifications surface provider failures", async () => {
     sendFeedbackNotification(feedback, { apiKey: "re_test_key", fetchImpl }),
     /HTTP 422/,
   );
+});
+
+test("feedback delivery retries temporary provider failures", async () => {
+  let calls = 0;
+  const fetchImpl: typeof fetch = async () => {
+    calls += 1;
+    return new Response("{}", { status: calls < 3 ? 503 : 200 });
+  };
+  const result = await sendFeedbackNotificationWithRetry(
+    { ...feedback, reference: "MJ-000123" },
+    { apiKey: "re_test_key", fetchImpl, attempts: 3, retryDelayMs: 0 },
+  );
+  assert.deepEqual(result, { status: "sent", attempts: 3 });
+  assert.equal(calls, 3);
 });

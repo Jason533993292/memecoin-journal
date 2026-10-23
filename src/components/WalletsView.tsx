@@ -445,6 +445,7 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
 
           <div className="flex items-center gap-2">
             <button
+              data-tour="new-wallet"
               onClick={() => {
                 setEditingWallet(null);
                 setNewWalletName("");
@@ -471,7 +472,7 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
       {/* Top 2 Action Banners: 1. Live On-Chain Address Scanner, 2. Paper Trading Sizer */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* On-Chain Solana Wallet Balance Scanner */}
-        <div className="bg-white border border-[#e9e9e7] rounded-xl p-4 shadow-xs space-y-3">
+        <div data-tour="wallet-scan" className="bg-white border border-[#e9e9e7] rounded-xl p-4 shadow-xs space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600">
@@ -521,7 +522,7 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
         </div>
 
         {/* Paper Trading Capital Settings */}
-        <div className="bg-white border border-[#e9e9e7] rounded-xl p-4 shadow-xs space-y-3">
+        <div data-tour="paper-capital" className="bg-white border border-[#e9e9e7] rounded-xl p-4 shadow-xs space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="p-1.5 rounded-lg bg-blue-50 text-[#2383e2]">
@@ -610,7 +611,7 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
       </div>}
 
       {/* Wallet data toolbar */}
-      {(wallets.length > 0 || transactions.length > 0) && <div className="flex items-center justify-between border-b border-[#e9e9e7] pb-3 text-xs text-[#787774]">
+      {(wallets.length > 0 || transactions.length > 0) && <div data-tour="wallet-history" className="flex items-center justify-between border-b border-[#e9e9e7] pb-3 text-xs text-[#787774]">
         <div className="flex items-center gap-2">
           <button
             onClick={() => setActiveTab("wallets")}
@@ -692,7 +693,7 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
       )}
 
       {wallets.length === 0 && transactions.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-[#d8d7d3] bg-[#fbfbfa] px-6 py-10 text-center">
+        <div data-tour="wallet-records" className="rounded-xl border border-dashed border-[#d8d7d3] bg-[#fbfbfa] px-6 py-10 text-center">
           <WalletIcon size={24} className="mx-auto text-[#9b9a97]" />
           <h3 className="mt-3 text-sm font-semibold text-[#37352f]">No real wallets tracked yet</h3>
           <p className="mx-auto mt-1 max-w-md text-xs text-[#787774]">
@@ -708,7 +709,7 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
         </div>
       ) : activeTab === "wallets" ? (
         /* Notion Database Table */
-        <div className="border border-[#e9e9e7] rounded-lg overflow-hidden bg-white shadow-xs">
+        <div data-tour="wallet-records" className="border border-[#e9e9e7] rounded-lg overflow-hidden bg-white shadow-xs">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
@@ -848,7 +849,7 @@ export default function WalletsView({ trades, solPrice = 150 }: WalletsViewProps
         </div>
       ) : (
         /* Transaction History Log */
-        <div className="border border-[#e9e9e7] rounded-lg overflow-hidden bg-white shadow-xs">
+        <div data-tour="wallet-records" className="border border-[#e9e9e7] rounded-lg overflow-hidden bg-white shadow-xs">
           {transactions.length === 0 ? (
             <div className="p-8 text-center text-xs text-[#9b9a97]">
               No deposit or paycheck history logged yet. Click &quot;Deposit&quot; or &quot;Paycheck&quot; on any wallet above.

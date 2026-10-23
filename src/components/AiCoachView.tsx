@@ -320,7 +320,7 @@ export default function AiCoachView({
 
       {/* API Key Setup Box */}
       {(
-        <div className={`border rounded-xl p-6 shadow-xs space-y-3 ${isProviderReady ? "bg-[#fbfbfa] border-[#e9e9e7]" : "bg-rose-50 border-rose-200"}`}>
+        <div data-tour="ai-provider-settings" className={`border rounded-xl p-6 shadow-xs space-y-3 ${isProviderReady ? "bg-[#fbfbfa] border-[#e9e9e7]" : "bg-rose-50 border-rose-200"}`}>
           <div className={`flex items-center gap-2 font-semibold text-sm ${isProviderReady ? "text-[#37352f]" : "text-rose-900"}`}>
             <AlertTriangle size={18} />
             <span>{isProviderReady ? "AI provider settings" : "Set up an AI provider API key"}</span>
@@ -391,7 +391,7 @@ export default function AiCoachView({
       )}
 
       {/* Coach Output Box */}
-      <div className="bg-white border border-[#e9e9e7] rounded-xl p-6 shadow-xs space-y-4">
+      <div data-tour="ai-analysis" className="bg-white border border-[#e9e9e7] rounded-xl p-6 shadow-xs space-y-4">
         <div className="flex items-center justify-between pb-3 border-b border-[#f1f1ef]">
           <div className="flex items-center gap-2 font-semibold text-sm text-[#37352f]">
             <Bot size={18} className="text-[#2383e2]" />
@@ -412,7 +412,7 @@ export default function AiCoachView({
       </div>
 
       {/* Interactive Question to AI Coach */}
-      <div className="bg-white border border-[#e9e9e7] rounded-xl p-6 shadow-xs space-y-4">
+      <div data-tour="ai-question" className="bg-white border border-[#e9e9e7] rounded-xl p-6 shadow-xs space-y-4">
         <div className="flex items-center gap-2 font-semibold text-sm text-[#37352f]">
           <HelpCircle size={18} className="text-amber-500" />
           <span>Ask Your Trading Coach Anything</span>

@@ -22,6 +22,8 @@ const GoalEditorModal = dynamic(() => import("../components/GoalEditorModal"));
 const DailyRecapModal = dynamic(() => import("../components/DailyRecapModal"));
 const AccountDeletionModal = dynamic(() => import("../components/AccountDeletionModal"));
 const FeedbackModal = dynamic(() => import("../components/FeedbackModal"));
+const WelcomeTourModal = dynamic(() => import("../components/WelcomeTourModal"));
+const GuideView = dynamic(() => import("../components/GuideView"), { loading: () => <SectionLoading /> });
 import { ToastProvider, useToast } from "../components/Toast";
 import { parseLocalStorageValue, readSessionStorageValue, useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
 import { AlertTriangle, Trash2 } from "lucide-react";
@@ -36,6 +38,7 @@ import {
 
 import { useAuth } from "../context/AuthContext";
 import AuthModal from "../components/AuthModal";
+import LegalModal from "../components/LegalModal";
 import { buildDemoTrades } from "../lib/demoTrades";
 
 const DEFAULT_RULES: JournalRules = {
@@ -122,6 +125,11 @@ function AuthenticatedApp({ user }: { user: User }) {
   const [tradeToDeleteDirectly, setTradeToDeleteDirectly] = useState<string | null>(null);
   const [isAccountDeletionOpen, setIsAccountDeletionOpen] = useState(false);
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+  const [legalPanel, setLegalPanel] = useState<"privacy" | "terms" | null>(null);
+  const welcomeStorageKey = `memecoin_journal_${user.uid}_welcome_complete`;
+  const welcomeComplete = useLocalStorageValue(welcomeStorageKey) === "true";
+  const [welcomeTourOverride, setWelcomeTourOverride] = useState<boolean | null>(null);
+  const isWelcomeTourOpen = welcomeTourOverride ?? !welcomeComplete;
 
   // Rules and goals are stored in Firestore per account, not in shared browser keys.
   const [rules, setRules] = useState<JournalRules>(DEFAULT_RULES);
@@ -163,7 +171,9 @@ function AuthenticatedApp({ user }: { user: User }) {
   }, []);
 
   const demoTrades = useMemo(() => buildDemoTrades(), []);
-  const activeTrades = demoMode ? demoTrades : trades;
+  const tutorialDemoMode = isWelcomeTourOpen && !loading && trades.length === 0;
+  const isExampleMode = demoMode || tutorialDemoMode;
+  const activeTrades = isExampleMode ? demoTrades : trades;
   const activeRules = rules;
   const activeGoals = goals;
   const activeAiBrief = aiBrief;
@@ -326,6 +336,7 @@ function AuthenticatedApp({ user }: { user: User }) {
   // Global Keyboard Shortcuts (Cmd+K, N, Esc, /)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (isWelcomeTourOpen) return;
       // Cmd+K / Ctrl+K Palette
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
@@ -369,7 +380,7 @@ function AuthenticatedApp({ user }: { user: User }) {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [isWelcomeTourOpen]);
 
   const refreshAiBrief = useCallback(async (
     providerOverride?: "deepseek" | "gemini" | "openai",
@@ -436,6 +447,7 @@ function AuthenticatedApp({ user }: { user: User }) {
         onOpenDailyRecap={() => setIsDailyRecapOpen(true)}
         onDeleteAccount={() => setIsAccountDeletionOpen(true)}
         onOpenFeedback={() => setIsFeedbackOpen(true)}
+        onOpenGuide={() => setCurrentTab("guide")}
         solPrice={solPrice}
         solChange24h={solChange24h}
         solPriceStatus={solPriceStatus}
@@ -446,10 +458,10 @@ function AuthenticatedApp({ user }: { user: User }) {
 
       {/* Main Content View Container */}
       <main className={`mx-auto min-h-screen w-full max-w-[1680px] px-5 pb-16 pt-16 transition-[padding] duration-200 md:pr-8 lg:pr-10 xl:pr-12 ${sidebarCollapsed ? "md:pl-[calc(4.5rem+2rem)] lg:pl-[calc(4.5rem+2.5rem)] xl:pl-[calc(4.5rem+3rem)]" : "md:pl-[calc(15rem+2rem)] lg:pl-[calc(15rem+2.5rem)] xl:pl-[calc(15rem+3rem)]"}`}>
-        {demoMode && (
+        {isExampleMode && (
           <div className="demo-data-banner mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs text-blue-950">
-            <div><strong>Demo data is active.</strong> These paper trades are only for previewing the interface and are never saved.</div>
-            <button type="button" onClick={() => writeLocalStorageValue(`memecoin_journal_${user.uid}_demo_mode`, null)} className="rounded-lg border border-blue-300 bg-white px-3 py-1.5 font-semibold text-blue-800 hover:bg-blue-100">Return to my data</button>
+            <div><strong>{tutorialDemoMode ? "Tutorial examples are active." : "Demo data is active."}</strong> These paper trades are only for previewing the interface and are never saved.</div>
+            {!tutorialDemoMode && <button type="button" onClick={() => writeLocalStorageValue(`memecoin_journal_${user.uid}_demo_mode`, null)} className="rounded-lg border border-blue-300 bg-white px-3 py-1.5 font-semibold text-blue-800 hover:bg-blue-100">Return to my data</button>}
           </div>
         )}
         {/* Firestore Permission Alert Banner */}
@@ -495,7 +507,7 @@ function AuthenticatedApp({ user }: { user: User }) {
             solPrice={solPrice}
             preferencesStorageKey={`memecoin_journal_${user.uid}_dashboard_cards`}
             onSelectTrade={setInspectingTrade}
-            demoMode={demoMode}
+            demoMode={isExampleMode}
             onDemoModeChange={(enabled) => writeLocalStorageValue(`memecoin_journal_${user.uid}_demo_mode`, enabled ? "true" : null)}
           />
         )}
@@ -503,6 +515,7 @@ function AuthenticatedApp({ user }: { user: User }) {
         {currentTab === "journal" && (
           <TradeJournalView
             key={user.uid}
+            userId={user.uid}
             trades={activeTrades}
             solPrice={solPrice}
             onOpenNewTrade={() => setIsNewTradeModalOpen(true)}
@@ -510,7 +523,7 @@ function AuthenticatedApp({ user }: { user: User }) {
             onUndoAvailable={offerTradeUndo}
             onOpenEditTrade={(trade) => setEditingTrade(trade)}
             onSelectTrade={(trade) => setInspectingTrade(trade)}
-            readOnly={demoMode}
+            readOnly={isExampleMode}
           />
         )}
 
@@ -529,6 +542,8 @@ function AuthenticatedApp({ user }: { user: User }) {
             loadingAi={loadingAi}
           />
         )}
+
+        {currentTab === "guide" && <GuideView onStartTour={() => setWelcomeTourOverride(true)} />}
       </main>
 
       {/* Log New Trade Modal */}
@@ -571,7 +586,7 @@ function AuthenticatedApp({ user }: { user: User }) {
         }}
         onShare={(trade) => setSharingTrade(trade)}
         solPrice={solPrice}
-        readOnly={demoMode}
+        readOnly={isExampleMode}
       />}
 
       {/* Rule Editor Modal */}
@@ -633,6 +648,19 @@ function AuthenticatedApp({ user }: { user: User }) {
         currentSection={currentTab}
       />
 
+      <LegalModal kind={legalPanel} onClose={() => setLegalPanel(null)} onChange={setLegalPanel} />
+
+      {isWelcomeTourOpen && <WelcomeTourModal
+        key={`${user.uid}:welcome-tour`}
+        isOpen={isWelcomeTourOpen}
+        onClose={() => setWelcomeTourOverride(false)}
+        onComplete={() => {
+          writeLocalStorageValue(welcomeStorageKey, "true");
+          setWelcomeTourOverride(false);
+        }}
+        onNavigateTab={setCurrentTab}
+      />}
+
       {/* Custom Delete Trade Confirmation Modal */}
       {tradeToDeleteDirectly && (
         <div
@@ -671,9 +699,9 @@ function AuthenticatedApp({ user }: { user: User }) {
         </div>
       )}
       <footer className="mt-auto border-t border-[#e9e9e7] px-4 py-4 text-center text-xs text-[#787774]">
-        <a href="/privacy" className="hover:text-[#2383e2]">Privacy</a>
+        <button type="button" onClick={() => setLegalPanel("privacy")} className="hover:text-[#2383e2]">Privacy</button>
         <span className="mx-3" aria-hidden="true">·</span>
-        <a href="/terms" className="hover:text-[#2383e2]">Terms</a>
+        <button type="button" onClick={() => setLegalPanel("terms")} className="hover:text-[#2383e2]">Terms</button>
       </footer>
     </div>
   );

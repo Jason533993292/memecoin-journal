@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 };
 
 const LAST_UPDATED = "19 October 2026";
-const CONTACT_EMAIL = "orders@rewind-stores.com";
+const CONTACT_EMAIL = "journal.memecoin@gmail.com";
 
 function Section({ id, title, children }: Readonly<{ id: string; title: string; children: React.ReactNode }>) {
   return (
@@ -23,18 +23,18 @@ export default function PrivacyPage() {
     <main className="min-h-screen bg-[#fbfbfa] px-5 py-10 text-[#37352f] sm:px-8 sm:py-14">
       <article className="mx-auto max-w-4xl rounded-2xl border border-[#e9e9e7] bg-white px-6 py-8 shadow-sm sm:px-10 sm:py-12">
         <nav aria-label="Legal navigation" className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-          <Link href="/" className="font-medium text-[#2383e2] hover:underline">Memecoin Journal</Link>
+          <Link href="/" className="font-medium text-[#0b63b6] hover:underline">Memecoin Journal</Link>
           <span aria-hidden="true" className="text-[#9b9a97]">/</span>
-          <Link href="/terms" className="text-[#787774] hover:text-[#2383e2] hover:underline">Terms of Use</Link>
+          <Link href="/terms" className="text-[#696864] hover:text-[#0b63b6] hover:underline">Terms of Use</Link>
         </nav>
 
         <header className="mt-8 max-w-3xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#2383e2]">Legal</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#0b63b6]">Legal</p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Privacy Notice</h1>
           <p className="mt-4 text-base leading-7 text-[#5a5957]">
             This notice explains how Memecoin Journal handles personal data when you use the app. It is written for a private trading journal, not an advertising platform.
           </p>
-          <p className="mt-4 text-xs text-[#787774]">Last updated: {LAST_UPDATED}</p>
+          <p className="mt-4 text-xs text-[#696864]">Last updated: {LAST_UPDATED}</p>
         </header>
 
         <aside className="mt-8 rounded-xl border border-blue-100 bg-blue-50/70 p-4" aria-label="Privacy summary">
@@ -51,7 +51,7 @@ export default function PrivacyPage() {
           <Section id="controller" title="1. Who is responsible for your data">
             <p>
               Philippe.A, operating from Belgium, is the data controller for Memecoin Journal. For privacy questions, access requests, or concerns, contact us at{" "}
-              <a className="font-medium text-[#2383e2] hover:underline" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
+              <a className="font-medium text-[#0b63b6] hover:underline" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
             </p>
             <p>This notice applies to the Memecoin Journal web app and its public Privacy and Terms pages. It does not control websites or services operated by third parties.</p>
           </Section>
@@ -78,7 +78,7 @@ export default function PrivacyPage() {
           </Section>
 
           <Section id="purpose" title="3. Why we use this information">
-            <ul className="list-disc space-y-1 pl-5 marker:text-[#2383e2]">
+            <ul className="list-disc space-y-1 pl-5 marker:text-[#0b63b6]">
               <li>To create and secure your account, display your journal, and calculate analytics you request.</li>
               <li>To store and synchronize saved trade records, rules, and goals.</li>
               <li>To provide optional token, price, and public wallet-balance lookups.</li>
@@ -90,7 +90,7 @@ export default function PrivacyPage() {
           </Section>
 
           <Section id="storage" title="4. Where your data is stored">
-            <p>Firebase Authentication manages sign-in. The current Railway staging deployment stores journal records in Supabase Postgres under your Firebase user ID, protected by row-level security. Older or Firebase-configured deployments may store journal data in Cloud Firestore with owner-only security rules. The hosting provider can also differ by deployment link.</p>
+            <p>Firebase Authentication manages sign-in. Journal records are stored in Supabase Postgres under your Firebase user ID and protected by row-level security. Legacy Firebase-configured deployments may store journal data in Cloud Firestore with owner-only security rules.</p>
             <p>Your saved trades, research, wallet bookkeeping, paper-capital settings, rules, and goals are stored in the database used by the deployment. Some preferences are intentionally browser-only, including your AI key and provider choice, theme choice, and similar presentation settings. Browser storage is not an encrypted password manager: anyone with access to an unlocked browser profile may be able to read it.</p>
           </Section>
 
@@ -101,20 +101,20 @@ export default function PrivacyPage() {
           </Section>
 
           <Section id="sharing" title="6. Service providers and disclosures">
-            <p>We use Google Firebase for authentication, Supabase Postgres for the current Railway staging journal deployment, and Railway or Vercel for hosting and server endpoints depending on the deployment link. Older Firebase-configured deployments may use Cloud Firestore. Public Solana RPC and market-data services are contacted when you request a lookup, and your selected AI provider is contacted when you request a review.</p>
+            <p>We use Google Firebase for authentication, Supabase Postgres for journal storage, and Railway or Vercel for hosting and server endpoints depending on the deployment. Legacy Firebase-configured deployments may use Cloud Firestore. Public Solana RPC and market-data services are contacted when you request a lookup, and your selected AI provider is contacted when you request a review.</p>
             <p>These providers may process data in countries outside Belgium or the European Economic Area. Their handling of data is governed by their own terms, privacy notices, and applicable transfer safeguards. We may also disclose data where required to comply with law, enforce rights, or protect users and the service.</p>
             <p>We do not sell personal data, use it for behavioural advertising, or knowingly allow third parties to use it for their own marketing.</p>
           </Section>
 
           <Section id="retention" title="7. Retention and deletion">
-            <p>Your account remains in Firebase Authentication while active. Journal records are retained in the database used by the deployment you access (Supabase Postgres for the current Railway staging deployment, or Firestore for older Firebase-configured deployments). You can export trades from the Trade Journal and use the account menu to delete your sign-in and journal data after recent re-authentication. A minimal Firebase user ID revocation marker may be retained in Supabase to prevent a previously issued sign-in token from restoring deleted records.</p>
+            <p>Your account remains in Firebase Authentication while active. Journal records are retained in Supabase Postgres, or in Firestore for a legacy Firebase-configured deployment. You can export trades from the Trade Journal and use the account menu to delete your sign-in and journal data after recent re-authentication. A minimal Firebase user ID revocation marker may be retained in Supabase to prevent a previously issued sign-in token from restoring deleted records.</p>
             <p>The deletion flow also clears this app&apos;s account-scoped local settings from the browser where you complete it. It cannot clear data from other browsers or devices, so remove AI keys and local settings there as well. Short service-security records may remain only as long as needed for security, legal, or operational purposes.</p>
           </Section>
 
           <Section id="rights" title="8. Your privacy rights and complaints">
             <p>Depending on applicable law, you may have rights to access, correct, delete, restrict, object to, or receive a portable copy of your personal data. You can correct journal records in the app, export trades from the Trade Journal, and delete your account from the account menu.</p>
-            <p>For other requests, email <a className="font-medium text-[#2383e2] hover:underline" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> from the email associated with your account, describing the request. We may ask for enough information to verify your identity. Where the GDPR applies, we aim to respond within one month unless a lawful extension is needed.</p>
-            <p>If you are in Belgium or the EEA and believe your data-protection rights have not been respected, you may lodge a complaint with the <a className="font-medium text-[#2383e2] hover:underline" href="https://www.dataprotectionauthority.be/" rel="noreferrer">Belgian Data Protection Authority</a> or your local supervisory authority.</p>
+            <p>For other requests, email <a className="font-medium text-[#0b63b6] hover:underline" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> from the email associated with your account, describing the request. We may ask for enough information to verify your identity. Where the GDPR applies, we aim to respond within one month unless a lawful extension is needed.</p>
+            <p>If you are in Belgium or the EEA and believe your data-protection rights have not been respected, you may lodge a complaint with the <a className="font-medium text-[#0b63b6] hover:underline" href="https://www.dataprotectionauthority.be/" rel="noreferrer">Belgian Data Protection Authority</a> or your local supervisory authority.</p>
           </Section>
 
           <Section id="security" title="9. Security, children, and changes">
@@ -124,9 +124,9 @@ export default function PrivacyPage() {
           </Section>
         </div>
 
-        <footer className="mt-2 flex flex-wrap items-center justify-between gap-3 border-t border-[#e9e9e7] pt-6 text-xs text-[#787774]">
+        <footer className="mt-2 flex flex-wrap items-center justify-between gap-3 border-t border-[#e9e9e7] pt-6 text-xs text-[#696864]">
           <span>© {new Date().getFullYear()} Philippe.A · Memecoin Journal</span>
-          <Link href="/terms" className="font-medium text-[#2383e2] hover:underline">Read the Terms of Use</Link>
+          <Link href="/terms" className="font-medium text-[#0b63b6] hover:underline">Read the Terms of Use</Link>
         </footer>
       </article>
     </main>

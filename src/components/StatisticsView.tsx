@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Trade } from "../lib/types";
 import { getTradeDate } from "../lib/utils";
 import { DEFAULT_GOOD_TAGS } from "../lib/constants";
@@ -15,6 +15,10 @@ interface StatisticsViewProps {
 }
 
 export default function StatisticsView({ trades, solPrice = 150, onSelectTrade }: StatisticsViewProps) {
+  const [currencyMode, setCurrencyMode] = useState<"SOL" | "USD">("SOL");
+  const formatPnl = (sol: number, usd = sol * solPrice) => currencyMode === "SOL"
+    ? `${sol >= 0 ? "+" : ""}${sol.toFixed(2)} SOL`
+    : `${usd >= 0 ? "+$" : "−$"}${Math.abs(usd).toFixed(2)}`;
 
   // 1. Results Breakdown
   const results = useMemo(() => {
@@ -27,9 +31,9 @@ export default function StatisticsView({ trades, solPrice = 150, onSelectTrade }
     const lossPnlUsd = losses.reduce((acc, trade) => acc + (getUsdValueStatus(trade, solPrice).value ?? 0), 0);
 
     return {
-      win: { count: wins.length, pnl: winPnlUsd },
-      be: { count: be.length, pnl: bePnlUsd },
-      loss: { count: losses.length, pnl: lossPnlUsd },
+      win: { count: wins.length, pnlSol: wins.reduce((sum, trade) => sum + (trade.pnlSol || 0), 0), pnlUsd: winPnlUsd },
+      be: { count: be.length, pnlSol: be.reduce((sum, trade) => sum + (trade.pnlSol || 0), 0), pnlUsd: bePnlUsd },
+      loss: { count: losses.length, pnlSol: losses.reduce((sum, trade) => sum + (trade.pnlSol || 0), 0), pnlUsd: lossPnlUsd },
     };
   }, [trades, solPrice]);
 
@@ -97,8 +101,8 @@ export default function StatisticsView({ trades, solPrice = 150, onSelectTrade }
     const currentYear = new Date().getFullYear();
     const discoveredYears = trades.map((t) => getTradeDate(t).getFullYear());
     const years = Array.from(new Set([...discoveredYears, currentYear])).sort((a, b) => a - b).map(String);
-    const map: Record<string, { count: number; pnl: number }> = Object.fromEntries(
-      years.map((year) => [year, { count: 0, pnl: 0 }])
+    const map: Record<string, { count: number; pnlSol: number; pnlUsd: number }> = Object.fromEntries(
+      years.map((year) => [year, { count: 0, pnlSol: 0, pnlUsd: 0 }])
     );
 
     trades.forEach((t) => {
@@ -106,7 +110,8 @@ export default function StatisticsView({ trades, solPrice = 150, onSelectTrade }
       const yearStr = String(date.getFullYear());
       if (map[yearStr]) {
         map[yearStr].count += 1;
-        map[yearStr].pnl += getUsdValueStatus(t, solPrice).value ?? 0;
+        map[yearStr].pnlSol += t.pnlSol || 0;
+        map[yearStr].pnlUsd += getUsdValueStatus(t, solPrice).value ?? 0;
       }
     });
 
@@ -191,7 +196,8 @@ export default function StatisticsView({ trades, solPrice = 150, onSelectTrade }
           <span className="text-[#37352f] font-medium">Statistics</span>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-[#2383e2]">
             <BarChart3 size={20} />
           </span>
@@ -202,6 +208,10 @@ export default function StatisticsView({ trades, solPrice = 150, onSelectTrade }
             <p className="text-xs text-[#787774] mt-0.5">
               Deep dive into setup win-rates, holding duration patterns, streaks, and mistake costs.
             </p>
+          </div>
+          </div>
+          <div aria-label="Statistics currency" className="flex rounded-lg border border-[#e3e2de] bg-white p-1 text-xs font-semibold">
+            {(["SOL", "USD"] as const).map((unit) => <button key={unit} type="button" onClick={() => setCurrencyMode(unit)} aria-pressed={currencyMode === unit} className={`rounded-md px-3 py-1.5 ${currencyMode === unit ? "bg-[#f1f1ef] text-[#37352f]" : "text-[#787774]"}`}>{unit === "USD" ? "USD ($)" : unit}</button>)}
           </div>
         </div>
 
@@ -247,7 +257,7 @@ export default function StatisticsView({ trades, solPrice = 150, onSelectTrade }
       <TiltStreakHeatmap trades={trades} solPrice={solPrice} onSelectTrade={onSelectTrade} />
 
       {/* Discipline, confidence calibration, and period comparison */}
-      <div className="bg-white border border-[#e9e9e7] rounded-xl p-5 shadow-xs space-y-4">
+      <div data-tour="analytics-discipline" className="bg-white border border-[#e9e9e7] rounded-xl p-5 shadow-xs space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#f1f1ef] pb-3">
           <div className="flex items-center gap-2">
             <ShieldCheck size={16} className="text-[#2383e2]" />
@@ -263,7 +273,7 @@ export default function StatisticsView({ trades, solPrice = 150, onSelectTrade }
           <section>
             <div className="mb-2 flex items-center justify-between"><h3 className="text-xs font-semibold text-[#37352f]">Process grade outcomes</h3><span className="text-[10px] text-[#9b9a97]">{disciplineStats.gradedCount} graded</span></div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {disciplineStats.grades.map((item) => <div key={item.grade} className="rounded-lg border border-[#e9e9e7] bg-[#fbfbfa] p-3"><p className="text-[10px] uppercase text-[#787774]">Grade {item.grade}</p><p className="mt-1 font-mono text-sm font-bold text-[#37352f]">{item.count ? `${item.winRate}% wins` : "—"}</p><p className={`mt-1 text-[10px] font-semibold ${item.pnl >= 0 ? "text-emerald-700" : "text-rose-700"}`}>{item.count ? `${item.pnl >= 0 ? "+" : ""}${item.pnl.toFixed(2)} SOL · ${item.count}` : "No trades"}</p></div>)}
+              {disciplineStats.grades.map((item) => <div key={item.grade} className="rounded-lg border border-[#e9e9e7] bg-[#fbfbfa] p-3"><p className="text-[10px] uppercase text-[#787774]">Grade {item.grade}</p><p className="mt-1 font-mono text-sm font-bold text-[#37352f]">{item.count ? `${item.winRate}% wins` : "—"}</p><p className={`mt-1 text-[10px] font-semibold ${item.pnl >= 0 ? "text-emerald-700" : "text-rose-700"}`}>{item.count ? `${formatPnl(item.pnl)} · ${item.count}` : "No trades"}</p></div>)}
             </div>
           </section>
           <section>
@@ -275,14 +285,14 @@ export default function StatisticsView({ trades, solPrice = 150, onSelectTrade }
         </div>
 
         <section className="grid gap-3 border-t border-[#f1f1ef] pt-4 sm:grid-cols-3">
-          <div className="flex items-center gap-2"><Gauge size={15} className="text-[#2383e2]"/><div><p className="text-[10px] uppercase text-[#787774]">This month</p><p className="font-mono text-sm font-bold text-[#37352f]">{monthComparison.current.pnl >= 0 ? "+" : ""}{monthComparison.current.pnl.toFixed(2)} SOL</p><p className="text-[10px] text-[#9b9a97]">{monthComparison.current.count} trades · {monthComparison.current.winRate ?? "—"}% wins</p></div></div>
-          <div><p className="text-[10px] uppercase text-[#787774]">Previous month</p><p className="font-mono text-sm font-bold text-[#37352f]">{monthComparison.previous.pnl >= 0 ? "+" : ""}{monthComparison.previous.pnl.toFixed(2)} SOL</p><p className="text-[10px] text-[#9b9a97]">{monthComparison.previous.count} trades · {monthComparison.previous.winRate ?? "—"}% wins</p></div>
-          <div><p className="text-[10px] uppercase text-[#787774]">Change</p><p className={`font-mono text-sm font-bold ${monthComparison.current.pnl - monthComparison.previous.pnl >= 0 ? "text-emerald-700" : "text-rose-700"}`}>{monthComparison.current.pnl - monthComparison.previous.pnl >= 0 ? "+" : ""}{(monthComparison.current.pnl - monthComparison.previous.pnl).toFixed(2)} SOL</p><p className="text-[10px] text-[#9b9a97]">Net result vs previous month</p></div>
+          <div className="flex items-center gap-2"><Gauge size={15} className="text-[#2383e2]"/><div><p className="text-[10px] uppercase text-[#787774]">This month realized P&amp;L</p><p className="font-mono text-sm font-bold text-[#37352f]">{formatPnl(monthComparison.current.pnl)}</p><p className="text-[10px] text-[#9b9a97]">{monthComparison.current.count} trades · {monthComparison.current.winRate ?? "—"}% wins</p></div></div>
+          <div><p className="text-[10px] uppercase text-[#787774]">Previous month realized P&amp;L</p><p className="font-mono text-sm font-bold text-[#37352f]">{formatPnl(monthComparison.previous.pnl)}</p><p className="text-[10px] text-[#9b9a97]">{monthComparison.previous.count} trades · {monthComparison.previous.winRate ?? "—"}% wins</p></div>
+          <div><p className="text-[10px] uppercase text-[#787774]">Realized P&amp;L change</p><p className={`font-mono text-sm font-bold ${monthComparison.current.pnl - monthComparison.previous.pnl >= 0 ? "text-emerald-700" : "text-rose-700"}`}>{formatPnl(monthComparison.current.pnl - monthComparison.previous.pnl)}</p><p className="text-[10px] text-[#9b9a97]">Net result vs previous month</p></div>
         </section>
       </div>
 
       {/* Duration Tracking Analytics Card */}
-      <div className="bg-white border border-[#e9e9e7] rounded-xl p-5 shadow-xs space-y-4">
+      <div data-tour="analytics-duration" className="bg-white border border-[#e9e9e7] rounded-xl p-5 shadow-xs space-y-4">
         <div className="flex items-center justify-between pb-2 border-b border-[#f1f1ef]">
           <div className="flex items-center gap-2">
             <Clock size={16} className="text-amber-600" />
@@ -344,7 +354,7 @@ export default function StatisticsView({ trades, solPrice = 150, onSelectTrade }
       </div>
 
       {/* Strategy / Setup Type Performance Table */}
-      <div className="bg-white border border-[#e9e9e7] rounded-xl p-5 shadow-xs space-y-3">
+      <div data-tour="analytics-setups" className="bg-white border border-[#e9e9e7] rounded-xl p-5 shadow-xs space-y-3">
         <div className="flex items-center justify-between pb-2 border-b border-[#f1f1ef]">
           <div className="flex items-center gap-2">
             <Layers size={16} className="text-[#2383e2]" />
@@ -366,8 +376,7 @@ export default function StatisticsView({ trades, solPrice = 150, onSelectTrade }
                   <th className="py-2 px-3 font-medium">Trading Setup / Playbook</th>
                   <th className="py-2 px-3 font-medium">Trades</th>
                   <th className="py-2 px-3 font-medium">Win Rate</th>
-                  <th className="py-2 px-3 font-medium">Realized P&L (SOL)</th>
-                  <th className="py-2 px-3 font-medium">Approx USD</th>
+                  <th className="py-2 px-3 font-medium">Realized P&amp;L ({currencyMode})</th>
                 </tr>
               </thead>
               <tbody>
@@ -384,10 +393,7 @@ export default function StatisticsView({ trades, solPrice = 150, onSelectTrade }
                       </span>
                     </td>
                     <td className={`py-2.5 px-3 font-mono font-bold ${item.pnlSol >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
-                      {item.pnlSol >= 0 ? `+${item.pnlSol.toFixed(2)}` : item.pnlSol.toFixed(2)} SOL
-                    </td>
-                    <td className="py-2.5 px-3 font-mono font-semibold text-[#5a5957]">
-                      ${item.pnlUsd.toFixed(2)}
+                      {formatPnl(item.pnlSol, item.pnlUsd)}
                     </td>
                   </tr>
                 ))}
@@ -417,7 +423,7 @@ export default function StatisticsView({ trades, solPrice = 150, onSelectTrade }
                 </span>
               </div>
               <span className="font-mono font-medium text-emerald-600">
-                ${results.win.pnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {formatPnl(results.win.pnlSol, results.win.pnlUsd)}
               </span>
             </div>
 
@@ -429,7 +435,7 @@ export default function StatisticsView({ trades, solPrice = 150, onSelectTrade }
                 </span>
               </div>
               <span className="font-mono font-medium text-[#787774]">
-                ${results.be.pnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {formatPnl(results.be.pnlSol, results.be.pnlUsd)}
               </span>
             </div>
 
@@ -441,14 +447,14 @@ export default function StatisticsView({ trades, solPrice = 150, onSelectTrade }
                 </span>
               </div>
               <span className="font-mono font-medium text-rose-600">
-                -${Math.abs(results.loss.pnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {formatPnl(results.loss.pnlSol, results.loss.pnlUsd)}
               </span>
             </div>
           </div>
         </div>
 
         {/* 2. Yearly Statistics Card */}
-        <div className="bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl p-5 shadow-xs">
+        <div data-tour="analytics-yearly" className="bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl p-5 shadow-xs">
           <div className="pb-3 border-b border-[#e9e9e7]">
             <div className="flex items-center gap-1.5 font-semibold text-xs text-[#37352f]">
               <span className="p-1 rounded bg-neutral-100 text-neutral-600"><CalendarDays size={14} /></span>
@@ -464,8 +470,8 @@ export default function StatisticsView({ trades, solPrice = 150, onSelectTrade }
                 </div>
                 <div className="flex items-center gap-4">
                   <span className="font-mono text-[#787774]">{y.count}</span>
-                  <span className={`font-mono font-medium ${y.pnl >= 0 ? "text-[#37352f]" : "text-rose-600"}`}>
-                    ${y.pnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <span className={`font-mono font-medium ${y.pnlSol >= 0 ? "text-[#37352f]" : "text-rose-600"}`}>
+                    {formatPnl(y.pnlSol, y.pnlUsd)}
                   </span>
                 </div>
               </div>
@@ -499,7 +505,7 @@ export default function StatisticsView({ trades, solPrice = 150, onSelectTrade }
                 </div>
                 <div className="text-right">
                   <span className={`text-xs font-mono font-semibold block ${item.pnlSol >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
-                    {item.pnlSol >= 0 ? `+${item.pnlSol.toFixed(2)}` : item.pnlSol.toFixed(2)} SOL
+                    {formatPnl(item.pnlSol)}
                   </span>
                   <span className="text-[10px] text-[#9b9a97]">net P&amp;L on tagged trades</span>
                 </div>

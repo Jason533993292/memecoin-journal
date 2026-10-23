@@ -3,6 +3,7 @@ import type { FeedbackCategory } from "./feedback";
 export const DEFAULT_FEEDBACK_EMAIL_TO = "journal.memecoin@gmail.com";
 
 type FeedbackEmailInput = {
+  reference?: string;
   category: FeedbackCategory;
   message: string;
   contactEmail: string | null;
@@ -53,7 +54,7 @@ export async function sendFeedbackNotification(
     ["Reply email", input.contactEmail ?? "Not provided"],
   ].filter(([, value]) => Boolean(value));
   const text = [
-    `${categoryLabel} from Memecoin Journal`,
+    `${categoryLabel} from Memecoin Journal${input.reference ? ` (${input.reference})` : ""}`,
     "",
     input.message,
     "",
@@ -72,7 +73,7 @@ export async function sendFeedbackNotification(
     body: JSON.stringify({
       from,
       to: [to],
-      subject: `[Memecoin Journal] ${categoryLabel}`,
+      subject: `[Memecoin Journal${input.reference ? ` ${input.reference}` : ""}] ${categoryLabel}`,
       text,
       html: `<h2>${escapeHtml(categoryLabel)}</h2><p style="white-space:pre-wrap">${escapeHtml(input.message)}</p><table>${htmlDiagnostics}</table>`,
       ...(input.contactEmail ? { reply_to: cleanHeaderText(input.contactEmail) } : {}),
@@ -84,4 +85,27 @@ export async function sendFeedbackNotification(
     throw new Error(`Feedback email provider returned HTTP ${response.status}.`);
   }
   return "sent";
+}
+
+export async function sendFeedbackNotificationWithRetry(
+  input: FeedbackEmailInput,
+  options: FeedbackEmailOptions & { attempts?: number; retryDelayMs?: number } = {},
+): Promise<{ status: "sent" | "not_configured"; attempts: number }> {
+  const attempts = Math.min(Math.max(options.attempts ?? 3, 1), 3);
+  const retryDelayMs = Math.min(Math.max(options.retryDelayMs ?? 150, 0), 1_000);
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      const status = await sendFeedbackNotification(input, options);
+      return { status, attempts: attempt };
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts && retryDelayMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, retryDelayMs * attempt));
+      }
+    }
+  }
+
+  throw lastError;
 }

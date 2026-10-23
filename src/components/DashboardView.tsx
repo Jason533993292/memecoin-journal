@@ -199,7 +199,7 @@ export default function DashboardView({
       )}
 
       {/* Core performance metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-3.5">
+      <div data-tour="dashboard-summary" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-3.5">
         {/* Net P&L */}
         {visibleMetrics.includes("pnl") && <div className="notion-card p-3.5 sm:p-4 flex flex-col justify-between">
           <div className="flex items-center gap-1 text-[11px] text-[#787774] mb-2 sm:mb-3">

@@ -7,29 +7,35 @@ import {
   verifyFirebaseUser,
 } from "../../../../lib/firebase-admin";
 import { deleteSupabaseJournalData } from "@/lib/supabase-admin";
+import { requestHeaders, requestIdFor } from "@/lib/requestId";
 
 export const maxDuration = 60;
 
 const RECENT_AUTH_WINDOW_SECONDS = 5 * 60;
 
 export async function POST(request: Request) {
+  const requestId = requestIdFor(request);
+  const reply = (body: object, status = 200) => NextResponse.json(body, {
+    status,
+    headers: requestHeaders(requestId),
+  });
   let decodedToken;
   try {
     decodedToken = await verifyFirebaseUser(request);
   } catch (error) {
     const configError = error instanceof FirebaseAdminConfigurationError;
-    return NextResponse.json(
+    return reply(
       {
         error: configError
           ? "Account deletion is temporarily unavailable. The app's server configuration needs attention."
           : "Your sign-in has expired. Sign in again and retry.",
       },
-      { status: configError ? 503 : 401 }
+      configError ? 503 : 401,
     );
   }
 
   if (!decodedToken) {
-    return NextResponse.json({ error: "Sign in again to delete your account." }, { status: 401 });
+    return reply({ error: "Sign in again to delete your account." }, 401);
   }
 
   const nowSeconds = Math.floor(Date.now() / 1000);
@@ -38,9 +44,9 @@ export async function POST(request: Request) {
     nowSeconds - decodedToken.auth_time > RECENT_AUTH_WINDOW_SECONDS ||
     decodedToken.auth_time > nowSeconds + 60
   ) {
-    return NextResponse.json(
+    return reply(
       { error: "For your security, sign in again before deleting your account." },
-      { status: 401 }
+      401,
     );
   }
 
@@ -49,9 +55,9 @@ export async function POST(request: Request) {
       { key: "day", limit: 3, durationMs: 86_400_000 },
     ]);
     if (!allowed) {
-      return NextResponse.json(
+      return reply(
         { error: "Too many deletion attempts. Please try again later." },
-        { status: 429 }
+        429,
       );
     }
 
@@ -71,22 +77,20 @@ export async function POST(request: Request) {
       )
     );
 
-    return NextResponse.json(
-      { deleted: true },
-      { headers: { "Cache-Control": "no-store" } }
-    );
+    return reply({ deleted: true });
   } catch (error) {
     // Keep user data and credentials out of application logs.
     console.error("Account deletion operation failed", {
+      requestId,
       uid: decodedToken.uid,
       reason: error instanceof Error ? error.name : "unknown",
     });
-    return NextResponse.json(
+    return reply(
       {
-        error:
-          "We could not finish deleting the account. Your account may still exist; sign in and retry or contact support.",
+        error: `We could not finish deleting the account. Sign in and retry, or contact support with reference ${requestId}.`,
+        requestId,
       },
-      { status: 500 }
+      500,
     );
   }
 }

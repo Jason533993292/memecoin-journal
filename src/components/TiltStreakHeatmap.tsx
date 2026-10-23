@@ -123,7 +123,7 @@ export default function TiltStreakHeatmap({ trades, solPrice = 150, onSelectTrad
     : null;
 
   return (
-    <section aria-labelledby="monthly-calendar-title" className="bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl p-4 sm:p-5 shadow-xs space-y-4">
+    <section data-tour="monthly-calendar" aria-labelledby="monthly-calendar-title" className="bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl p-4 sm:p-5 shadow-xs space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#e9e9e7]">
         <div className="flex items-center gap-2">
           <Calendar size={17} className="text-[#2383e2]" aria-hidden="true" />

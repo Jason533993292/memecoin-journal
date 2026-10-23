@@ -97,7 +97,12 @@ export default function FeedbackModal({ isOpen, onClose, user, currentSection }:
       setCategory("bug");
       setCompany("");
       onClose();
-      showToast("Feedback sent", "success", "Thank you. Your report is ready for review.");
+      const reference = typeof result.reference === "string" ? result.reference : null;
+      showToast(
+        "Feedback sent",
+        "success",
+        reference ? `Reference ${reference}. Keep this number if you contact support.` : "Thank you. Your report is ready for review.",
+      );
     } catch (error) {
       showToast("Feedback could not be sent", "error", error instanceof Error ? error.message : "Check your connection and try again.");
     } finally {

@@ -18,13 +18,14 @@ import {
 } from "lucide-react";
 import { exportTradesToCSV, exportTradesToJSON, filterNewTradeImports, parseTradeImport } from "../lib/exportImport";
 import { getTradeTimestamp } from "../lib/utils";
-import { useCurrentTime } from "../lib/useLocalStorage";
+import { useCurrentTime, useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
 import { useToast } from "./Toast";
 import { getTradeBoughtUsd, getTradeSoldUsd, getUsdValueStatus } from "../lib/tradeCalculations";
 import ImageLightboxModal from "./ImageLightboxModal";
 import { deleteSupabaseTrade, saveSupabaseTrade, usesSupabaseJournal } from "../lib/journalBackend";
 
 interface TradeJournalViewProps {
+  userId: string;
   trades: Trade[];
   solPrice?: number;
   onOpenNewTrade: () => void;
@@ -36,6 +37,7 @@ interface TradeJournalViewProps {
 }
 
 export default function TradeJournalView({
+  userId,
   trades,
   solPrice = 150,
   onOpenNewTrade,
@@ -46,6 +48,16 @@ export default function TradeJournalView({
   readOnly = false,
 }: TradeJournalViewProps) {
   const now = useCurrentTime();
+  const lastBackupKey = `memecoin_journal_${userId}_last_backup_at`;
+  const backupSnoozeKey = `memecoin_journal_${userId}_backup_snoozed_until`;
+  const lastBackupAt = Number(useLocalStorageValue(lastBackupKey) || 0);
+  const backupSnoozedUntil = Number(useLocalStorageValue(backupSnoozeKey) || 0);
+  const backupReminderDue =
+    !readOnly &&
+    now > 0 &&
+    trades.length > 0 &&
+    now >= backupSnoozedUntil &&
+    (!lastBackupAt || now - lastBackupAt >= 30 * 24 * 60 * 60 * 1000);
   const { showToast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [filterResult, setFilterResult] = useState<string>("All");
@@ -215,6 +227,13 @@ export default function TradeJournalView({
       });
   }, [trades, searchQuery, filterResult, filterWallet, filterSetup, filterMistake, dateRange, sortBy, now]);
 
+  const downloadBackup = () => {
+    exportTradesToJSON(trades);
+    writeLocalStorageValue(lastBackupKey, String(Date.now()));
+    writeLocalStorageValue(backupSnoozeKey, null);
+    showToast("Journal backup downloaded", "success", "Keep the JSON file somewhere safe and private.");
+  };
+
   const formatDuration = (mins?: number) => {
     if (!mins) return null;
     if (mins < 60) return `${mins}m`;
@@ -270,9 +289,9 @@ export default function TradeJournalView({
             </button>
 
             <button
-              onClick={() => exportTradesToJSON(filteredTrades)}
-              disabled={filteredTrades.length === 0}
-              title="Export a full-fidelity JSON backup of the current filtered trades"
+              onClick={downloadBackup}
+              disabled={trades.length === 0}
+              title="Export a full-fidelity JSON backup of every trade"
               className="bg-[#f7f6f3] hover:bg-[#eeece8] border border-[#e3e2de] text-[#37352f] px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-colors disabled:opacity-45 disabled:cursor-not-allowed"
             >
               <FileSpreadsheet size={13} />
@@ -298,8 +317,35 @@ export default function TradeJournalView({
         </div>
       </div>
 
+      {backupReminderDue && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300/60 bg-amber-50/80 px-4 py-3 text-sm text-amber-950">
+          <div>
+            <p className="font-semibold">Keep an independent copy of your journal</p>
+            <p className="mt-0.5 text-xs text-amber-900/80">
+              Download a private JSON backup. The file stays on this device unless you choose to move it.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => writeLocalStorageValue(backupSnoozeKey, String(Date.now() + 7 * 24 * 60 * 60 * 1000))}
+              className="rounded-lg px-3 py-2 text-xs font-semibold text-amber-900 transition-colors hover:bg-amber-100"
+            >
+              Remind me next week
+            </button>
+            <button
+              type="button"
+              onClick={downloadBackup}
+              className="rounded-lg bg-amber-950 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-amber-900"
+            >
+              Download backup
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Database Controls Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e9e9e7] pb-3 text-xs text-[#787774]">
+      <div data-tour="journal-filters" className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e9e9e7] pb-3 text-xs text-[#787774]">
         <div className="flex flex-wrap items-center gap-2">
           {/* View Mode Toggle */}
           <div className="flex items-center gap-0.5 bg-[#f7f6f3] p-0.5 rounded-md border border-[#e9e9e7]">
@@ -465,7 +511,7 @@ export default function TradeJournalView({
 
       {/* Main Content: Table or Cards View or Empty State */}
       {trades.length === 0 ? (
-        <div className="bg-[#fbfbfa] border border-[#e9e9e7] rounded-2xl p-8 sm:p-10 text-center max-w-2xl mx-auto my-6 space-y-5">
+        <div data-tour="journal-results" className="bg-[#fbfbfa] border border-[#e9e9e7] rounded-2xl p-8 sm:p-10 text-center max-w-2xl mx-auto my-6 space-y-5">
           <div className="w-16 h-16 bg-blue-50 text-[#2383e2] rounded-2xl flex items-center justify-center mx-auto shadow-xs">
             <BookOpen size={28} />
           </div>
@@ -501,13 +547,13 @@ export default function TradeJournalView({
           </div>
         </div>
       ) : filteredTrades.length === 0 ? (
-        <div className="p-12 text-center text-xs text-[#9b9a97] bg-white border border-[#e9e9e7] rounded-xl">
+        <div data-tour="journal-results" className="p-12 text-center text-xs text-[#9b9a97] bg-white border border-[#e9e9e7] rounded-xl">
           No trades matched your search & filter criteria.
         </div>
       ) : viewMode === "cards" ? (
         /* Cards Grid View */
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredTrades.map((trade) => {
+        <div data-tour="journal-results" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredTrades.map((trade, tradeIndex) => {
             const timestamp = getTradeTimestamp(trade);
             const dateStr = timestamp
               ? new Date(timestamp).toLocaleDateString("en-US", {
@@ -521,6 +567,7 @@ export default function TradeJournalView({
             return (
               <div
                 key={trade.id}
+                data-tour={tradeIndex === 0 ? "journal-example" : undefined}
                 onClick={() => onSelectTrade(trade)}
                 className="trade-journal-card bg-white border border-[#e9e9e7] rounded-xl p-4 shadow-xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between space-y-3 group"
               >
@@ -671,7 +718,7 @@ export default function TradeJournalView({
         </div>
       ) : (
         /* Notion Database Table View */
-        <div className="border border-[#e9e9e7] rounded-lg overflow-hidden bg-white shadow-xs">
+        <div data-tour="journal-results" className="border border-[#e9e9e7] rounded-lg overflow-hidden bg-white shadow-xs">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
@@ -692,7 +739,7 @@ export default function TradeJournalView({
                 </tr>
               </thead>
               <tbody>
-                {filteredTrades.map((trade) => {
+                {filteredTrades.map((trade, tradeIndex) => {
                   const timestamp = getTradeTimestamp(trade);
                   const dateStr = timestamp
                     ? new Date(timestamp).toLocaleDateString("en-US", {
@@ -706,6 +753,7 @@ export default function TradeJournalView({
                   return (
                     <tr
                       key={trade.id}
+                      data-tour={tradeIndex === 0 ? "journal-example" : undefined}
                       onClick={() => onSelectTrade(trade)}
                       className="hover:bg-[#fcfbf9] transition-colors group cursor-pointer"
                     >

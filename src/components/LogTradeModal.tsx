@@ -19,6 +19,8 @@ import {
   Trash2,
   Upload,
   Layers,
+  CloudCheck,
+  CloudOff,
 } from "lucide-react";
 import TradeDateTimePicker from "./TradeDateTimePicker";
 import { GoalSettings, JournalRules, Trade } from "../lib/types";
@@ -36,6 +38,7 @@ import { useAuth } from "../context/AuthContext";
 import { parseLocalStorageValue, useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
 import { lookupTokenMetadata } from "../lib/tokenLookupClient";
 import { saveSupabaseTrade, usesSupabaseJournal } from "../lib/journalBackend";
+import { hasMeaningfulTradeDraft, parseStoredTradeDraft, TRADE_DRAFT_VERSION, tradeDraftStorageKey, type TradeDraftData } from "../lib/tradeDraft";
 
 // Re-export for backward compatibility
 interface LogTradeModalProps {
@@ -70,6 +73,7 @@ export default function LogTradeModal({
   const caDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const tokenLookupRef = useRef(0);
   const formRef = useRef<HTMLFormElement | null>(null);
+  const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [ca, setCa] = useState(initialData?.ca || "");
   const [loadingToken, setLoadingToken] = useState(false);
@@ -138,6 +142,64 @@ export default function LogTradeModal({
     Boolean(initialData?.initialRiskSol || initialData?.feesSol || initialData?.stopPrice)
   );
   const [showAllTags, setShowAllTags] = useState(false);
+  const [draftHydrated, setDraftHydrated] = useState(Boolean(initialData));
+  const [draftStatus, setDraftStatus] = useState<"idle" | "restored" | "saving" | "saved" | "offline" | "error">("idle");
+  const [draftSavedAt, setDraftSavedAt] = useState<number | null>(null);
+  const draftKey = user ? tradeDraftStorageKey(user.uid) : "";
+
+  const clearDraft = useCallback(() => {
+    if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    if (draftKey) writeLocalStorageValue(draftKey, null);
+    setDraftStatus("idle");
+    setDraftSavedAt(null);
+  }, [draftKey]);
+
+  useEffect(() => {
+    if (!isOpen || !user || initialData) return;
+    const stored = parseStoredTradeDraft(window.localStorage.getItem(tradeDraftStorageKey(user.uid)));
+    const hydrateTimer = window.setTimeout(() => {
+      if (stored && hasMeaningfulTradeDraft(stored.data)) {
+        const draft = stored.data;
+        setCa(draft.ca); setWallet(draft.wallet); setResult(draft.result); setSetupType(draft.setupType); setCustomSetup(draft.customSetup);
+        setDurationMinutes(draft.durationMinutes); setTradedAtInput(draft.tradedAtInput); setInitialRiskSol(draft.initialRiskSol); setFeesSol(draft.feesSol);
+        setStopPrice(draft.stopPrice); setEntryLiquidityUsd(draft.entryLiquidityUsd); setExitLiquidityUsd(draft.exitLiquidityUsd);
+        setEntryMarketCapUsd(draft.entryMarketCapUsd); setExitMarketCapUsd(draft.exitMarketCapUsd); setSlippagePct(draft.slippagePct);
+        setQuoteCurrency(draft.quoteCurrency as Trade["quoteCurrency"]); setQuoteUsdRate(draft.quoteUsdRate); setVenue(draft.venue);
+        setOtherQuoteSymbol(draft.otherQuoteSymbol); setOtherVenue(draft.otherVenue); setBoughtQuote(draft.boughtQuote); setSoldQuote(draft.soldQuote);
+        setPnlQuote(draft.pnlQuote); setScreenshotUrl(draft.screenshotUrl); setSelectedGoodTags(draft.selectedGoodTags.slice(0, 20));
+        setSelectedMistakes(draft.selectedMistakes.slice(0, 20)); setNotes(draft.notes); setProcessGrade(draft.processGrade);
+        setConfidenceAtEntry(draft.confidenceAtEntry); setDraftSavedAt(stored.savedAt); setDraftStatus(navigator.onLine ? "restored" : "offline");
+      }
+      setDraftHydrated(true);
+    }, 0);
+    return () => window.clearTimeout(hydrateTimer);
+  }, [initialData, isOpen, user]);
+
+  useEffect(() => {
+    if (!draftHydrated || !isOpen || !user || initialData) return;
+    const data: TradeDraftData = { ca, wallet, result, setupType, customSetup, durationMinutes, tradedAtInput, initialRiskSol, feesSol, stopPrice, entryLiquidityUsd, exitLiquidityUsd, entryMarketCapUsd, exitMarketCapUsd, slippagePct, quoteCurrency: quoteCurrency || "SOL", quoteUsdRate, venue, otherQuoteSymbol, otherVenue, boughtQuote, soldQuote, pnlQuote, screenshotUrl, selectedGoodTags, selectedMistakes, notes, processGrade, confidenceAtEntry };
+    if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    if (!hasMeaningfulTradeDraft(data)) {
+      writeLocalStorageValue(draftKey, null);
+      draftTimerRef.current = setTimeout(() => { setDraftStatus("idle"); setDraftSavedAt(null); }, 0);
+      return;
+    }
+    draftTimerRef.current = setTimeout(() => setDraftStatus(navigator.onLine ? "saving" : "offline"), 0);
+    draftTimerRef.current = setTimeout(() => {
+      const savedAt = Date.now();
+      const saved = writeLocalStorageValue(draftKey, JSON.stringify({ version: TRADE_DRAFT_VERSION, savedAt, data }));
+      setDraftSavedAt(saved ? savedAt : null);
+      setDraftStatus(saved ? (navigator.onLine ? "saved" : "offline") : "error");
+    }, 450);
+    return () => { if (draftTimerRef.current) clearTimeout(draftTimerRef.current); };
+  }, [boughtQuote, ca, confidenceAtEntry, customSetup, draftHydrated, draftKey, durationMinutes, entryLiquidityUsd, entryMarketCapUsd, exitLiquidityUsd, exitMarketCapUsd, feesSol, initialData, initialRiskSol, isOpen, notes, otherQuoteSymbol, otherVenue, pnlQuote, processGrade, quoteCurrency, quoteUsdRate, result, screenshotUrl, selectedGoodTags, selectedMistakes, setupType, slippagePct, soldQuote, stopPrice, tradedAtInput, user, venue, wallet]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const update = () => setDraftStatus((current) => navigator.onLine ? (current === "offline" ? "saved" : current) : "offline");
+    window.addEventListener("online", update); window.addEventListener("offline", update);
+    return () => { window.removeEventListener("online", update); window.removeEventListener("offline", update); };
+  }, [isOpen]);
 
   const planReview = useMemo(() => {
     const start = new Date(); start.setHours(0, 0, 0, 0);
@@ -464,6 +526,8 @@ export default function LogTradeModal({
         await addDoc(tradesCol, tradeDocument);
       }
 
+      clearDraft();
+
       showToast(
         "Trade saved to Cloud",
         "success",
@@ -500,9 +564,12 @@ export default function LogTradeModal({
               <h2 id="log-trade-title" className="text-base sm:text-lg font-semibold tracking-tight text-[#37352f]">
                 Log New Trade
               </h2>
-              <p className="text-xs text-[#787774]">
-                Record entry, chart screenshot, setup strategy & discipline tags.
-              </p>
+              <p className="text-xs text-[#787774]">Record entry, chart screenshot, setup strategy & discipline tags.</p>
+              {!initialData && <div role="status" aria-live="polite" className={`mt-1.5 flex items-center gap-1 text-[10px] ${draftStatus === "error" || draftStatus === "offline" ? "text-amber-700" : "text-[#787774]"}`}>
+                {draftStatus === "offline" ? <CloudOff size={11}/> : <CloudCheck size={11}/>}
+                <span>{draftStatus === "restored" ? "Recovered browser draft" : draftStatus === "saving" ? "Saving draft…" : draftStatus === "saved" ? `Draft saved in this browser${draftSavedAt ? ` · ${new Date(draftSavedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}` : draftStatus === "offline" ? "Offline · draft saved in this browser" : draftStatus === "error" ? "Draft could not be saved in this browser" : "Draft recovery ready"}</span>
+                {(draftStatus === "restored" || draftStatus === "saved" || draftStatus === "offline") && <button type="button" onClick={clearDraft} className="ml-1 font-semibold text-rose-600 hover:underline">Discard</button>}
+              </div>}
             </div>
           </div>
           <button

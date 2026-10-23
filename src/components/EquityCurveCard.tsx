@@ -162,7 +162,7 @@ export default function EquityCurveCard({ trades, solPrice = 150 }: EquityCurveC
   const gradientId = isUnderwater ? "underwaterGradient" : isPositive ? "greenGradient" : "redGradient";
 
   return (
-    <div className="bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl p-4 sm:p-5 shadow-xs flex flex-col space-y-4">
+    <div data-tour="equity-curve" className="bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl p-4 sm:p-5 shadow-xs flex flex-col space-y-4">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#f1f1ef]">
         <div className="flex items-center gap-2.5">

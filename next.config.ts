@@ -13,6 +13,9 @@ const reportOnlyScriptSources = [
 const contentSecurityPolicy = `default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src ${reportOnlyScriptSources}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; frame-src 'self' https://www.google.com https://apis.google.com https://www.recaptcha.net https://memecoin-journal.firebaseapp.com; connect-src 'self' https://tndqtaouizztihzggwnh.supabase.co https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com https://firebaseinstallations.googleapis.com https://api.dexscreener.com https://www.google.com https://apis.google.com https://www.recaptcha.net https://recaptchaenterprise.googleapis.com https://content-firebaseappcheck.googleapis.com`;
 
 const nextConfig: NextConfig = {
+  experimental: {
+    agentUpgrade: "security",
+  },
   poweredByHeader: false,
   async rewrites() {
     // These proxy paths are available for a future custom Firebase auth domain.

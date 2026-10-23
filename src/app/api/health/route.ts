@@ -1,10 +1,50 @@
 import { NextResponse } from "next/server";
+import { timingSafeEqual } from "node:crypto";
+import { getFirebaseAdmin } from "@/lib/firebase-admin";
+import { checkSupabaseAdminHealth } from "@/lib/supabase-admin";
+import { requestHeaders, requestIdFor } from "@/lib/requestId";
 
 // Platform liveness endpoint. This intentionally does not disclose secrets or
 // depend on either database while the app supports a staged backend migration.
-export function GET() {
+function authorized(request: Request) {
+  const expected = process.env.HEALTHCHECK_TOKEN?.trim();
+  const supplied = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
+  if (!expected || !supplied) return false;
+  const expectedBytes = Buffer.from(expected);
+  const suppliedBytes = Buffer.from(supplied);
+  return expectedBytes.length === suppliedBytes.length && timingSafeEqual(expectedBytes, suppliedBytes);
+}
+
+async function timedCheck(check: () => Promise<unknown>) {
+  try {
+    await Promise.race([
+      check(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 4_000)),
+    ]);
+    return "ok" as const;
+  } catch {
+    return "unavailable" as const;
+  }
+}
+
+export async function GET(request: Request) {
+  const requestId = requestIdFor(request);
+  if (!authorized(request)) {
+    return NextResponse.json({ status: "ok" }, { headers: requestHeaders(requestId) });
+  }
+
+  const [firebase, supabase] = await Promise.all([
+    timedCheck(async () => {
+      const { db } = getFirebaseAdmin();
+      await db.collection("_server_rate_limits").limit(1).get();
+    }),
+    timedCheck(checkSupabaseAdminHealth),
+  ]);
+  const resend = process.env.RESEND_API_KEY?.trim() ? "configured" : "not_configured";
+  const ready = firebase === "ok" && supabase === "ok" && resend === "configured";
+
   return NextResponse.json(
-    { status: "ok" },
-    { headers: { "Cache-Control": "no-store, max-age=0" } },
+    { status: ready ? "ready" : "degraded", checks: { firebase, supabase, resend } },
+    { status: ready ? 200 : 503, headers: requestHeaders(requestId) },
   );
 }

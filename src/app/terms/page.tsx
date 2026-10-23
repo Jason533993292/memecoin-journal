@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 };
 
 const LAST_UPDATED = "15 October 2026";
-const CONTACT_EMAIL = "orders@rewind-stores.com";
+const CONTACT_EMAIL = "journal.memecoin@gmail.com";
 
 function Section({ id, title, children }: Readonly<{ id: string; title: string; children: React.ReactNode }>) {
   return (
@@ -23,18 +23,18 @@ export default function TermsPage() {
     <main className="min-h-screen bg-[#fbfbfa] px-5 py-10 text-[#37352f] sm:px-8 sm:py-14">
       <article className="mx-auto max-w-4xl rounded-2xl border border-[#e9e9e7] bg-white px-6 py-8 shadow-sm sm:px-10 sm:py-12">
         <nav aria-label="Legal navigation" className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-          <Link href="/" className="font-medium text-[#2383e2] hover:underline">Memecoin Journal</Link>
+          <Link href="/" className="font-medium text-[#0b63b6] hover:underline">Memecoin Journal</Link>
           <span aria-hidden="true" className="text-[#9b9a97]">/</span>
-          <Link href="/privacy" className="text-[#787774] hover:text-[#2383e2] hover:underline">Privacy Notice</Link>
+          <Link href="/privacy" className="text-[#696864] hover:text-[#0b63b6] hover:underline">Privacy Notice</Link>
         </nav>
 
         <header className="mt-8 max-w-3xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#2383e2]">Legal</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#0b63b6]">Legal</p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Terms of Use</h1>
           <p className="mt-4 text-base leading-7 text-[#5a5957]">
             These Terms govern your use of Memecoin Journal. Please read them before creating an account or using the service.
           </p>
-          <p className="mt-4 text-xs text-[#787774]">Last updated: {LAST_UPDATED}</p>
+          <p className="mt-4 text-xs text-[#696864]">Last updated: {LAST_UPDATED}</p>
         </header>
 
         <aside className="mt-8 rounded-xl border border-amber-200 bg-amber-50 p-4" aria-label="Risk notice">
@@ -46,7 +46,7 @@ export default function TermsPage() {
 
         <div className="mt-10">
           <Section id="agreement" title="1. Agreement and operator">
-            <p>These Terms are an agreement between you and Philippe.A, operating from Belgium (“we”, “us”, or “Memecoin Journal”). By accessing or using the service, you agree to these Terms and the <Link className="font-medium text-[#2383e2] hover:underline" href="/privacy">Privacy Notice</Link>.</p>
+            <p>These Terms are an agreement between you and Philippe.A, operating from Belgium (“we”, “us”, or “Memecoin Journal”). By accessing or using the service, you agree to these Terms and the <Link className="font-medium text-[#0b63b6] hover:underline" href="/privacy">Privacy Notice</Link>.</p>
             <p>If you do not agree, do not use the service. You must be legally able to enter into this agreement and meet the minimum age required to use online services where you live.</p>
           </Section>
 
@@ -61,7 +61,7 @@ export default function TermsPage() {
           </Section>
 
           <Section id="account" title="4. Your account and responsibilities">
-            <ul className="list-disc space-y-1 pl-5 marker:text-[#2383e2]">
+            <ul className="list-disc space-y-1 pl-5 marker:text-[#0b63b6]">
               <li>Provide accurate account information and keep your credentials and device secure.</li>
               <li>Use only an account you are authorized to use and promptly report suspected unauthorized access.</li>
               <li>Keep your own exports of records you may need; do not rely on the service as your sole recordkeeping system.</li>
@@ -72,7 +72,7 @@ export default function TermsPage() {
 
           <Section id="acceptable-use" title="5. Acceptable use">
             <p>You may not use the service to:</p>
-            <ul className="list-disc space-y-1 pl-5 marker:text-[#2383e2]">
+            <ul className="list-disc space-y-1 pl-5 marker:text-[#0b63b6]">
               <li>Break the law, infringe another person&apos;s rights, or upload harmful or unlawful content.</li>
               <li>Attempt to gain unauthorized access, disrupt the service, scrape it at scale, bypass rate limits, or probe security controls.</li>
               <li>Use automated systems that create an unreasonable load on the service.</li>
@@ -112,13 +112,13 @@ export default function TermsPage() {
 
           <Section id="changes-contact" title="12. Changes and contact">
             <p>We may update these Terms to reflect changes to the service, security, or law. The current version will be posted here with a revised “Last updated” date. Continuing to use the service after an update means you accept the updated Terms, except where applicable law requires another form of notice or consent.</p>
-            <p>Questions about these Terms can be sent to <a className="font-medium text-[#2383e2] hover:underline" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.</p>
+            <p>Questions about these Terms can be sent to <a className="font-medium text-[#0b63b6] hover:underline" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.</p>
           </Section>
         </div>
 
-        <footer className="mt-2 flex flex-wrap items-center justify-between gap-3 border-t border-[#e9e9e7] pt-6 text-xs text-[#787774]">
+        <footer className="mt-2 flex flex-wrap items-center justify-between gap-3 border-t border-[#e9e9e7] pt-6 text-xs text-[#696864]">
           <span>© {new Date().getFullYear()} Philippe.A · Memecoin Journal</span>
-          <Link href="/privacy" className="font-medium text-[#2383e2] hover:underline">Read the Privacy Notice</Link>
+          <Link href="/privacy" className="font-medium text-[#0b63b6] hover:underline">Read the Privacy Notice</Link>
         </footer>
       </article>
     </main>

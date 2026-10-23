@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@heroui/react";
 import ThemePreviewControl from "./ThemePreviewControl";
+import CursorPicker from "./CursorPicker";
 import {
   LayoutDashboard,
   BookOpen,
@@ -16,6 +17,9 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   MessageSquarePlus,
+  BookOpenCheck,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
@@ -30,6 +34,7 @@ interface TopBannerProps {
   onOpenDailyRecap?: () => void;
   onDeleteAccount?: () => void;
   onOpenFeedback?: () => void;
+  onOpenGuide?: () => void;
   solPrice?: number;
   solChange24h?: number;
   solPriceStatus?: "live" | "cached" | "stale" | "unavailable";
@@ -46,6 +51,7 @@ export default function TopBanner({
   onOpenDailyRecap,
   onDeleteAccount,
   onOpenFeedback,
+  onOpenGuide,
   solPrice = 0,
   solChange24h = 0,
   solPriceStatus = "unavailable",
@@ -56,6 +62,25 @@ export default function TopBanner({
   const { user, loginWithGoogle, logout, resendVerification } = useAuth();
   const { showToast } = useToast();
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [connectionState, setConnectionState] = useState<"online" | "offline" | "reconnecting">("online");
+
+  useEffect(() => {
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    const goOffline = () => setConnectionState("offline");
+    const goOnline = () => {
+      setConnectionState("reconnecting");
+      reconnectTimer = setTimeout(() => setConnectionState("online"), 1_200);
+    };
+    const initialTimer = setTimeout(() => setConnectionState(navigator.onLine ? "online" : "offline"), 0);
+    window.addEventListener("offline", goOffline);
+    window.addEventListener("online", goOnline);
+    return () => {
+      clearTimeout(initialTimer);
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      window.removeEventListener("offline", goOffline);
+      window.removeEventListener("online", goOnline);
+    };
+  }, []);
 
   const toggleSidebar = () => {
     const next = !sidebarCollapsed;
@@ -72,7 +97,9 @@ export default function TopBanner({
     { id: "ai-coach", label: "AI Coach", title: "AI Trader Coach", icon: Bot },
   ];
 
-  const activeTab = tabs.find((tab) => tab.id === currentTab) ?? tabs[0];
+  const activeTab = currentTab === "guide"
+    ? { id: "guide", label: "Guide", title: "Guide & Improvements", icon: BookOpenCheck }
+    : tabs.find((tab) => tab.id === currentTab) ?? tabs[0];
   const ActiveTabIcon = activeTab.icon;
 
   return (
@@ -111,6 +138,7 @@ export default function TopBanner({
             return (
               <button
                 key={tab.id}
+                data-tour={`nav-${tab.id}`}
                 type="button"
                 onClick={() => setCurrentTab(tab.id)}
                 title={tab.title}
@@ -145,6 +173,7 @@ export default function TopBanner({
           {onOpenFeedback && (
             <button
               type="button"
+              data-tour="feedback"
               onClick={onOpenFeedback}
               title="Send feedback"
               aria-label="Send feedback"
@@ -152,6 +181,18 @@ export default function TopBanner({
             >
               <MessageSquarePlus size={16} />
               {!sidebarCollapsed && <span>Feedback</span>}
+            </button>
+          )}
+          {onOpenGuide && (
+            <button
+              type="button"
+              onClick={onOpenGuide}
+              title="Guide and improvements"
+              aria-label="Guide and improvements"
+              className={`flex w-full items-center rounded-xl px-3 py-2.5 text-xs text-neutral-400 transition-colors hover:bg-white/[0.06] hover:text-white ${sidebarCollapsed ? "justify-center" : "gap-3"}`}
+            >
+              <BookOpenCheck size={16} />
+              {!sidebarCollapsed && <span>Guide & improvements</span>}
             </button>
           )}
           {user && !sidebarCollapsed && (
@@ -218,6 +259,10 @@ export default function TopBanner({
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
+          <CursorPicker />
+          <div role="status" aria-live="polite" title={connectionState === "online" ? "Connected" : connectionState === "reconnecting" ? "Connection restored; checking services" : "Offline; browser drafts remain available"} className={`hidden items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-semibold sm:flex ${connectionState === "online" ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : connectionState === "reconnecting" ? "border-amber-500/30 bg-amber-500/10 text-amber-200" : "border-rose-500/30 bg-rose-500/10 text-rose-200"}`}>
+            {connectionState === "offline" ? <WifiOff size={12}/> : <Wifi size={12}/>}<span>{connectionState === "online" ? "Online" : connectionState === "reconnecting" ? "Reconnecting…" : "Offline"}</span>
+          </div>
           {/* Live SOL Price Badge */}
           <div
             className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 bg-white border border-[#e3e2de] rounded-md text-[11px] font-mono shadow-xs"
@@ -264,6 +309,7 @@ export default function TopBanner({
           {/* New Trade Primary Action */}
           <Button
             type="button"
+            data-tour="new-trade"
             size="sm"
             onPress={onOpenNewTrade}
             className="h-7 min-w-0 rounded-md bg-[#1a73ca] px-2.5 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-[#155fa8] sm:px-3"
@@ -295,6 +341,7 @@ export default function TopBanner({
           return (
             <button
               key={tab.id}
+              data-tour={`nav-${tab.id}`}
               onClick={() => setCurrentTab(tab.id)}
               aria-current={isActive ? "page" : undefined}
               className={`flex flex-col items-center justify-center py-1 px-2 rounded-lg transition-colors text-[10px] ${
@@ -308,8 +355,13 @@ export default function TopBanner({
         })}
       </div>
       {onOpenFeedback && (
-        <button type="button" onClick={onOpenFeedback} aria-label="Send feedback" title="Send feedback" className="fixed bottom-[5.6rem] right-4 z-40 flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-[#1a73ca] text-white shadow-xl transition hover:bg-[#155fa8] md:hidden">
+        <button type="button" data-tour="feedback" onClick={onOpenFeedback} aria-label="Send feedback" title="Send feedback" className="fixed bottom-[5.6rem] right-4 z-40 flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-[#1a73ca] text-white shadow-xl transition hover:bg-[#155fa8] md:hidden">
           <MessageSquarePlus size={19} />
+        </button>
+      )}
+      {onOpenGuide && (
+        <button type="button" onClick={onOpenGuide} aria-label="Open guide and improvements" title="Guide and improvements" className="fixed bottom-[5.6rem] right-[4.25rem] z-40 flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-[#24272c] text-white shadow-xl transition hover:bg-[#30343a] md:hidden">
+          <BookOpenCheck size={19} />
         </button>
       )}
     </>
