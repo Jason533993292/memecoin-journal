@@ -43,6 +43,42 @@ Use the least privilege that still lets a maintainer diagnose and release the ap
 4. Connect an uptime monitor to the authenticated health endpoint and alert on HTTP 503.
 5. Add alerting for repeated Firebase Auth failures, Supabase errors, SOL-price lookup failures, and failed feedback delivery.
 
+### Activate the repository monitors
+
+The repository includes two scheduled workflows:
+
+- `Service monitoring` checks public liveness every 30 minutes, then checks Firebase, Supabase, and feedback-email readiness when authenticated health tokens are configured.
+- `Protected staging isolation` creates two disposable Firebase accounts once a week, verifies that each account can see and modify only its own Supabase rows, and deletes both accounts afterward.
+
+Add these GitHub Actions repository secrets:
+
+```text
+PRODUCTION_HEALTHCHECK_TOKEN
+STAGING_HEALTHCHECK_TOKEN
+SUPABASE_ACCESS_TOKEN
+STAGING_FIREBASE_API_KEY
+STAGING_SUPABASE_URL
+STAGING_SUPABASE_PUBLISHABLE_KEY
+```
+
+`PRODUCTION_HEALTHCHECK_TOKEN` and `STAGING_HEALTHCHECK_TOKEN` must exactly match the server-only `HEALTHCHECK_TOKEN` configured in the corresponding Railway environment. Never prefix them with `NEXT_PUBLIC_`.
+
+Create a Supabase personal access token with the narrowest available project-management access and store it only as `SUPABASE_ACCESS_TOKEN` in GitHub Actions. It is used only to verify that a recent backup exists; it is not bundled into the app.
+
+After adding the secrets, open GitHub Actions and manually run both workflows once. Confirm that both jobs pass before relying on their schedules.
+
+## Backup restoration drill
+
+`npm run backup:verify` confirms that Supabase reports a recent backup, but it deliberately does not restore production. A restore causes downtime and must remain an owner-approved operation.
+
+1. In Supabase, create an isolated preview branch or separate temporary project.
+2. Download a logical backup or select a provider backup made before the drill.
+3. Restore it only into the isolated target.
+4. Run the migration verifier and compare counts for `trades`, `wallets`, `wallet_transactions`, `coin_research`, `user_settings`, and `user_feedback`.
+5. Sign in with a disposable account and confirm row-level security still isolates accounts.
+6. Record the backup timestamp, restoration duration, record counts, and result.
+7. Remove the temporary target only after the evidence is saved. Never use production as the drill target.
+
 ## Release order
 
 1. Apply database migrations to staging.

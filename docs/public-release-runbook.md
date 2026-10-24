@@ -22,6 +22,8 @@ that passed staging.
    deletion.
 6. Repeat the ownership tests with two accounts and confirm neither can read
    or modify the other's Supabase rows.
+7. Run `npm run test:staging:isolation` with the protected staging variables,
+   and confirm both disposable accounts are removed at the end.
 
 ## 3. Configure production secrets
 
@@ -64,6 +66,8 @@ Run `npm run deployment:verify` with the same values on a trusted machine.
    Supabase datasets.
 5. Start with an invite-only beta, monitor logs and feedback, then open public
    registration.
+6. Manually run the `Service monitoring` and `Protected staging isolation`
+   GitHub Actions workflows and confirm they pass before announcing the release.
 
 ## Owner decisions
 

@@ -26,7 +26,7 @@ const ROADMAP: Array<{ title: string; description: string; items: RoadmapItem[] 
     description: "Making saving, importing, notifications, and recovery predictable.",
     items: [
       { text: "Reconciled and repeatable database migration history", status: "In progress" },
-      { text: "Integration tests against a protected staging database", status: "Planned" },
+      { text: "Integration tests against a protected staging database", status: "In progress" },
       { text: "Resumable account deletion across every data store", status: "Available" },
       { text: "Duplicate-safe feedback and import operations", status: "In progress" },
       { text: "Request IDs in server logs for faster diagnosis", status: "Available" },
@@ -46,7 +46,7 @@ const ROADMAP: Array<{ title: string; description: string; items: RoadmapItem[] 
       { text: "Friendly recovery screen for unexpected errors", status: "Available" },
       { text: "Clear offline and reconnecting states", status: "Available" },
       { text: "Lazy-loaded charts and large dialogs", status: "Available" },
-      { text: "Database-generated TypeScript definitions", status: "Planned" },
+      { text: "Database-generated TypeScript definitions", status: "In progress" },
       { text: "One shared currency and quantity formatter", status: "In progress" },
       { text: "Safer component-based AI response formatting", status: "Planned" },
       { text: "Warning-free automated test configuration", status: "Planned" },
@@ -94,15 +94,15 @@ const STATUS_STYLES = {
 };
 
 const RECOMMENDED_NEXT = [
-  { title: "Automated accessibility and contrast checks", detail: "Test every theme, dialog, form, and focus state before release." },
-  { title: "Saved, syncing, and offline indicators", detail: "Show whether a change is local, syncing, saved, offline, or needs attention." },
-  { title: "Protected staging integration tests", detail: "Exercise real save, edit, delete, import, feedback, and account-deletion journeys safely." },
-  { title: "Resumable account deletion", detail: "Continue cleanup safely if one database or authentication step temporarily fails." },
-  { title: "Backup and export reminders", detail: "Prompt users to keep an independent copy of journal records they care about." },
-  { title: "Automated secret and dependency scanning", detail: "Catch exposed credentials and vulnerable packages before deployment." },
-  { title: "Service health monitoring and alerts", detail: "Detect authentication, database, SOL-price, AI-provider, and feedback-email failures." },
-  { title: "Feedback receipts and resolution tracking", detail: "Confirm submission, assign a reference, and show when a report is addressed." },
-  { title: "Request IDs and diagnostic history", detail: "Make failed saves, imports, feedback, and account actions easier to trace safely." },
+  { title: "Activate protected staging checks", detail: "Connect the new two-account privacy journey to protected GitHub staging secrets." },
+  { title: "Activate service alerts", detail: "Connect authenticated health tokens so database and feedback-email failures trigger alerts." },
+  { title: "Complete a database restore drill", detail: "Restore a recent backup into an isolated project and verify record counts without touching production." },
+  { title: "Enable Firebase App Check", detail: "Observe valid traffic first, then enforce requests from the real web app." },
+  { title: "Feedback administration", detail: "Review, assign, resolve, and audit feedback reports from a protected maintainer inbox." },
+  { title: "Shared financial formatting", detail: "Use one formatter for every SOL, USD, percentage, size, and realized P&L display." },
+  { title: "Generated database types", detail: "Regenerate and verify TypeScript definitions whenever the Supabase schema changes." },
+  { title: "Safer AI response rendering", detail: "Render bounded structured sections and make timeouts, cancellation, and provider failures explicit." },
+  { title: "Reconciled migration history", detail: "Keep local migrations, hosted migration records, and staging schema checks synchronized." },
   { title: "Calendar filters", detail: "Filter monthly results by wallet, currency, strategy, and paper or live trading." },
 ];
 

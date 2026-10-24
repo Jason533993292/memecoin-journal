@@ -1,0 +1,46 @@
+name: Service monitoring
+
+on:
+  schedule:
+    - cron: "17,47 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Verify public and dependency health
+        run: npm run monitor:services
+        env:
+          PRODUCTION_BASE_URL: https://memecoin-journal.up.railway.app
+          STAGING_BASE_URL: https://memecoin-journal-staging.up.railway.app
+          PRODUCTION_HEALTHCHECK_TOKEN: ${{ secrets.PRODUCTION_HEALTHCHECK_TOKEN }}
+          STAGING_HEALTHCHECK_TOKEN: ${{ secrets.STAGING_HEALTHCHECK_TOKEN }}
+
+  backup-freshness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Verify a recent Supabase backup exists
+        run: npm run backup:verify
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: tndqtaouizztihzggwnh
+          SUPABASE_BACKUP_MAX_AGE_HOURS: "48"
+
