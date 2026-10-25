@@ -173,6 +173,154 @@ html[data-theme-preview] .daily-journal-editor blockquote {
   color: var(--daily-muted);
 }
 
+.daily-journal-book-shell {
+  min-width: 0;
+}
+
+.daily-journal-book {
+  --book-paper: #fffaf0;
+  --book-paper-deep: #f4ead8;
+  --book-ink: #3f3428;
+  --book-muted: #746955;
+  --book-line: rgba(83, 112, 143, 0.16);
+  --book-edge: #d8cdb9;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--book-edge);
+  border-radius: 18px 24px 24px 18px;
+  background: #6e4d35;
+  box-shadow: 0 18px 45px rgba(42, 31, 22, 0.18), 0 4px 0 #5d402c;
+  color: var(--book-ink);
+  font-family: var(--journal-font);
+}
+
+.daily-journal-book::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: 50%;
+  width: 28px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(70, 48, 31, 0.15), rgba(255, 255, 255, 0.3) 43%, rgba(70, 48, 31, 0.2) 57%, transparent);
+  z-index: 2;
+}
+
+.daily-journal-paper {
+  position: relative;
+  min-width: 0;
+  min-height: 660px;
+  padding: 2rem 2.35rem 3.25rem;
+  background: var(--book-paper);
+  color: var(--book-ink);
+}
+
+.daily-journal-left-page {
+  border-right: 1px solid var(--book-edge);
+  box-shadow: inset -16px 0 25px -24px rgba(68, 45, 27, 0.8);
+}
+
+.daily-journal-right-page {
+  box-shadow: inset 16px 0 25px -24px rgba(68, 45, 27, 0.8);
+}
+
+.daily-journal-book.is-focus {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 880px;
+  margin-inline: auto;
+}
+
+.daily-journal-book.is-focus::after {
+  display: none;
+}
+
+.daily-journal-book-heading {
+  display: flex;
+  align-items: end;
+  gap: 1rem;
+  min-height: 3.25rem;
+}
+
+.daily-journal-date {
+  width: 8.3rem;
+  flex: 0 0 auto;
+  color: var(--book-muted) !important;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+.daily-journal-lined-paper {
+  border: 0;
+  border-radius: 0;
+  color: var(--book-ink) !important;
+  font-family: var(--journal-font);
+  background-color: transparent;
+  background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 31px, var(--book-line) 31px, var(--book-line) 32px);
+  background-position: 0 7px;
+  caret-color: var(--daily-accent);
+}
+
+.daily-journal-lined-paper:focus {
+  box-shadow: none;
+}
+
+.daily-journal-page-number {
+  position: absolute;
+  bottom: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--book-muted);
+  font: 600 0.7rem/1 ui-sans-serif, system-ui, sans-serif;
+}
+
+.daily-journal-book-footer {
+  color: var(--daily-text);
+}
+
+html[data-theme-preview] .daily-journal-book {
+  --book-paper: color-mix(in srgb, var(--preview-surface) 92%, #b88958);
+  --book-paper-deep: color-mix(in srgb, var(--preview-raised) 90%, #b88958);
+  --book-ink: var(--preview-text);
+  --book-muted: var(--preview-muted);
+  --book-line: color-mix(in srgb, var(--preview-border) 50%, transparent);
+  --book-edge: var(--preview-border);
+  background: color-mix(in srgb, var(--preview-page) 72%, #6e4d35);
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.38), 0 4px 0 color-mix(in srgb, var(--preview-page) 60%, #4f3524);
+}
+
+html[data-theme-preview] .daily-journal-book input,
+html[data-theme-preview] .daily-journal-book select {
+  color: var(--book-ink) !important;
+}
+
+html[data-theme-preview] .daily-journal-book [class*="bg-[#f7f6f3]"],
+html[data-theme-preview] .daily-journal-book [class*="bg-[#f4ead8]"],
+html[data-theme-preview] .daily-journal-book [class*="bg-[#eee4d2]"] {
+  background: var(--book-paper-deep) !important;
+}
+
+@media (max-width: 1180px) {
+  .daily-journal-book {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .daily-journal-book::after {
+    display: none;
+  }
+
+  .daily-journal-left-page {
+    border-right: 0;
+    border-bottom: 1px solid var(--book-edge);
+    box-shadow: none;
+  }
+
+  .daily-journal-right-page {
+    min-height: auto;
+    box-shadow: none;
+  }
+}
+
 .paper-trade-badge {
   border: 0 !important;
   box-shadow: none !important;
