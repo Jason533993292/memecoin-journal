@@ -34,6 +34,7 @@ interface TopBannerProps {
   onOpenCommandPalette?: () => void;
   onOpenDailyRecap?: () => void;
   onDeleteAccount?: () => void;
+  onDeleteTradingData?: () => void;
   onOpenFeedback?: () => void;
   onOpenGuide?: () => void;
   solPrice?: number;
@@ -51,6 +52,7 @@ export default function TopBanner({
   onOpenCommandPalette,
   onOpenDailyRecap,
   onDeleteAccount,
+  onDeleteTradingData,
   onOpenFeedback,
   onOpenGuide,
   solPrice = 0,
@@ -258,6 +260,18 @@ export default function TopBanner({
                   className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs text-sky-300 hover:bg-white/[0.06]"
                 >
                   <KeyRound size={14} /> Send password reset email
+                </button>
+              )}
+              {onDeleteTradingData && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAccountMenuOpen(false);
+                    onDeleteTradingData?.();
+                  }}
+                  className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs text-rose-300 hover:bg-white/[0.06]"
+                >
+                  <Trash2 size={14} /> Delete all trades & stats
                 </button>
               )}
               {onDeleteAccount && (

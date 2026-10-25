@@ -39,6 +39,19 @@ export async function deleteSupabaseJournalData(userId: string) {
   }
 }
 
+export async function deleteSupabaseTrades(userId: string) {
+  const admin = getSupabaseAdminClient();
+  const { error } = await admin.from("trades").delete().eq("user_id", userId);
+  if (error) throw new Error(error.message);
+
+  const { count, error: verificationError } = await admin
+    .from("trades")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId);
+  if (verificationError) throw new Error(verificationError.message);
+  if ((count ?? 0) !== 0) throw new Error("Trade deletion verification found remaining rows.");
+}
+
 export async function createUserFeedback(input: {
   userId: string;
   category: "bug" | "suggestion" | "other";

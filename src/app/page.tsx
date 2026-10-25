@@ -21,6 +21,7 @@ const ShareablePnlCardModal = dynamic(() => import("../components/ShareablePnlCa
 const GoalEditorModal = dynamic(() => import("../components/GoalEditorModal"));
 const DailyRecapModal = dynamic(() => import("../components/DailyRecapModal"));
 const AccountDeletionModal = dynamic(() => import("../components/AccountDeletionModal"));
+const TradingDataDeletionModal = dynamic(() => import("../components/TradingDataDeletionModal"));
 const FeedbackModal = dynamic(() => import("../components/FeedbackModal"));
 const WelcomeTourModal = dynamic(() => import("../components/WelcomeTourModal"));
 const GuideView = dynamic(() => import("../components/GuideView"), { loading: () => <SectionLoading /> });
@@ -124,6 +125,7 @@ function AuthenticatedApp({ user }: { user: User }) {
   const [clonedTrade, setClonedTrade] = useState<Partial<Trade> | null>(null);
   const [tradeToDeleteDirectly, setTradeToDeleteDirectly] = useState<string | null>(null);
   const [isAccountDeletionOpen, setIsAccountDeletionOpen] = useState(false);
+  const [isTradingDataDeletionOpen, setIsTradingDataDeletionOpen] = useState(false);
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const [legalPanel, setLegalPanel] = useState<"privacy" | "terms" | null>(null);
   const welcomeStorageKey = `memecoin_journal_${user.uid}_welcome_complete`;
@@ -446,6 +448,7 @@ function AuthenticatedApp({ user }: { user: User }) {
         onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         onOpenDailyRecap={() => setIsDailyRecapOpen(true)}
         onDeleteAccount={() => setIsAccountDeletionOpen(true)}
+        onDeleteTradingData={() => setIsTradingDataDeletionOpen(true)}
         onOpenFeedback={() => setIsFeedbackOpen(true)}
         onOpenGuide={() => setCurrentTab("guide")}
         solPrice={solPrice}
@@ -639,6 +642,18 @@ function AuthenticatedApp({ user }: { user: User }) {
         key={`${user.uid}:account-deletion`}
         isOpen={isAccountDeletionOpen}
         onClose={() => setIsAccountDeletionOpen(false)}
+      />}
+
+      {isTradingDataDeletionOpen && <TradingDataDeletionModal
+        key={`${user.uid}:trading-data-deletion`}
+        isOpen={isTradingDataDeletionOpen}
+        onClose={() => setIsTradingDataDeletionOpen(false)}
+        onDeleted={() => {
+          setTrades([]);
+          setInspectingTrade(null);
+          setEditingTrade(null);
+          fetchTrades();
+        }}
       />}
 
       <FeedbackModal
