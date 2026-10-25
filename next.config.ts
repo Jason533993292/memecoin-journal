@@ -25,7 +25,10 @@ const nextConfig: NextConfig = {
       source: "/(.*)",
       headers: [
         { key: "X-Content-Type-Options", value: "nosniff" },
-        { key: "X-Frame-Options", value: "DENY" },
+        // Legal documents are displayed inside the authenticated app's own modal.
+        // SAMEORIGIN keeps third-party sites from framing the app while allowing
+        // that same-origin panel to render /privacy and /terms.
+        { key: "X-Frame-Options", value: "SAMEORIGIN" },
         { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
         { key: "Strict-Transport-Security", value: "max-age=31536000" },
         { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
