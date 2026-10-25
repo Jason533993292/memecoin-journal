@@ -17,7 +17,10 @@ export const GUIDED_JOURNAL_PROMPTS: Record<Exclude<DailyJournalEntryType, "free
   },
 };
 
-const ALLOWED_TAGS = new Set(["P", "BR", "STRONG", "B", "EM", "I", "U", "S", "H2", "H3", "UL", "OL", "LI", "BLOCKQUOTE", "HR"]);
+// Chromium uses DIV blocks when Enter is pressed inside contentEditable.
+// Keeping those blocks preserves one visual line break instead of flattening
+// several paragraphs into a single line during sanitization and autosave.
+const ALLOWED_TAGS = new Set(["P", "DIV", "BR", "STRONG", "B", "EM", "I", "U", "S", "H2", "H3", "UL", "OL", "LI", "BLOCKQUOTE", "HR"]);
 
 export function sanitizeJournalHtml(html: string): string {
   if (typeof window === "undefined") return "";
