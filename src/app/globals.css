@@ -121,6 +121,58 @@
 .daily-journal-editor ol { list-style: decimal; padding-left: 1.5rem; }
 .daily-journal-editor blockquote { border-left: 3px solid #a8cbee; color: #5a5957; margin: 0.75rem 0; padding-left: 0.8rem; }
 
+.daily-journal-workspace {
+  --daily-page: #fbfbfa;
+  --daily-surface: #ffffff;
+  --daily-raised: #f7f6f3;
+  --daily-border: #e3e2de;
+  --daily-text: #37352f;
+  --daily-muted: #787774;
+  --daily-accent: #2383e2;
+  background: var(--daily-page);
+  color: var(--daily-text);
+}
+
+.daily-journal-surface,
+.daily-journal-workspace select,
+.daily-journal-workspace input,
+.daily-journal-workspace .daily-journal-editor {
+  color: var(--daily-text);
+}
+
+.daily-journal-secondary,
+.daily-journal-linked-trade {
+  border-color: var(--daily-border);
+  background: var(--daily-surface);
+  color: var(--daily-text);
+}
+
+html[data-theme-preview] .daily-journal-workspace {
+  --daily-page: var(--preview-page);
+  --daily-surface: var(--preview-surface);
+  --daily-raised: var(--preview-raised);
+  --daily-border: var(--preview-border);
+  --daily-text: var(--preview-text);
+  --daily-muted: var(--preview-muted);
+  --daily-accent: var(--preview-accent);
+}
+
+html[data-theme-preview] .daily-journal-workspace.fixed {
+  background: var(--daily-page) !important;
+}
+
+html[data-theme-preview] .daily-journal-secondary,
+html[data-theme-preview] .daily-journal-linked-trade {
+  background: var(--daily-raised) !important;
+  border-color: var(--daily-border) !important;
+  color: var(--daily-text) !important;
+}
+
+html[data-theme-preview] .daily-journal-editor blockquote {
+  border-left-color: var(--daily-accent);
+  color: var(--daily-muted);
+}
+
 .paper-trade-badge {
   border: 0 !important;
   box-shadow: none !important;
