@@ -104,6 +104,23 @@
   border-color: #c8c7c3;
 }
 
+.daily-journal-editor:empty::before {
+  color: #9b9a97;
+  content: "Write freely. What happened, what did you feel, and what do you want to remember?";
+  pointer-events: none;
+}
+
+.daily-journal-editor h2 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 1rem 0 0.25rem;
+}
+
+.daily-journal-editor h3 { font-size: 0.95rem; font-weight: 700; margin: 0.75rem 0 0.2rem; }
+.daily-journal-editor ul { list-style: disc; padding-left: 1.5rem; }
+.daily-journal-editor ol { list-style: decimal; padding-left: 1.5rem; }
+.daily-journal-editor blockquote { border-left: 3px solid #a8cbee; color: #5a5957; margin: 0.75rem 0; padding-left: 0.8rem; }
+
 .paper-trade-badge {
   border: 0 !important;
   box-shadow: none !important;

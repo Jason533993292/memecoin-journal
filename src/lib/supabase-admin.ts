@@ -26,7 +26,7 @@ export async function deleteSupabaseJournalData(userId: string) {
 
   // Child/history tables go first. Every operation is safe to repeat, allowing
   // a later request to resume after a temporary provider failure.
-  const tables = ["wallet_transactions", "trades", "coin_research", "wallets", "user_settings", "user_feedback"];
+  const tables = ["wallet_transactions", "trades", "coin_research", "daily_journal_entries", "wallets", "user_settings", "user_feedback"];
   for (const table of tables) {
     const { error } = await admin.from(table).delete().eq("user_id", userId);
     if (error) throw new Error(`${table}: ${error.message}`);

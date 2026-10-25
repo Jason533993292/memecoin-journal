@@ -5,6 +5,7 @@ import {
   Search,
   LayoutDashboard,
   BookOpen,
+  BookHeart,
   Wallet,
   BarChart3,
   Bot,
@@ -81,12 +82,22 @@ export default function CommandPaletteModal({
     },
     {
       id: "nav-journal",
-      title: "Go to Trade Journal",
+      title: "Go to Trades",
       category: "Navigation",
       icon: BookOpen,
       run: () => {
         onClose();
         onNavigateTab("journal");
+      },
+    },
+    {
+      id: "nav-daily-journal",
+      title: "Open Daily Journal",
+      category: "Navigation",
+      icon: BookHeart,
+      run: () => {
+        onClose();
+        onNavigateTab("daily-journal");
       },
     },
     {

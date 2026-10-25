@@ -1,10 +1,72 @@
 import { getSupabaseClient } from "@/lib/supabase";
-import type { GoalSettings, JournalRules, ResearchItem, Trade, Wallet, WalletTransaction } from "@/lib/types";
+import type { DailyJournalEntry, GoalSettings, JournalRules, ResearchItem, Trade, Wallet, WalletTransaction } from "@/lib/types";
 
 type JsonRecord = Record<string, unknown>;
 const SUPABASE_PAGE_SIZE = 1000;
 
 export const usesSupabaseJournal = () => process.env.NEXT_PUBLIC_DATA_BACKEND === "supabase";
+
+function fromDailyJournalRow(row: JsonRecord): DailyJournalEntry {
+  return {
+    id: String(row.id),
+    title: String(row.title ?? "Untitled entry"),
+    contentHtml: String(row.content_html ?? ""),
+    plainText: String(row.plain_text ?? ""),
+    entryType: row.entry_type as DailyJournalEntry["entryType"],
+    entryDate: String(row.entry_date),
+    emotions: Array.isArray(row.emotions) ? row.emotions.filter((item): item is string => typeof item === "string") : [],
+    emotionIntensity: optionalNumber(row.emotion_intensity) ?? undefined,
+    energyLevel: optionalNumber(row.energy_level) ?? undefined,
+    confidenceLevel: optionalNumber(row.confidence_level) ?? undefined,
+    tags: Array.isArray(row.tags) ? row.tags.filter((item): item is string => typeof item === "string") : [],
+    linkedTradeIds: Array.isArray(row.linked_trade_ids) ? row.linked_trade_ids.filter((item): item is string => typeof item === "string") : [],
+    createdAt: epoch(row.created_at) ?? Date.now(),
+    updatedAt: epoch(row.updated_at) ?? Date.now(),
+  };
+}
+
+export async function listSupabaseDailyJournalEntries(userId: string): Promise<DailyJournalEntry[]> {
+  const { data, error } = await getSupabaseClient()
+    .from("daily_journal_entries")
+    .select("*")
+    .eq("user_id", userId)
+    .order("entry_date", { ascending: false })
+    .order("updated_at", { ascending: false })
+    .limit(500);
+  throwIfError(error);
+  return (data ?? []).map((row) => fromDailyJournalRow(row as JsonRecord));
+}
+
+export async function saveSupabaseDailyJournalEntry(userId: string, entry: DailyJournalEntry) {
+  const { error } = await getSupabaseClient().from("daily_journal_entries").upsert({
+    user_id: userId,
+    id: entry.id,
+    title: entry.title.trim() || "Untitled entry",
+    content_html: entry.contentHtml,
+    plain_text: entry.plainText,
+    entry_type: entry.entryType,
+    entry_date: entry.entryDate,
+    emotions: entry.emotions,
+    emotion_intensity: entry.emotionIntensity ?? null,
+    energy_level: entry.energyLevel ?? null,
+    confidence_level: entry.confidenceLevel ?? null,
+    tags: entry.tags,
+    linked_trade_ids: entry.linkedTradeIds,
+    created_at: new Date(entry.createdAt).toISOString(),
+    updated_at: new Date(entry.updatedAt).toISOString(),
+  }, { onConflict: "user_id,id" });
+  throwIfError(error);
+}
+
+export async function deleteSupabaseDailyJournalEntry(userId: string, id: string) {
+  const { error } = await getSupabaseClient().from("daily_journal_entries").delete().eq("user_id", userId).eq("id", id);
+  throwIfError(error);
+}
+
+export async function deleteAllSupabaseDailyJournalEntries(userId: string) {
+  const { error } = await getSupabaseClient().from("daily_journal_entries").delete().eq("user_id", userId);
+  throwIfError(error);
+}
 
 export async function listSupabaseResearch(userId: string): Promise<ResearchItem[]> {
   const { data, error } = await getSupabaseClient()

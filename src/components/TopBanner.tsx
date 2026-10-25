@@ -7,6 +7,7 @@ import CursorPicker from "./CursorPicker";
 import {
   LayoutDashboard,
   BookOpen,
+  BookHeart,
   Wallet,
   BarChart3,
   Bot,
@@ -110,7 +111,8 @@ export default function TopBanner({
 
   const tabs = [
     { id: "dashboard", label: "Dashboard", title: "MemeCoins Dashboard", icon: LayoutDashboard },
-    { id: "journal", label: "Journal", title: "Trade Journal", icon: BookOpen },
+    { id: "journal", label: "Trades", title: "Trades", icon: BookOpen },
+    { id: "daily-journal", label: "Daily Journal", title: "Daily Journal", icon: BookHeart },
     { id: "wallets", label: "Wallets", title: "Wallets & Paychecks", icon: Wallet },
     { id: "statistics", label: "Analytics", title: "Statistics", icon: BarChart3 },
     { id: "research", label: "Research", title: "Coin Research & Thesis", icon: Microscope },

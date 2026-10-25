@@ -8,6 +8,7 @@ import { Trade, JournalRules, AiCoachBrief, GoalSettings } from "../lib/types";
 import TopBanner from "../components/TopBanner";
 const DashboardView = dynamic(() => import("../components/DashboardView"), { loading: () => <SectionLoading /> });
 const TradeJournalView = dynamic(() => import("../components/TradeJournalView"), { loading: () => <SectionLoading /> });
+const DailyJournalView = dynamic(() => import("../components/DailyJournalView"), { loading: () => <SectionLoading /> });
 const WalletsView = dynamic(() => import("../components/WalletsView"), { loading: () => <SectionLoading /> });
 const StatisticsView = dynamic(() => import("../components/StatisticsView"), { loading: () => <SectionLoading /> });
 const AiCoachView = dynamic(() => import("../components/AiCoachView"), { loading: () => <SectionLoading /> });
@@ -527,6 +528,15 @@ function AuthenticatedApp({ user }: { user: User }) {
             onOpenEditTrade={(trade) => setEditingTrade(trade)}
             onSelectTrade={(trade) => setInspectingTrade(trade)}
             readOnly={isExampleMode}
+          />
+        )}
+
+        {currentTab === "daily-journal" && (
+          <DailyJournalView
+            key={`${user.uid}:${tutorialDemoMode ? "tutorial" : "live"}`}
+            userId={user.uid}
+            trades={activeTrades}
+            tutorialMode={tutorialDemoMode}
           />
         )}
 

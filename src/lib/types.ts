@@ -100,6 +100,25 @@ export interface AiCoachBrief {
   timestamp?: number;
 }
 
+export type DailyJournalEntryType = "free" | "pre_trade" | "post_trade" | "end_of_day";
+
+export interface DailyJournalEntry {
+  id: string;
+  title: string;
+  contentHtml: string;
+  plainText: string;
+  entryType: DailyJournalEntryType;
+  entryDate: string;
+  emotions: string[];
+  emotionIntensity?: number;
+  energyLevel?: number;
+  confidenceLevel?: number;
+  tags: string[];
+  linkedTradeIds: string[];
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface ToastMessage {
   id: string;
   type: 'success' | 'error' | 'info';
