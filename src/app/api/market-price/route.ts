@@ -20,12 +20,12 @@ const responseHeaders = {
 };
 
 async function fetchFreshPrice(symbol: MarketAssetSymbol): Promise<PriceResult> {
-  const asset = MARKET_ASSETS[symbol];
   const now = Date.now();
+  const allCoinGeckoIds = Object.values(MARKET_ASSETS).map((item) => item.coinGeckoId).join(",");
 
   try {
     const response = await fetch(
-      `https://api.coingecko.com/api/v3/simple/price?ids=${asset.coinGeckoId}&vs_currencies=usd&include_24hr_change=true`,
+      `https://api.coingecko.com/api/v3/simple/price?ids=${allCoinGeckoIds}&vs_currencies=usd&include_24hr_change=true`,
       {
         headers: { Accept: "application/json" },
         next: { revalidate: 60 },
@@ -34,18 +34,19 @@ async function fetchFreshPrice(symbol: MarketAssetSymbol): Promise<PriceResult> 
     );
     if (response.ok) {
       const data = await response.json();
-      const price = data?.[asset.coinGeckoId]?.usd;
-      const change24h = data?.[asset.coinGeckoId]?.usd_24h_change;
-      if (typeof price === "number" && Number.isFinite(price) && price > 0) {
-        return {
-          status: "live",
-          value: {
+      for (const [assetSymbol, marketAsset] of Object.entries(MARKET_ASSETS) as [MarketAssetSymbol, typeof MARKET_ASSETS[MarketAssetSymbol]][]) {
+        const price = data?.[marketAsset.coinGeckoId]?.usd;
+        const change24h = data?.[marketAsset.coinGeckoId]?.usd_24h_change;
+        if (typeof price === "number" && Number.isFinite(price) && price > 0) {
+          cachedPrices.set(assetSymbol, {
             price,
             change24h: typeof change24h === "number" && Number.isFinite(change24h) ? change24h : 0,
             timestamp: now,
-          },
-        };
+          });
+        }
       }
+      const requestedPrice = cachedPrices.get(symbol);
+      if (requestedPrice?.timestamp === now) return { status: "live", value: requestedPrice };
     }
   } catch (error) {
     console.error(`${symbol} CoinGecko fetch failed, trying fallback:`, error);
