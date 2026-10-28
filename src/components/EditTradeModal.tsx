@@ -16,12 +16,13 @@ import {
   BookOpenCheck,
 } from "lucide-react";
 import TradeDateTimePicker from "./TradeDateTimePicker";
-import { ResearchItem, Trade } from "../lib/types";
+import { ResearchItem, Trade, TradeFill } from "../lib/types";
 import { useToast } from "./Toast";
 import { COMMON_SETUPS, DURATION_PRESETS, DEFAULT_GOOD_TAGS, DEFAULT_MISTAKE_TAGS } from "../lib/constants";
 import { compressImage, getTradeTimestamp } from "../lib/utils";
-import { getTradeCreateValidationError, quoteAmountsToBase, defaultQuoteUsdRate, QUOTE_CURRENCIES, TRADING_VENUES } from "../lib/tradeInput";
+import { getTradeCreateValidationError, quoteAmountsToBase, defaultQuoteUsdRate, QUOTE_CURRENCIES, TRADING_VENUES, summarizeTradeFills } from "../lib/tradeInput";
 import { listSupabaseResearch, saveSupabaseTrade, usesSupabaseJournal } from "../lib/journalBackend";
+import TradeFillsEditor from "./TradeFillsEditor";
 
 interface EditTradeModalProps {
   trade: Trade | null;
@@ -81,6 +82,7 @@ export default function EditTradeModal({
   const [boughtQuote, setBoughtQuote] = useState(trade?.boughtQuote != null ? String(trade.boughtQuote) : trade?.boughtSol != null ? String(trade.boughtSol) : "");
   const [soldQuote, setSoldQuote] = useState(trade?.soldQuote != null ? String(trade.soldQuote) : trade?.soldSol != null ? String(trade.soldSol) : "");
   const [pnlQuote, setPnlQuote] = useState(trade?.pnlQuote != null ? String(trade.pnlQuote) : trade?.pnlSol != null ? String(trade.pnlSol) : "");
+  const [fills, setFills] = useState<TradeFill[]>(trade?.fills || []);
 
   const [selectedMistakes, setSelectedMistakes] = useState<string[]>(trade?.mistakes || []);
   const [selectedGoodTags, setSelectedGoodTags] = useState<string[]>(trade?.goodTags || []);
@@ -210,6 +212,14 @@ export default function EditTradeModal({
     setResult(base.pnlSol > 0.005 ? "Win" : base.pnlSol < -0.005 ? "Loss" : "BE");
   };
 
+  const updateFills = (nextFills: TradeFill[]) => {
+    setFills(nextFills);
+    if (!nextFills.length) return;
+    const summary = summarizeTradeFills(nextFills);
+    syncQuoteAmounts(String(summary.boughtQuote), String(summary.soldQuote), String(summary.pnlQuote));
+    setFeesSol(String(summary.feesSol));
+  };
+
   const toggleGoodTag = (tag: string) => {
     if (selectedGoodTags.includes(tag)) {
       setSelectedGoodTags(selectedGoodTags.filter((current) => current !== tag));
@@ -298,6 +308,7 @@ export default function EditTradeModal({
         goodTags: selectedGoodTags,
         mistakes: selectedMistakes,
         notes: notes.trim(),
+        fills,
       };
       const storedTrade = Object.fromEntries(
         Object.entries(trade).filter(([field]) => field !== "id")
@@ -592,6 +603,8 @@ export default function EditTradeModal({
             </div>
             <p className="text-[10px] text-[#787774]">Totals stay comparable in SOL/USD. For ETH, BTC, EUR, GBP, or Other, enter the USD exchange rate at the time of the trade. Changing currency keeps your entered amount unchanged.</p>
           </div>
+
+          <TradeFillsEditor fills={fills} quoteSymbol={quoteCurrency === "OTHER" ? otherQuoteSymbol || "OTHER" : quoteCurrency || "SOL"} onChange={updateFills} />
 
           {/* Advanced Metrics Accordion */}
           <div className="border border-[#e9e9e7] rounded-xl p-3 bg-white">

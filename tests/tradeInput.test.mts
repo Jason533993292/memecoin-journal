@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildTradeAmounts, calculateTradePnl, isValidSolAmount, parseQuickTradePaste, reinterpretAmountForCurrency, quoteAmountsToBase, defaultQuoteUsdRate } from "../src/lib/tradeInput.ts";
+import { buildTradeAmounts, calculateTradePnl, isValidSolAmount, parseQuickTradePaste, reinterpretAmountForCurrency, quoteAmountsToBase, defaultQuoteUsdRate, summarizeTradeFills, getTradeCreateValidationError } from "../src/lib/tradeInput.ts";
 
 const DIGIT_HEAVY_ADDRESS = "So11111111111111111111111111111111111111112";
 
@@ -110,4 +110,24 @@ test("stablecoin quote defaults to parity while unpriced fiat/crypto requires a 
 
 test("invalid quote conversion rates are rejected instead of producing misleading stats", () => {
   assert.throws(() => quoteAmountsToBase({ bought: 1, sold: 1.1, pnl: 0.1, quoteUsdRate: 0, solPrice: 150 }), /conversion rate/i);
+});
+
+test("partial fills derive entry, exit, pnl and total SOL fees without losing fill detail", () => {
+  const fills = [
+    { id: "e1", side: "entry" as const, quoteAmount: 1, feeSol: 0.001, executedAt: 1 },
+    { id: "e2", side: "entry" as const, quoteAmount: 0.5, feeSol: 0.002, executedAt: 2 },
+    { id: "x1", side: "exit" as const, quoteAmount: 2.1, feeSol: 0.003, executedAt: 3 },
+  ];
+  assert.deepEqual(summarizeTradeFills(fills), {
+    boughtQuote: 1.5,
+    soldQuote: 2.1,
+    pnlQuote: 0.6000000000000001,
+    feesSol: 0.006,
+  });
+});
+
+test("trade validation rejects malformed or excessive partial fills", () => {
+  const base = { ca: "", name: "Token", symbol: "TOK", wallet: "Main", result: "Win", setupType: "Breakout", boughtSol: 1, pnlSol: 0.2, pnlUsd: 20, mistakes: [], notes: "", createdAt: 1 };
+  assert.match(getTradeCreateValidationError({ ...base, fills: [{ id: "x", side: "bad", quoteAmount: 1, feeSol: 0, executedAt: 1 }] }) || "", /entry or exit/i);
+  assert.match(getTradeCreateValidationError({ ...base, fills: Array.from({ length: 101 }, (_, index) => ({ id: String(index), side: "entry", quoteAmount: 1, feeSol: 0, executedAt: 1 })) }) || "", /up to 100/i);
 });

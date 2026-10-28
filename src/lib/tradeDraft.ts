@@ -30,6 +30,7 @@ export type TradeDraftData = {
   notes: string;
   processGrade?: "A" | "B" | "C" | "D";
   confidenceAtEntry: string;
+  fills?: import("./types").TradeFill[];
 };
 
 export type StoredTradeDraft = {
@@ -52,6 +53,7 @@ export function hasMeaningfulTradeDraft(data: TradeDraftData): boolean {
       || data.screenshotUrl
       || data.selectedGoodTags.length
       || data.selectedMistakes.length
+      || Boolean(data.fills?.length)
   );
 }
 

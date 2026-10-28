@@ -5,6 +5,15 @@ type SolUsdRateSource = "user" | "live-at-entry" | "imported" | "unknown";
 export type TradeMode = "real" | "paper";
 type QuoteCurrency = "SOL" | "USD" | "USDC" | "USDT" | "ETH" | "BTC" | "EUR" | "GBP" | "OTHER";
 
+export interface TradeFill {
+  id: string;
+  side: "entry" | "exit";
+  quoteAmount: number;
+  feeSol: number;
+  executedAt: number;
+  note?: string;
+}
+
 export interface Trade {
   id: string;
   ca: string;
@@ -56,6 +65,7 @@ export interface Trade {
   pnlQuote?: number;
   quoteUsdRate?: number;
   venue?: string;
+  fills?: TradeFill[];
   date?: TradeDate;
   createdAt?: number;
 }

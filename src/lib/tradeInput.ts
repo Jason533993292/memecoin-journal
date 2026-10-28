@@ -1,3 +1,5 @@
+import type { TradeFill } from "./types";
+
 const SOLANA_ADDRESS_PATTERN = /[1-9A-HJ-NP-Za-km-z]{32,44}/;
 const NUMBER_PATTERN = /(?<![A-Za-z])[0-9]+(?:\.[0-9]+)?/g;
 
@@ -75,6 +77,7 @@ const TRADE_CREATE_FIELDS = new Set([
   "date", "createdAt",
   "quoteCurrency", "quoteSymbol", "boughtQuote", "soldQuote", "pnlQuote", "quoteUsdRate", "venue",
   "processGrade", "confidenceAtEntry",
+  "fills",
 ]);
 
 const OPTIONAL_NUMBER_LIMITS: Record<string, [number, number]> = {
@@ -183,10 +186,35 @@ export function getTradeCreateValidationError(
   if (value.tradeMode != null && !["real", "paper"].includes(String(value.tradeMode))) return "Trade mode is not a supported option.";
   if (value.quoteCurrency != null && !QUOTE_CURRENCIES.includes(String(value.quoteCurrency) as (typeof QUOTE_CURRENCIES)[number])) return "Quote currency is not supported.";
   if (value.notes != null && (typeof value.notes !== "string" || value.notes.length > 4_000)) return "Notes must be text and no more than 4,000 characters.";
+  if (value.fills != null) {
+    if (!Array.isArray(value.fills) || value.fills.length > 100) return "A trade can contain up to 100 partial fills.";
+    for (const fill of value.fills) {
+      if (!fill || typeof fill !== "object" || Array.isArray(fill)) return "Each partial fill must be a valid record.";
+      const record = fill as Record<string, unknown>;
+      if (typeof record.id !== "string" || record.id.length < 1 || record.id.length > 80) return "Each partial fill needs a valid ID.";
+      if (!['entry', 'exit'].includes(String(record.side))) return "Each partial fill must be an entry or exit.";
+      if (typeof record.quoteAmount !== "number" || !Number.isFinite(record.quoteAmount) || record.quoteAmount < 0 || record.quoteAmount > 1_000_000_000_000) return "Partial fill amounts must be valid positive numbers.";
+      if (typeof record.feeSol !== "number" || !Number.isFinite(record.feeSol) || record.feeSol < 0 || record.feeSol > 100_000_000) return "Partial fill fees must be valid SOL amounts.";
+      if (typeof record.executedAt !== "number" || !Number.isFinite(record.executedAt) || record.executedAt < 0 || record.executedAt > 10_000_000_000_000) return "Each partial fill needs a valid execution time.";
+      if (record.note != null && (typeof record.note !== "string" || record.note.length > 200)) return "Partial fill notes must be 200 characters or fewer.";
+    }
+  }
   if (requireCreateMetadata && typeof value.notes !== "string") return "Trade notes are missing. Refresh and try again.";
   if (requireCreateMetadata && (typeof value.createdAt !== "number" || !Number.isFinite(value.createdAt))) return "Trade creation time is missing. Refresh and try again.";
 
   return null;
+}
+
+export function summarizeTradeFills(fills: TradeFill[]) {
+  const safeFills = fills.filter((fill) =>
+    (fill.side === "entry" || fill.side === "exit") &&
+    Number.isFinite(fill.quoteAmount) && fill.quoteAmount >= 0 &&
+    Number.isFinite(fill.feeSol) && fill.feeSol >= 0
+  );
+  const boughtQuote = safeFills.filter((fill) => fill.side === "entry").reduce((sum, fill) => sum + fill.quoteAmount, 0);
+  const soldQuote = safeFills.filter((fill) => fill.side === "exit").reduce((sum, fill) => sum + fill.quoteAmount, 0);
+  const feesSol = safeFills.reduce((sum, fill) => sum + fill.feeSol, 0);
+  return { boughtQuote, soldQuote, pnlQuote: soldQuote - boughtQuote, feesSol };
 }
 
 function parseOptionalAmount(value: string): number | undefined {

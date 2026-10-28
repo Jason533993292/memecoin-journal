@@ -24,7 +24,7 @@ import {
   BookOpenCheck,
 } from "lucide-react";
 import TradeDateTimePicker from "./TradeDateTimePicker";
-import { GoalSettings, JournalRules, ResearchItem, Trade } from "../lib/types";
+import { GoalSettings, JournalRules, ResearchItem, Trade, TradeFill } from "../lib/types";
 import { useToast } from "./Toast";
 import {
   DEFAULT_GOOD_TAGS,
@@ -33,13 +33,14 @@ import {
   DURATION_PRESETS,
 } from "../lib/constants";
 import { compressImage } from "../lib/utils";
-import { getTradeCreateValidationError, parseQuickTradePaste, quoteAmountsToBase, defaultQuoteUsdRate, QUOTE_CURRENCIES, TRADING_VENUES } from "../lib/tradeInput";
+import { getTradeCreateValidationError, parseQuickTradePaste, quoteAmountsToBase, defaultQuoteUsdRate, QUOTE_CURRENCIES, TRADING_VENUES, summarizeTradeFills } from "../lib/tradeInput";
 import BetaBadge from "./BetaBadge";
 import { useAuth } from "../context/AuthContext";
 import { parseLocalStorageValue, useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
 import { lookupTokenMetadata } from "../lib/tokenLookupClient";
 import { listSupabaseResearch, saveSupabaseTrade, usesSupabaseJournal } from "../lib/journalBackend";
 import { hasMeaningfulTradeDraft, parseStoredTradeDraft, TRADE_DRAFT_VERSION, tradeDraftStorageKey, type TradeDraftData } from "../lib/tradeDraft";
+import TradeFillsEditor from "./TradeFillsEditor";
 
 // Re-export for backward compatibility
 interface LogTradeModalProps {
@@ -118,6 +119,7 @@ export default function LogTradeModal({
   const [boughtQuote, setBoughtQuote] = useState(initialData?.boughtQuote != null ? String(initialData.boughtQuote) : initialData?.boughtSol != null ? String(initialData.boughtSol) : "");
   const [soldQuote, setSoldQuote] = useState(initialData?.soldQuote != null ? String(initialData.soldQuote) : initialData?.soldSol != null ? String(initialData.soldSol) : "");
   const [pnlQuote, setPnlQuote] = useState(initialData?.pnlQuote != null ? String(initialData.pnlQuote) : initialData?.pnlSol != null ? String(initialData.pnlSol) : "");
+  const [fills, setFills] = useState<TradeFill[]>(initialData?.fills || []);
 
   // Screenshot / Chart attachment
   const [screenshotUrl, setScreenshotUrl] = useState<string>("");
@@ -170,6 +172,7 @@ export default function LogTradeModal({
         setQuoteCurrency(draft.quoteCurrency as Trade["quoteCurrency"]); setQuoteUsdRate(draft.quoteUsdRate); setVenue(draft.venue);
         setOtherQuoteSymbol(draft.otherQuoteSymbol); setOtherVenue(draft.otherVenue); setBoughtQuote(draft.boughtQuote); setSoldQuote(draft.soldQuote);
         setPnlQuote(draft.pnlQuote); setScreenshotUrl(draft.screenshotUrl); setSelectedGoodTags(draft.selectedGoodTags.slice(0, 20));
+        setFills(Array.isArray(draft.fills) ? draft.fills.slice(0, 100) : []);
         setSelectedMistakes(draft.selectedMistakes.slice(0, 20)); setNotes(draft.notes); setProcessGrade(draft.processGrade);
         setConfidenceAtEntry(draft.confidenceAtEntry); setDraftSavedAt(stored.savedAt); setDraftStatus(navigator.onLine ? "restored" : "offline");
       }
@@ -180,7 +183,7 @@ export default function LogTradeModal({
 
   useEffect(() => {
     if (!draftHydrated || !isOpen || !user || initialData) return;
-    const data: TradeDraftData = { ca, wallet, result, setupType, customSetup, durationMinutes, tradedAtInput, initialRiskSol, feesSol, stopPrice, entryLiquidityUsd, exitLiquidityUsd, entryMarketCapUsd, exitMarketCapUsd, slippagePct, quoteCurrency: quoteCurrency || "SOL", quoteUsdRate, venue, otherQuoteSymbol, otherVenue, boughtQuote, soldQuote, pnlQuote, screenshotUrl, selectedGoodTags, selectedMistakes, notes, processGrade, confidenceAtEntry };
+    const data: TradeDraftData = { ca, wallet, result, setupType, customSetup, durationMinutes, tradedAtInput, initialRiskSol, feesSol, stopPrice, entryLiquidityUsd, exitLiquidityUsd, entryMarketCapUsd, exitMarketCapUsd, slippagePct, quoteCurrency: quoteCurrency || "SOL", quoteUsdRate, venue, otherQuoteSymbol, otherVenue, boughtQuote, soldQuote, pnlQuote, screenshotUrl, selectedGoodTags, selectedMistakes, notes, processGrade, confidenceAtEntry, fills };
     if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
     if (!hasMeaningfulTradeDraft(data)) {
       writeLocalStorageValue(draftKey, null);
@@ -195,7 +198,7 @@ export default function LogTradeModal({
       setDraftStatus(saved ? (navigator.onLine ? "saved" : "offline") : "error");
     }, 450);
     return () => { if (draftTimerRef.current) clearTimeout(draftTimerRef.current); };
-  }, [boughtQuote, ca, confidenceAtEntry, customSetup, draftHydrated, draftKey, durationMinutes, entryLiquidityUsd, entryMarketCapUsd, exitLiquidityUsd, exitMarketCapUsd, feesSol, initialData, initialRiskSol, isOpen, notes, otherQuoteSymbol, otherVenue, pnlQuote, processGrade, quoteCurrency, quoteUsdRate, result, screenshotUrl, selectedGoodTags, selectedMistakes, setupType, slippagePct, soldQuote, stopPrice, tradedAtInput, user, venue, wallet]);
+  }, [boughtQuote, ca, confidenceAtEntry, customSetup, draftHydrated, draftKey, durationMinutes, entryLiquidityUsd, entryMarketCapUsd, exitLiquidityUsd, exitMarketCapUsd, feesSol, fills, initialData, initialRiskSol, isOpen, notes, otherQuoteSymbol, otherVenue, pnlQuote, processGrade, quoteCurrency, quoteUsdRate, result, screenshotUrl, selectedGoodTags, selectedMistakes, setupType, slippagePct, soldQuote, stopPrice, tradedAtInput, user, venue, wallet]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -393,6 +396,14 @@ export default function LogTradeModal({
     setResult(base.pnlSol > 0.005 ? "Win" : base.pnlSol < -0.005 ? "Loss" : "BE");
   };
 
+  const updateFills = (nextFills: TradeFill[]) => {
+    setFills(nextFills);
+    if (!nextFills.length) return;
+    const summary = summarizeTradeFills(nextFills);
+    syncQuoteAmounts(String(summary.boughtQuote), String(summary.soldQuote), String(summary.pnlQuote));
+    setFeesSol(String(summary.feesSol));
+  };
+
   // Image Upload / Drag & Drop Handler with compression
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -553,6 +564,7 @@ export default function LogTradeModal({
         goodTags: selectedGoodTags,
         mistakes: selectedMistakes,
         notes: notes.trim(),
+        fills,
         date: Timestamp.fromMillis(tradedAt),
         createdAt: Date.now(),
       };
@@ -919,6 +931,8 @@ export default function LogTradeModal({
               </div>
               <p className="text-[10px] text-[#787774]">Totals stay comparable in SOL/USD. For ETH, BTC, EUR, GBP, or Other, enter the USD exchange rate at the time of the trade. Changing currency keeps your entered amount unchanged.</p>
             </div>
+
+            <TradeFillsEditor fills={fills} quoteSymbol={quoteCurrency === "OTHER" ? otherQuoteSymbol || "OTHER" : quoteCurrency || "SOL"} onChange={updateFills} />
 
             {/* Advanced Metrics Accordion */}
             <div className="border border-[#e9e9e7] rounded-xl p-3 bg-white">

@@ -121,7 +121,7 @@ service cloud.firestore {
           'durationMinutes', 'entryTime', 'exitTime', 'initialRiskSol',
           'stopPrice', 'feesSol', 'entryTimezoneOffset', 'tradedAt',
           'solUsdRate', 'solUsdRateSource', 'tradeMode', 'date', 'createdAt',
-          'quoteCurrency', 'quoteSymbol', 'boughtQuote', 'soldQuote', 'pnlQuote', 'quoteUsdRate', 'venue'
+          'quoteCurrency', 'quoteSymbol', 'boughtQuote', 'soldQuote', 'pnlQuote', 'quoteUsdRate', 'venue', 'fills'
         ])
         && data.keys().hasAll([
           'ca', 'name', 'symbol', 'wallet', 'result', 'setupType',
@@ -159,7 +159,9 @@ service cloud.firestore {
         && (!('quoteCurrency' in data) || data.quoteCurrency == null
           || data.quoteCurrency in ['SOL', 'USD', 'USDC', 'USDT', 'ETH', 'BTC', 'EUR', 'GBP', 'OTHER'])
         && (!('goodTags' in data) || data.goodTags == null
-          || validTradeTags(data.goodTags));
+          || validTradeTags(data.goodTags))
+        && (!('fills' in data) || data.fills == null
+          || (data.fills is list && data.fills.size() <= 100));
     }
 
     function validRules(rules) {

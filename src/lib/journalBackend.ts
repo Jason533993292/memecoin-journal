@@ -139,7 +139,7 @@ function optionalNumber(value: unknown): number | null {
 
 function toTradeRow(userId: string, id: string, trade: Omit<Trade, "id">): JsonRecord {
   const currencyExtra = Object.fromEntries(
-    (["quoteCurrency", "quoteSymbol", "boughtQuote", "soldQuote", "pnlQuote", "quoteUsdRate", "venue", "processGrade", "confidenceAtEntry"] as const)
+    (["quoteCurrency", "quoteSymbol", "boughtQuote", "soldQuote", "pnlQuote", "quoteUsdRate", "venue", "processGrade", "confidenceAtEntry", "fills"] as const)
       .filter((field) => trade[field] !== undefined)
       .map((field) => [field, trade[field]])
   );
@@ -249,6 +249,11 @@ function fromTradeRow(row: JsonRecord): Trade {
     pnlQuote: optionalNumber(extra.pnlQuote) ?? undefined,
     quoteUsdRate: optionalNumber(extra.quoteUsdRate) ?? undefined,
     venue: typeof extra.venue === "string" ? extra.venue.slice(0, 80) : undefined,
+    fills: Array.isArray(extra.fills) ? extra.fills.filter((fill): fill is NonNullable<Trade["fills"]>[number] => {
+      if (!fill || typeof fill !== "object" || Array.isArray(fill)) return false;
+      const item = fill as JsonRecord;
+      return typeof item.id === "string" && ["entry", "exit"].includes(String(item.side)) && typeof item.quoteAmount === "number" && typeof item.feeSol === "number" && typeof item.executedAt === "number";
+    }).slice(0, 100) : undefined,
   };
 }
 

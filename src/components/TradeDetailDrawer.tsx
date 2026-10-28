@@ -407,6 +407,21 @@ export default function TradeDetailDrawer({
                 </div>
               </div>
 
+              {trade.fills && trade.fills.length > 0 && (
+                <div>
+                  <h3 className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-[#787774]">Partial execution history</h3>
+                  <div className="overflow-hidden rounded-lg border border-[#e9e9e7]">
+                    {trade.fills.map((fill) => (
+                      <div key={fill.id} className="grid grid-cols-[56px_1fr_auto] items-center gap-2 border-b border-[#f1f1ef] bg-[#fbfbfa] px-2.5 py-2 text-[11px] last:border-0">
+                        <span className={fill.side === "entry" ? "font-semibold text-emerald-700" : "font-semibold text-blue-700"}>{fill.side === "entry" ? "Entry" : "Exit"}</span>
+                        <span className="font-mono text-[#37352f]">{fill.quoteAmount.toFixed(2)} {trade.quoteSymbol || trade.quoteCurrency || "SOL"}</span>
+                        <span className="text-right text-[10px] text-[#787774]">{new Date(fill.executedAt).toLocaleString()} · fee {fill.feeSol.toFixed(4)} SOL</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Mistake & Discipline Tags */}
               <div>
                 <h3 className="text-[10px] font-bold text-[#787774] uppercase tracking-wider mb-1.5">

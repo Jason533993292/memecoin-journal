@@ -213,6 +213,20 @@ const optionalNumber = (value: unknown) => {
   return Number.isFinite(parsed) ? parsed : undefined;
 };
 
+function fills(value: unknown): ImportedTrade["fills"] {
+  if (!Array.isArray(value)) return undefined;
+  return value.slice(0, 100).map((fill, index) => {
+    if (!fill || typeof fill !== "object" || Array.isArray(fill)) throw new Error(`Invalid partial fill on row ${index + 1}.`);
+    const item = fill as Record<string, unknown>;
+    const side = item.side === "entry" || item.side === "exit" ? item.side : null;
+    const quoteAmount = optionalNumber(item.quoteAmount);
+    const feeSol = optionalNumber(item.feeSol) ?? 0;
+    const executedAt = timestamp(item.executedAt);
+    if (!side || quoteAmount == null || quoteAmount < 0 || feeSol < 0 || !Number.isFinite(executedAt)) throw new Error(`Invalid partial fill on row ${index + 1}.`);
+    return { id: String(item.id || crypto.randomUUID()).slice(0, 80), side, quoteAmount, feeSol, executedAt, note: optionalText(item.note, 200) };
+  });
+}
+
 function timestamp(value: unknown): number {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string" && value.trim()) {
@@ -307,6 +321,7 @@ export function parseTradeImport(text: string, format: TradeImportFormat): Impor
       pnlQuote: optionalNumber(raw.pnlQuote ?? raw["Net PnL Quote"]),
       quoteUsdRate: optionalNumber(raw.quoteUsdRate ?? raw["Quote USD Rate"]),
       venue: optionalText(raw.venue ?? raw["Trading Venue"], 80),
+      fills: fills(raw.fills),
     }) as ImportedTrade;
 
     const boundedValues: Array<[number | undefined, number, number]> = [
