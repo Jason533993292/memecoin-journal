@@ -235,6 +235,14 @@ export default function DailyJournalView({ userId, trades, tutorialMode = false 
       const result = await listSupabaseDailyJournalEntries(userId);
       savedEntriesRef.current = new Map(result.map(entry => [entry.id, entry]));
       setEntries(result);
+      const requestedId = sessionStorage.getItem("memecoin_journal_open_daily_entry");
+      const requestedEntry = requestedId ? result.find((entry) => entry.id === requestedId) : null;
+      if (requestedEntry) {
+        setSelectedId(requestedEntry.id);
+        setDraft(requestedEntry);
+        setEditorInitialHtml(requestedEntry.contentHtml);
+        sessionStorage.removeItem("memecoin_journal_open_daily_entry");
+      }
     } catch (error) {
       console.error("Daily journal load failed", error);
       showToast("Daily journal could not load", "error", "Check your connection and try again.");

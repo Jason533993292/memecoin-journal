@@ -137,7 +137,15 @@ export default function ResearchView({ userId, trades }: { userId: string; trade
       setItems(result);
       setSyncError(false);
       setLastSyncedAt(Date.now());
-      setSelectedCa((current) => current && result.some((item) => item.ca === current) ? current : "");
+      const requestedCa = sessionStorage.getItem("memecoin_journal_open_research");
+      const requestedItem = requestedCa ? result.find((item) => item.ca === requestedCa) : null;
+      if (requestedItem) {
+        setSelectedCa(requestedItem.ca);
+        setDraft(structuredClone(requestedItem));
+        sessionStorage.removeItem("memecoin_journal_open_research");
+      } else {
+        setSelectedCa((current) => current && result.some((item) => item.ca === current) ? current : "");
+      }
     } catch (error) {
       console.error("Research workspace could not load", error);
       setSyncError(true);

@@ -639,6 +639,7 @@ function AuthenticatedApp({ user }: { user: User }) {
         onNavigateTab={setCurrentTab}
         onOpenNewTrade={() => setIsNewTradeModalOpen(true)}
         trades={activeTrades}
+        userId={user.uid}
         onSelectTrade={(trade) => setInspectingTrade(trade)}
       />}
 

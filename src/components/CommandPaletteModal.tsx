@@ -12,7 +12,10 @@ import {
   Plus,
   Microscope,
 } from "lucide-react";
-import { Trade } from "../lib/types";
+import { DailyJournalEntry, ResearchItem, Trade } from "../lib/types";
+import { db } from "../lib/firebase";
+import { collection, getDocs } from "firebase/firestore";
+import { listSupabaseDailyJournalEntries, listSupabaseResearch, usesSupabaseJournal } from "../lib/journalBackend";
 
 interface CommandPaletteModalProps {
   isOpen: boolean;
@@ -21,6 +24,7 @@ interface CommandPaletteModalProps {
   onOpenNewTrade: () => void;
   trades: Trade[];
   onSelectTrade: (trade: Trade) => void;
+  userId: string;
 }
 
 export default function CommandPaletteModal({
@@ -30,8 +34,11 @@ export default function CommandPaletteModal({
   onOpenNewTrade,
   trades,
   onSelectTrade,
+  userId,
 }: CommandPaletteModalProps) {
   const [query, setQuery] = useState("");
+  const [journalEntries, setJournalEntries] = useState<DailyJournalEntry[]>([]);
+  const [researchItems, setResearchItems] = useState<ResearchItem[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -39,6 +46,26 @@ export default function CommandPaletteModal({
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let active = true;
+    const load = async () => {
+      try {
+        const [journal, research] = await Promise.all([
+          listSupabaseDailyJournalEntries(userId),
+          usesSupabaseJournal()
+            ? listSupabaseResearch(userId)
+            : getDocs(collection(db, "users", userId, "research")).then((snapshot) => snapshot.docs.map((entry) => entry.data() as ResearchItem)),
+        ]);
+        if (active) { setJournalEntries(journal); setResearchItems(research); }
+      } catch {
+        if (active) { setJournalEntries([]); setResearchItems([]); }
+      }
+    };
+    void load();
+    return () => { active = false; };
+  }, [isOpen, userId]);
 
   if (!isOpen) return null;
 
@@ -57,6 +84,9 @@ export default function CommandPaletteModal({
       );
     })
     .slice(0, 8);
+  const normalizedQuery = query.toLowerCase().trim();
+  const filteredJournal = normalizedQuery ? journalEntries.filter((entry) => [entry.title, entry.plainText, ...entry.tags, ...entry.emotions].some((value) => value?.toLowerCase().includes(normalizedQuery))).slice(0, 5) : [];
+  const filteredResearch = normalizedQuery ? researchItems.filter((item) => [item.name, item.symbol, item.ca, item.thesis, ...item.tags].some((value) => value?.toLowerCase().includes(normalizedQuery))).slice(0, 5) : [];
 
   const actions = [
     {
@@ -199,6 +229,8 @@ export default function CommandPaletteModal({
               ))}
             </div>
           )}
+          {filteredJournal.length > 0 && <div className="pb-2"><span className="block px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#9b9a97]">Daily reflections</span>{filteredJournal.map((entry) => <button key={entry.id} onClick={() => { sessionStorage.setItem("memecoin_journal_open_daily_entry", entry.id); onClose(); onNavigateTab("daily-journal"); }} className="w-full rounded-lg px-2.5 py-2 text-left hover:bg-[#f7f6f3]"><div className="font-semibold text-[#37352f]">{entry.title}</div><div className="truncate text-[10px] text-[#787774]">{entry.entryDate} · {entry.plainText}</div></button>)}</div>}
+          {filteredResearch.length > 0 && <div className="pb-2"><span className="block px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#9b9a97]">Coin research</span>{filteredResearch.map((item) => <button key={item.ca} onClick={() => { sessionStorage.setItem("memecoin_journal_open_research", item.ca); onClose(); onNavigateTab("research"); }} className="w-full rounded-lg px-2.5 py-2 text-left hover:bg-[#f7f6f3]"><div className="font-semibold text-[#37352f]">{item.name} <span className="font-normal text-[#787774]">${item.symbol}</span></div><div className="truncate text-[10px] text-[#787774]">{item.stage} · {item.thesis}</div></button>)}</div>}
 
           {/* Quick Actions & Navigation */}
           <div>
@@ -229,7 +261,7 @@ export default function CommandPaletteModal({
             })}
           </div>
 
-          {filteredTrades.length === 0 && actions.length === 0 && (
+          {filteredTrades.length === 0 && filteredJournal.length === 0 && filteredResearch.length === 0 && actions.length === 0 && (
             <div className="py-8 text-center text-[#9b9a97] text-xs">No matching commands or trades found.</div>
           )}
         </div>
