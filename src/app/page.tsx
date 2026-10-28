@@ -115,9 +115,6 @@ function AuthenticatedApp({ user }: { user: User }) {
 
   // Live SOL Price State
   const [solPrice, setSolPrice] = useState<number>(0);
-  const [solChange24h, setSolChange24h] = useState<number>(0);
-  const [solPriceStatus, setSolPriceStatus] = useState<"live" | "cached" | "stale" | "unavailable">("unavailable");
-  const [solPriceUpdatedAt, setSolPriceUpdatedAt] = useState<number | null>(null);
 
   // Modals & Drawers
   const [isNewTradeModalOpen, setIsNewTradeModalOpen] = useState(false);
@@ -167,9 +164,6 @@ function AuthenticatedApp({ user }: { user: User }) {
         if (!active || !response.ok) return;
         const data = await response.json();
         if (typeof data.price === "number" && Number.isFinite(data.price) && data.price > 0) setSolPrice(data.price);
-        if (data.change24h !== undefined) setSolChange24h(data.change24h);
-        setSolPriceStatus(data.status === "live" || data.status === "cached" || data.status === "stale" ? data.status : "unavailable");
-        setSolPriceUpdatedAt(typeof data.timestamp === "number" ? data.timestamp : null);
       } catch (error) {
         if (active) console.warn("Live SOL price is unavailable", error);
       }
@@ -461,10 +455,6 @@ function AuthenticatedApp({ user }: { user: User }) {
         onDeleteTradingData={() => setIsTradingDataDeletionOpen(true)}
         onOpenFeedback={() => setIsFeedbackOpen(true)}
         onOpenGuide={() => setCurrentTab("guide")}
-        solPrice={solPrice}
-        solChange24h={solChange24h}
-        solPriceStatus={solPriceStatus}
-        solPriceUpdatedAt={solPriceUpdatedAt}
         sidebarCollapsed={sidebarCollapsed}
         onSidebarCollapsedChange={(collapsed) => writeLocalStorageValue("memecoin_journal_sidebar_collapsed", String(collapsed))}
       />

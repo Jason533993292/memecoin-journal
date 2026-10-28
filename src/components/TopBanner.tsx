@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@heroui/react";
 import ThemePreviewControl from "./ThemePreviewControl";
 import CursorPicker from "./CursorPicker";
+import MarketPricePicker from "./MarketPricePicker";
 import {
   LayoutDashboard,
   BookOpen,
@@ -38,10 +39,6 @@ interface TopBannerProps {
   onDeleteTradingData?: () => void;
   onOpenFeedback?: () => void;
   onOpenGuide?: () => void;
-  solPrice?: number;
-  solChange24h?: number;
-  solPriceStatus?: "live" | "cached" | "stale" | "unavailable";
-  solPriceUpdatedAt?: number | null;
   sidebarCollapsed?: boolean;
   onSidebarCollapsedChange?: (collapsed: boolean) => void;
 }
@@ -56,10 +53,6 @@ export default function TopBanner({
   onDeleteTradingData,
   onOpenFeedback,
   onOpenGuide,
-  solPrice = 0,
-  solChange24h = 0,
-  solPriceStatus = "unavailable",
-  solPriceUpdatedAt = null,
   sidebarCollapsed = false,
   onSidebarCollapsedChange,
 }: TopBannerProps) {
@@ -315,26 +308,7 @@ export default function TopBanner({
           <div role="status" aria-live="polite" title={connectionState === "online" ? "Connected" : connectionState === "reconnecting" ? "Connection restored; checking services" : "Offline; browser drafts remain available"} className={`hidden items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-semibold sm:flex ${connectionState === "online" ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : connectionState === "reconnecting" ? "border-amber-500/30 bg-amber-500/10 text-amber-200" : "border-rose-500/30 bg-rose-500/10 text-rose-200"}`}>
             {connectionState === "offline" ? <WifiOff size={12}/> : <Wifi size={12}/>}<span>{connectionState === "online" ? "Online" : connectionState === "reconnecting" ? "Reconnecting…" : "Offline"}</span>
           </div>
-          {/* Live SOL Price Badge */}
-          <div
-            className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 bg-white border border-[#e3e2de] rounded-md text-[11px] font-mono shadow-xs"
-            title={solPriceUpdatedAt ? `${solPriceStatus === "stale" ? "Stale cached" : solPriceStatus} SOL price, updated ${new Date(solPriceUpdatedAt).toLocaleTimeString()}` : "SOL price unavailable"}
-          >
-            <span className={`w-2 h-2 rounded-full ${solPriceStatus === "live" ? "bg-emerald-500 animate-pulse" : solPriceStatus === "cached" ? "bg-amber-400" : solPriceStatus === "stale" ? "bg-rose-500" : "bg-neutral-300"}`}></span>
-            <span className="text-[#37352f] font-semibold">
-              {solPrice > 0 ? `$${solPrice.toFixed(2)}` : "SOL —"}
-            </span>
-            {solPriceStatus === "stale" && <span className="text-[9px] font-sans text-rose-600">stale</span>}
-            {solChange24h !== 0 && (
-              <span
-                className={`hidden sm:inline text-[10px] font-medium ${
-                  solChange24h >= 0 ? "text-emerald-600" : "text-rose-600"
-                }`}
-              >
-                {solChange24h >= 0 ? `+${solChange24h.toFixed(1)}%` : `${solChange24h.toFixed(1)}%`}
-              </span>
-            )}
-          </div>
+          <MarketPricePicker />
 
           {/* Daily Recap Button on Header */}
           {onOpenDailyRecap && (
