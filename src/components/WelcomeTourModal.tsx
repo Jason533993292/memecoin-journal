@@ -24,9 +24,12 @@ const SPOTLIGHT_STEPS: SpotlightStep[] = [
   { id: "journal-results", chapter: "Journal", selector: '[data-tour="journal-example"]', title: "Example trade card", description: "This complete example shows the token, setup, holding time, position size, result, P&L, discipline tags, and date. Real trade cards also provide actions to inspect, edit, share, and safely delete.", instruction: "Tutorial examples are fictional, read-only, and never saved to your account.", requireTargetClick: false, viewTab: "journal" },
   { id: "daily-journal", chapter: "Daily Journal", selector: '[data-tour="nav-daily-journal"]', title: "Daily Journal", description: "This is your private space for thoughts, emotions, lessons, and the decisions surrounding your trades.", instruction: "Click the highlighted Daily Journal button.", requireTargetClick: true },
   { id: "daily-journal-new", chapter: "Daily Journal", selector: '[data-tour="daily-journal-new-entry"]', title: "Two clear ways to begin", description: "Free writing opens a blank page. Guided entry gives you a Pre-trade, Post-trade, or End-of-day structure.", instruction: "Tutorial examples are read-only, so neither button will save anything while the tour is active.", requireTargetClick: false, viewTab: "daily-journal" },
-  { id: "daily-journal-library", chapter: "Daily Journal", selector: '[data-tour="daily-journal-library"]', title: "Find past reflections", description: "Search titles, writing, emotions, and tags. Switch to the calendar to return to entries from a particular day, or recover an unfinished browser draft.", instruction: "The example reflection is fictional and is never added to your account.", requireTargetClick: false, viewTab: "daily-journal" },
-  { id: "daily-journal-editor", chapter: "Daily Journal", selector: '[data-tour="daily-journal-editor"]', title: "Write inside your journal book", description: "The left page holds your title, date, ruled writing area, formatting tools, and a choice of Clean, Classic, Typewriter, or Handwritten fonts. Previous and Next turn between saved entries.", instruction: "Focus mode opens the book over the rest of the app. Your font choice is remembered only as a display preference.", requireTargetClick: false, viewTab: "daily-journal" },
+  { id: "daily-journal-library", chapter: "Daily Journal", selector: '[data-tour="daily-journal-library-guide"]', title: "Find past reflections", description: "Search titles, writing, emotions, and tags. Switch to the calendar to return to entries from a particular day, or recover an unfinished browser draft.", instruction: "The example reflection is fictional and is never added to your account.", requireTargetClick: false, viewTab: "daily-journal" },
+  { id: "daily-journal-editor", chapter: "Daily Journal", selector: '[data-tour="daily-journal-writing"]', title: "Write on any journal line", description: "Click any empty ruled line to place the cursor there. The page also supports formatting, prompts, four fonts, and consistent spacing when you press Enter.", instruction: "Blank lines are preserved with the entry, so the layout looks the same when you reopen it.", requireTargetClick: false, viewTab: "daily-journal" },
   { id: "daily-journal-context", chapter: "Daily Journal", selector: '[data-tour="daily-journal-reflection-tools"]', title: "Add emotional context", description: "Record emotions and intensity, add searchable tags, and link the reflection to the trade or trades that prompted it.", instruction: "Linked trades help you compare what you felt with what actually happened.", requireTargetClick: false, viewTab: "daily-journal" },
+  { id: "daily-journal-writing-tools", chapter: "Daily Journal", selector: '[data-tour="daily-journal-writing-tools"]', title: "Optional writing tools", description: "Adjust text size, spacing and paper. Save templates, add checklists or private images, and find text or jump to a heading.", instruction: "Select text for quick formatting. Type / at the beginning of a line for insertion commands.", requireTargetClick: false, viewTab: "daily-journal" },
+  { id: "daily-journal-review-tools", chapter: "Daily Journal", selector: '[data-tour="daily-journal-review-tools"]', title: "Turn reflections into habits", description: "Review weekly or monthly lessons, next actions and personal rules. Compare emotions with linked trade outcomes, with sample counts shown.", instruction: "Quick thought adds a timestamped note. Reflection & trade context adds snapshots, thesis links and before/after observations.", requireTargetClick: false, viewTab: "daily-journal" },
+  { id: "daily-journal-recovery-tools", chapter: "Daily Journal", selector: '[data-tour="daily-journal-recovery-tools"]', title: "Recover your writing", description: "Recover browser drafts, restore one of the last eight writing versions, or bring an entry back from Trash. Permanently erasing or clearing the journal also removes recovery copies.", instruction: "Browser drafts stay on this device. Saved writing versions and Trash sync privately with your account.", requireTargetClick: false, viewTab: "daily-journal" },
   { id: "daily-journal-save", chapter: "Daily Journal", selector: '[data-tour="daily-journal-save"]', title: "Automatic private saving", description: "After you pause typing, the journal automatically syncs the reflection to your private account. Save now lets you sync immediately; offline drafts remain in this browser for recovery.", instruction: "The tutorial will not save the fictional example.", requireTargetClick: false, viewTab: "daily-journal" },
   { id: "wallets", chapter: "Wallets", selector: '[data-tour="nav-wallets"]', title: "Wallets & Paychecks", description: "Track real Solana wallets separately from simulated paper-trading capital.", instruction: "Click the highlighted Wallets button.", requireTargetClick: true },
   { id: "wallet-scan", chapter: "Wallets", selector: '[data-tour="wallet-scan"]', title: "Check a public Solana address", description: "Paste a public Phantom or Solflare address to read its current on-chain SOL balance. Private keys and seed phrases should never be entered here.", instruction: "Scanning is optional; the tutorial will not submit an address.", requireTargetClick: false, viewTab: "wallets" },
@@ -46,10 +49,13 @@ const SPOTLIGHT_STEPS: SpotlightStep[] = [
   { id: "research-timeline", chapter: "Research", selector: '[aria-label="Add research timeline note"]', title: "Update the evidence over time", description: "Add dated research snapshots when a catalyst, price condition, liquidity signal, or assumption changes.", instruction: "A timeline helps you distinguish what you knew before a trade from what became clear afterward.", requireTargetClick: false, viewTab: "research" },
   { id: "research-decisions", chapter: "Research", selector: '[aria-label="Decision journal note"]', title: "Record the decision, not just the outcome", description: "The decision journal captures your mood and reasoning when a plan changes or an entry is considered. It is descriptive, not a personal score.", instruction: "Specific notes make later review more useful than labels such as good or bad trade.", requireTargetClick: false, viewTab: "research" },
   { id: "ai-coach", chapter: "AI Coach", selector: '[data-tour="nav-ai-coach"]', title: "AI Trader Coach", description: "Review execution patterns and discipline using the AI provider you choose. Your provider key remains under your control.", instruction: "Click the highlighted AI Coach button.", requireTargetClick: true },
+  { id: "ai-overview", chapter: "AI Coach", selector: '[data-tour="ai-overview"]', title: "A review assistant for your own records", description: "The AI coach summarizes patterns from the trades and discipline tags you have logged. It can help you notice repeated behavior, but it does not place trades or guarantee outcomes.", instruction: "Treat every response as a reflection aid—not financial advice—and verify anything important yourself.", requireTargetClick: false, viewTab: "ai-coach" },
+  { id: "ai-snapshot", chapter: "AI Coach", selector: '[data-tour="ai-snapshot"]', title: "The three boxes at the top", description: "Win Rate shows the share of logged trades that won. Primary Tilt Trigger shows your most repeated mistake tag. AI Status shows whether a provider key is ready for a new review.", instruction: "These boxes summarize your records before any new AI request is made.", requireTargetClick: false, viewTab: "ai-coach" },
   { id: "ai-provider-settings", chapter: "AI Coach", selector: '[data-tour="ai-provider-settings"]', title: "Your API key stays in your browser", description: "By default, the provider key is kept only for this browser-tab session. If you select ‘Keep this key’, it is stored in this browser's local storage and is not encrypted.", instruction: "Only when you request analysis is the key sent over HTTPS through the app server to your selected provider. The app server does not intentionally store it.", requireTargetClick: false, viewTab: "ai-coach" },
   { id: "ai-analysis", chapter: "AI Coach", selector: '[data-tour="ai-analysis"]', title: "Generate a trading review", description: "Refresh AI Review sends relevant recent trade information and discipline tags to the provider you configured, then displays the resulting coaching analysis here.", instruction: "AI output can be wrong. Use it as a review aid, not financial advice or an automatic trading decision.", requireTargetClick: false, viewTab: "ai-coach" },
   { id: "ai-question", chapter: "AI Coach", selector: '[data-tour="ai-question"]', title: "Ask a focused follow-up", description: "Ask a specific question about patterns in the journal, such as repeated mistakes, sizing discipline, entry timing, or exit behavior.", instruction: "A narrow question usually produces a more useful answer than asking for general trading advice.", requireTargetClick: false, viewTab: "ai-coach" },
-  { id: "feedback", chapter: "Help", selector: '[data-tour="feedback"]', title: "Feedback", description: "Report a bug or suggest an improvement. Optional diagnostics help reproduce what happened without including your financial totals.", instruction: "Click Feedback to finish the tour and open the feedback form.", requireTargetClick: true },
+  { id: "feedback", chapter: "Help", selector: '[data-tour="feedback"]', title: "Feedback", description: "Report a bug or suggest an improvement. Optional diagnostics help reproduce what happened without including your financial totals.", instruction: "Click Feedback to open the form. The tour will stay active for one final step.", requireTargetClick: true },
+  { id: "feedback-close", chapter: "Help", selector: '[data-tour="feedback-close"]', title: "You are ready to explore", description: "Use this form whenever you find a bug or have an idea. You do not need to send a test report now.", instruction: "Click the X to close Feedback and finish the tutorial. The app will then open Dashboard once.", requireTargetClick: true },
 ];
 
 type TargetRect = { top: number; left: number; right: number; bottom: number; width: number; height: number };
@@ -78,11 +84,12 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
 
   const advance = useCallback(() => {
     if (stepIndex === SPOTLIGHT_STEPS.length - 1) {
+      onNavigateTab("dashboard");
       onComplete();
       return;
     }
     setStepIndex((index) => index + 1);
-  }, [onComplete, stepIndex]);
+  }, [onComplete, onNavigateTab, stepIndex]);
 
   const goBack = useCallback(() => setStepIndex((index) => Math.max(0, index - 1)), []);
 
@@ -117,6 +124,19 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
         onClose();
         return;
       }
+      if (!event.metaKey && !event.ctrlKey && !event.altKey && !event.repeat && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        goBack();
+        return;
+      }
+      if (!event.metaKey && !event.ctrlKey && !event.altKey && !event.repeat && event.key.toLowerCase() === "l") {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        if (step.requireTargetClick) findVisibleTarget(step.selector)?.click();
+        else advance();
+        return;
+      }
       if (isInsideTutorial(event.target)) return;
       event.preventDefault();
       event.stopImmediatePropagation();
@@ -133,11 +153,13 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
       window.removeEventListener("touchmove", preventBackgroundScroll, true);
       window.removeEventListener("keydown", lockTutorialKeyboard, true);
     };
-  }, [isOpen, onClose, started]);
+  }, [advance, goBack, isOpen, onClose, started, step]);
 
   useEffect(() => {
     if (!isOpen || !started || !step) return;
     if (step.viewTab) onNavigateTab(step.viewTab);
+    document.documentElement.dataset.tourStep = step.id;
+    const announceStep = () => window.dispatchEvent(new CustomEvent("memecoin-journal-tour-step", { detail: { id: step.id } }));
 
     let target: HTMLElement | null = null;
     let clickTarget: HTMLElement | null = null;
@@ -157,9 +179,11 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
         if (!target) return;
         const rect = target.getBoundingClientRect();
         const padding = 7;
-        const height = Math.min(rect.height + padding * 2, window.innerHeight * 0.68);
-        const top = Math.max(0, Math.min(rect.top - padding, window.innerHeight - height));
-        setTargetRect({ top, left: Math.max(0, rect.left - padding), right: Math.min(window.innerWidth, rect.right + padding), bottom: top + height, width: Math.min(rect.width + padding * 2, window.innerWidth), height });
+        const top = Math.max(7, rect.top - padding);
+        const left = Math.max(7, rect.left - padding);
+        const right = Math.min(window.innerWidth - 7, rect.right + padding);
+        const bottom = Math.min(window.innerHeight - 7, rect.bottom + padding);
+        setTargetRect({ top, left, right, bottom, width: Math.max(0, right - left), height: Math.max(0, bottom - top) });
       };
       measure();
       timers.push(window.setTimeout(measure, 420));
@@ -174,7 +198,9 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
         clickTarget.addEventListener("click", clickHandler, { once: true });
       }
     };
-    timers.push(window.setTimeout(updateTarget, 80));
+    announceStep();
+    timers.push(window.setTimeout(announceStep, 60));
+    timers.push(window.setTimeout(updateTarget, 100));
     window.addEventListener("resize", updateTarget);
     window.addEventListener("scroll", updateTarget, true);
     return () => {
@@ -182,6 +208,7 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
       if (clickTarget && clickHandler) clickTarget.removeEventListener("click", clickHandler);
       window.removeEventListener("resize", updateTarget);
       window.removeEventListener("scroll", updateTarget, true);
+      if (document.documentElement.dataset.tourStep === step.id) delete document.documentElement.dataset.tourStep;
     };
   }, [advance, isOpen, onNavigateTab, started, step]);
 
@@ -208,13 +235,19 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
   const viewportWidth = typeof window === "undefined" ? 1200 : window.innerWidth;
   const viewportHeight = typeof window === "undefined" ? 800 : window.innerHeight;
   const tooltipWidth = Math.min(340, viewportWidth - 24);
-  const sidePlacement = targetRect && targetRect.left < 110 && viewportWidth > 700;
+  const roomLeft = targetRect ? targetRect.left - 20 : 0;
+  const roomRight = targetRect ? viewportWidth - targetRect.right - 20 : 0;
+  const sidePlacement: "left" | "right" | null = targetRect && viewportWidth > 700 && Math.max(roomLeft, roomRight) >= tooltipWidth
+    ? roomLeft >= roomRight ? "left" : "right"
+    : null;
   const tooltipClearance = 320;
   const showBelow = targetRect ? targetRect.bottom + tooltipClearance < viewportHeight : true;
   const showAbove = targetRect ? targetRect.top > tooltipClearance : false;
   const tooltipStyle: CSSProperties = targetRect
-    ? sidePlacement
-      ? { top: Math.max(12, Math.min(targetRect.top, viewportHeight - 260)), left: Math.min(targetRect.right + 22, viewportWidth - tooltipWidth - 12), width: tooltipWidth }
+    ? sidePlacement === "right"
+      ? { top: Math.max(12, Math.min(targetRect.top, viewportHeight - 360)), left: Math.min(targetRect.right + 20, viewportWidth - tooltipWidth - 12), width: tooltipWidth }
+      : sidePlacement === "left"
+        ? { top: Math.max(12, Math.min(targetRect.top, viewportHeight - 360)), right: Math.min(viewportWidth - targetRect.left + 20, viewportWidth - tooltipWidth - 12), width: tooltipWidth }
       : showBelow
         ? { top: targetRect.bottom + 18, left: Math.max(12, Math.min(targetRect.left, viewportWidth - tooltipWidth - 12)), width: tooltipWidth }
         : showAbove
@@ -234,11 +267,11 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
         <div className="pointer-events-none fixed rounded-xl border-2 border-[#55a7f1] shadow-[0_0_0_4px_rgba(35,131,226,0.25),0_0_28px_rgba(35,131,226,0.7)]" style={{ top: targetRect.top, left: targetRect.left, width: targetRect.width, height: targetRect.height }} />
       </>}
       <section data-tour-dialog role="dialog" aria-modal="true" aria-label={`Tutorial step ${stepIndex + 1}: ${step.title}`} className="tour-tooltip-scrollbar pointer-events-auto fixed z-[91] max-h-[calc(100vh-24px)] overflow-y-auto rounded-2xl border border-white/10 bg-[#111318] p-4 text-white shadow-2xl" style={tooltipStyle}>
-        {targetRect && (sidePlacement ? <ArrowLeft className="tour-arrow-horizontal absolute -left-8 top-5 text-[#55a7f1]" size={24} /> : showBelow ? <ArrowUp className="tour-arrow-vertical absolute -top-8 left-6 text-[#55a7f1]" size={24} /> : <ArrowDown className="tour-arrow-vertical absolute -bottom-8 left-6 text-[#55a7f1]" size={24} />)}
+        {targetRect && (sidePlacement === "right" ? <ArrowLeft className="tour-arrow-horizontal absolute -left-8 top-5 text-[#55a7f1]" size={24} /> : sidePlacement === "left" ? <ArrowRight className="tour-arrow-horizontal absolute -right-8 top-5 text-[#55a7f1]" size={24} /> : showBelow ? <ArrowUp className="tour-arrow-vertical absolute -top-8 left-6 text-[#55a7f1]" size={24} /> : <ArrowDown className="tour-arrow-vertical absolute -bottom-8 left-6 text-[#55a7f1]" size={24} />)}
         <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#55a7f1]">{step.chapter} · Step {stepIndex + 1} of {SPOTLIGHT_STEPS.length}</p><h2 className="mt-1 text-base font-bold">{step.title}</h2></div><button type="button" onClick={onClose} aria-label="Close tutorial" className="rounded-md p-1 text-neutral-500 hover:bg-white/8 hover:text-white"><X size={16} /></button></div>
         <p className="mt-2 text-xs leading-5 text-neutral-300">{step.description}</p>
         <p className="mt-3 rounded-xl bg-white/[0.055] p-3 text-[11px] font-medium leading-4 text-neutral-200">{step.instruction}</p>
-        <div className="mt-3 flex items-center justify-between gap-3"><div className="flex items-center gap-2">{stepIndex > 0 && <button type="button" onClick={goBack} className="flex items-center gap-1 text-[10px] font-semibold text-neutral-400 hover:text-white"><ChevronLeft size={12} /> Back</button>}<button type="button" onClick={onComplete} className="text-[10px] font-semibold text-neutral-500 hover:text-white">Skip tutorial</button></div>{!step.requireTargetClick && <button type="button" onClick={advance} className="flex items-center gap-2 rounded-lg bg-[#1a73ca] px-3 py-2 text-xs font-semibold text-white hover:bg-[#2383e2]">Continue <ArrowRight size={14} className="tour-arrow" /></button>}</div>
+        <div className="mt-3 flex items-center justify-between gap-3"><div className="flex items-center gap-2">{stepIndex > 0 && <button type="button" onClick={goBack} className="flex items-center gap-1 text-[10px] font-semibold text-neutral-400 hover:text-white"><ChevronLeft size={12} /> Back <kbd className="rounded bg-white/10 px-1 py-0.5 text-[9px]">K</kbd></button>}<button type="button" onClick={onComplete} className="text-[10px] font-semibold text-neutral-500 hover:text-white">Skip tutorial</button></div>{!step.requireTargetClick ? <button type="button" onClick={advance} className="flex items-center gap-2 rounded-lg bg-[#1a73ca] px-3 py-2 text-xs font-semibold text-white hover:bg-[#2383e2]">Continue <kbd className="rounded bg-white/15 px-1.5 py-0.5 text-[9px]">L</kbd><ArrowRight size={14} className="tour-arrow" /></button> : <span className="text-[10px] font-semibold text-neutral-500">Press <kbd className="rounded bg-white/10 px-1.5 py-0.5 text-[9px] text-neutral-300">L</kbd> to activate</span>}</div>
       </section>
     </div>
   );

@@ -1,15 +1,18 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/database.types";
 
-let adminClient: SupabaseClient | null = null;
+type JournalTable = "wallet_transactions" | "trades" | "coin_research" | "daily_journal_entries" | "wallets" | "user_settings" | "user_feedback";
 
-function getSupabaseAdminClient(): SupabaseClient {
+let adminClient: SupabaseClient<Database> | null = null;
+
+function getSupabaseAdminClient(): SupabaseClient<Database> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   if (!url || !serviceRoleKey) {
     throw new Error("Supabase server migration configuration is incomplete.");
   }
   if (!adminClient) {
-    adminClient = createClient(url, serviceRoleKey, {
+    adminClient = createClient<Database>(url, serviceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     });
   }
@@ -26,7 +29,7 @@ export async function deleteSupabaseJournalData(userId: string) {
 
   // Child/history tables go first. Every operation is safe to repeat, allowing
   // a later request to resume after a temporary provider failure.
-  const tables = ["wallet_transactions", "trades", "coin_research", "daily_journal_entries", "wallets", "user_settings", "user_feedback"];
+  const tables: JournalTable[] = ["wallet_transactions", "trades", "coin_research", "daily_journal_entries", "wallets", "user_settings", "user_feedback"];
   for (const table of tables) {
     const { error } = await admin.from(table).delete().eq("user_id", userId);
     if (error) throw new Error(`${table}: ${error.message}`);
@@ -98,4 +101,53 @@ export async function checkSupabaseAdminHealth() {
   const admin = getSupabaseAdminClient();
   const { error } = await admin.from("trades").select("id", { head: true, count: "exact" }).limit(1);
   if (error) throw new Error(error.message);
+}
+
+export async function listFeedbackForAdmin(limit = 50) {
+  const admin = getSupabaseAdminClient();
+  const { data, error } = await admin
+    .from("user_feedback")
+    .select("id,category,message,contact_email,page,device,browser,viewport,theme,status,assigned_to,resolution_note,created_at,updated_at,email_delivery_status,email_delivery_attempts")
+    .order("created_at", { ascending: false })
+    .limit(Math.min(Math.max(limit, 1), 100));
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function updateFeedbackForAdmin(input: {
+  id: number;
+  status: "new" | "reviewing" | "resolved" | "closed";
+  assignedTo: string | null;
+  note: string | null;
+  actorUid: string;
+  actorEmail: string;
+}) {
+  const admin = getSupabaseAdminClient();
+  const { data: previous, error: readError } = await admin
+    .from("user_feedback")
+    .select("status")
+    .eq("id", input.id)
+    .single();
+  if (readError) throw new Error(readError.message);
+
+  const now = new Date().toISOString();
+  const { error: updateError } = await admin.from("user_feedback").update({
+    status: input.status,
+    assigned_to: input.assignedTo,
+    resolution_note: input.note,
+    resolved_at: input.status === "resolved" || input.status === "closed" ? now : null,
+    updated_at: now,
+  }).eq("id", input.id);
+  if (updateError) throw new Error(updateError.message);
+
+  const { error: auditError } = await admin.from("feedback_admin_audit").insert({
+    feedback_id: input.id,
+    actor_uid: input.actorUid,
+    actor_email: input.actorEmail,
+    action: "status_updated",
+    previous_status: previous.status,
+    new_status: input.status,
+    note: input.note,
+  });
+  if (auditError) throw new Error(auditError.message);
 }

@@ -36,6 +36,25 @@ for (const target of targets) {
   }
   console.log(`PASS ${target.name}: public liveness`);
 
+  const priceResponse = await fetch(`${baseUrl}/api/sol-price`, {
+    cache: "no-store",
+    signal: AbortSignal.timeout(15_000),
+    headers: { "x-request-id": `monitor-price-${target.name}-${Date.now()}` },
+  });
+  const priceBody = await readJson(priceResponse, `${target.name} SOL price`);
+  const price = Number(priceBody?.price);
+  const priceStatus = priceBody?.status;
+  if (!priceResponse.ok || !Number.isFinite(price) || price <= 0) {
+    throw new Error(`${target.name} SOL price failed with HTTP ${priceResponse.status}.`);
+  }
+  if (!["live", "cached", "stale"].includes(priceStatus)) {
+    throw new Error(`${target.name} SOL price returned an unknown status.`);
+  }
+  if (priceStatus === "stale") {
+    throw new Error(`${target.name} SOL price is stale; both live providers are unavailable.`);
+  }
+  console.log(`PASS ${target.name}: SOL price provider (${priceStatus})`);
+
   if (!target.token) {
     console.log(`SKIP ${target.name}: no authenticated health token configured`);
     continue;

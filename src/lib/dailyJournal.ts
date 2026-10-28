@@ -20,7 +20,7 @@ export const GUIDED_JOURNAL_PROMPTS: Record<Exclude<DailyJournalEntryType, "free
 // Chromium uses DIV blocks when Enter is pressed inside contentEditable.
 // Keeping those blocks preserves one visual line break instead of flattening
 // several paragraphs into a single line during sanitization and autosave.
-const ALLOWED_TAGS = new Set(["P", "DIV", "BR", "STRONG", "B", "EM", "I", "U", "S", "H2", "H3", "UL", "OL", "LI", "BLOCKQUOTE", "HR"]);
+const ALLOWED_TAGS = new Set(["P", "DIV", "BR", "STRONG", "B", "EM", "I", "U", "S", "STRIKE", "H2", "H3", "UL", "OL", "LI", "BLOCKQUOTE", "HR"]);
 
 export function sanitizeJournalHtml(html: string): string {
   if (typeof window === "undefined") return "";
@@ -29,8 +29,12 @@ export function sanitizeJournalHtml(html: string): string {
   const clean = (node: Node): string => {
     if (node.nodeType === Node.TEXT_NODE) return escapeText(node.textContent ?? "");
     if (!(node instanceof HTMLElement)) return "";
+    if (["SCRIPT", "STYLE", "IFRAME", "OBJECT"].includes(node.tagName)) return "";
     const children = Array.from(node.childNodes).map(clean).join("");
     if (!ALLOWED_TAGS.has(node.tagName)) return children;
+    // Void elements must never have closing tags: browsers interpret </br>
+    // as another break, doubling blank lines on each save/reopen cycle.
+    if (node.tagName === "BR" || node.tagName === "HR") return `<${node.tagName.toLowerCase()}>`;
     return `<${node.tagName.toLowerCase()}>${children}</${node.tagName.toLowerCase()}>`;
   };
   return Array.from(documentNode.body.childNodes).map(clean).join("").slice(0, 100000);
@@ -39,7 +43,13 @@ export function sanitizeJournalHtml(html: string): string {
 export function journalPlainText(html: string): string {
   if (typeof window === "undefined") return "";
   const documentNode = new DOMParser().parseFromString(html, "text/html");
+  documentNode.querySelectorAll("br, hr").forEach((node) => node.replaceWith(" "));
+  documentNode.querySelectorAll("p, div, h2, h3, li, blockquote").forEach((node) => node.append(" "));
   return (documentNode.body.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 40000);
+}
+
+export function journalLocalDate(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
 export function createDailyJournalEntry(type: DailyJournalEntryType, now = new Date()): DailyJournalEntry {
@@ -50,7 +60,7 @@ export function createDailyJournalEntry(type: DailyJournalEntryType, now = new D
     contentHtml: guided?.html ?? "<p><br></p>",
     plainText: "",
     entryType: type,
-    entryDate: now.toISOString().slice(0, 10),
+    entryDate: journalLocalDate(now),
     emotions: [],
     tags: [],
     linkedTradeIds: [],
@@ -62,5 +72,8 @@ export function createDailyJournalEntry(type: DailyJournalEntryType, now = new D
 export function matchesDailyJournalSearch(entry: DailyJournalEntry, search: string): boolean {
   const term = search.trim().toLocaleLowerCase();
   if (!term) return true;
-  return [entry.title, entry.plainText, ...entry.emotions, ...entry.tags].some((value) => value.toLocaleLowerCase().includes(term));
+  return [entry.title, entry.plainText, ...entry.emotions, ...entry.tags,
+    entry.details?.session, entry.details?.takeaway, entry.details?.nextAction, entry.details?.rule,
+    entry.details?.mistakes, entry.details?.positives, ...(entry.details?.notes ?? []).map(n => n.text),
+  ].some((value) => typeof value === "string" && value.toLocaleLowerCase().includes(term));
 }

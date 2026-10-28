@@ -1,4 +1,6 @@
 import { getSupabaseClient } from "@/lib/supabase";
+import { cleanJournalDetails } from "@/lib/journalWorkbench";
+import type { Json, TablesInsert } from "@/lib/database.types";
 import type { DailyJournalEntry, GoalSettings, JournalRules, ResearchItem, Trade, Wallet, WalletTransaction } from "@/lib/types";
 
 type JsonRecord = Record<string, unknown>;
@@ -22,6 +24,7 @@ function fromDailyJournalRow(row: JsonRecord): DailyJournalEntry {
     linkedTradeIds: Array.isArray(row.linked_trade_ids) ? row.linked_trade_ids.filter((item): item is string => typeof item === "string") : [],
     createdAt: epoch(row.created_at) ?? Date.now(),
     updatedAt: epoch(row.updated_at) ?? Date.now(),
+    details: cleanJournalDetails(row.details),
   };
 }
 
@@ -37,8 +40,8 @@ export async function listSupabaseDailyJournalEntries(userId: string): Promise<D
   return (data ?? []).map((row) => fromDailyJournalRow(row as JsonRecord));
 }
 
-export async function saveSupabaseDailyJournalEntry(userId: string, entry: DailyJournalEntry) {
-  const { error } = await getSupabaseClient().from("daily_journal_entries").upsert({
+export async function saveSupabaseDailyJournalEntry(userId: string, entry: DailyJournalEntry, expectedUpdatedAt?: number | null) {
+  const row = {
     user_id: userId,
     id: entry.id,
     title: entry.title.trim() || "Untitled entry",
@@ -54,7 +57,18 @@ export async function saveSupabaseDailyJournalEntry(userId: string, entry: Daily
     linked_trade_ids: entry.linkedTradeIds,
     created_at: new Date(entry.createdAt).toISOString(),
     updated_at: new Date(entry.updatedAt).toISOString(),
-  }, { onConflict: "user_id,id" });
+    details: cleanJournalDetails(entry.details) as unknown as Json,
+  };
+  if (typeof expectedUpdatedAt === "number") {
+    const { data, error } = await getSupabaseClient().from("daily_journal_entries").update(row)
+      .eq("user_id", userId).eq("id", entry.id).eq("updated_at", new Date(expectedUpdatedAt).toISOString()).select("id");
+    throwIfError(error);
+    if (!data?.length) throw new Error("JOURNAL_CONFLICT");
+    return;
+  }
+  const { error } = expectedUpdatedAt === null
+    ? await getSupabaseClient().from("daily_journal_entries").insert(row)
+    : await getSupabaseClient().from("daily_journal_entries").upsert(row, { onConflict: "user_id,id" });
   throwIfError(error);
 }
 
@@ -89,7 +103,7 @@ export async function saveSupabaseResearch(userId: string, item: ResearchItem) {
   const { error } = await getSupabaseClient().from("coin_research").upsert({
     user_id: userId,
     ca: normalizedCa,
-    data: payload,
+    data: payload as unknown as Json,
     created_at: new Date(item.createdAt).toISOString(),
     updated_at: new Date(item.updatedAt).toISOString(),
   }, { onConflict: "user_id,ca" });
@@ -274,7 +288,7 @@ export async function saveSupabaseTrade(userId: string, trade: Record<string, un
     ...(existing?.extra && typeof existing.extra === "object" && !Array.isArray(existing.extra) ? existing.extra as JsonRecord : {}),
     ...((row.extra as JsonRecord | undefined) ?? {}),
   };
-  const { error } = await client.from("trades").upsert(row, { onConflict: "user_id,id" });
+  const { error } = await client.from("trades").upsert(row as unknown as TablesInsert<"trades">, { onConflict: "user_id,id" });
   throwIfError(error);
   return id;
 }
@@ -298,7 +312,7 @@ export async function loadSupabasePreferences(userId: string): Promise<{ rules?:
 export async function patchSupabasePreferences(userId: string, patch: { rules?: JournalRules; goals?: GoalSettings }) {
   const { error } = await getSupabaseClient().rpc("patch_user_preferences", {
     p_user_id: userId,
-    p_patch: patch,
+    p_patch: patch as unknown as Json,
   });
   throwIfError(error);
 }
@@ -421,8 +435,8 @@ export async function applySupabaseWalletTransaction(
     p_transaction_id: transaction.id,
     p_wallet_name: transaction.walletName,
     p_delta_sol: deltaSol,
-    p_amount_usd: transaction.amountUsd ?? null,
-    p_notes: transaction.notes ?? null,
+    p_amount_usd: transaction.amountUsd ?? 0,
+    p_notes: transaction.notes ?? "",
     p_date: iso(transaction.date) ?? new Date().toISOString(),
     p_created_at: iso(transaction.createdAt) ?? new Date().toISOString(),
   });

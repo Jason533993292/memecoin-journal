@@ -102,7 +102,12 @@ function MainApp() {
 
 function AuthenticatedApp({ user }: { user: User }) {
   const { showToast } = useToast();
-  const [currentTab, setCurrentTab] = useState<string>("dashboard");
+  const currentTabStorageKey = `memecoin_journal_${user.uid}_current_tab`;
+  const [currentTab, setCurrentTab] = useState<string>(() => {
+    const allowed = new Set(["dashboard", "journal", "daily-journal", "wallets", "statistics", "research", "ai-coach", "guide"]);
+    const saved = typeof window === "undefined" ? null : localStorage.getItem(currentTabStorageKey);
+    return saved && allowed.has(saved) ? saved : "dashboard";
+  });
   const sidebarCollapsed = useLocalStorageValue("memecoin_journal_sidebar_collapsed") === "true";
   const demoMode = useLocalStorageValue(`memecoin_journal_${user.uid}_demo_mode`) === "true";
   const [trades, setTrades] = useState<Trade[]>([]);
@@ -133,6 +138,10 @@ function AuthenticatedApp({ user }: { user: User }) {
   const welcomeComplete = useLocalStorageValue(welcomeStorageKey) === "true";
   const [welcomeTourOverride, setWelcomeTourOverride] = useState<boolean | null>(null);
   const isWelcomeTourOpen = welcomeTourOverride ?? !welcomeComplete;
+
+  useEffect(() => {
+    writeLocalStorageValue(currentTabStorageKey, currentTab);
+  }, [currentTab, currentTabStorageKey]);
 
   // Rules and goals are stored in Firestore per account, not in shared browser keys.
   const [rules, setRules] = useState<JournalRules>(DEFAULT_RULES);
@@ -339,7 +348,7 @@ function AuthenticatedApp({ user }: { user: User }) {
   // Global Keyboard Shortcuts (Cmd+K, N, Esc, /)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (isWelcomeTourOpen) return;
+      if (isWelcomeTourOpen || e.defaultPrevented || document.querySelector('.journal-workbench[aria-modal="true"]')) return;
       // Cmd+K / Ctrl+K Palette
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();

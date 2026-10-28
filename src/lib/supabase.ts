@@ -1,14 +1,15 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { auth } from "@/lib/firebase";
+import type { Database } from "@/lib/database.types";
 
-let client: SupabaseClient | null = null;
+let client: SupabaseClient<Database> | null = null;
 
 /**
  * Supabase client for deployments configured with NEXT_PUBLIC_DATA_BACKEND=supabase.
  * Firebase continues to provide the user's identity token. Never put a
  * service-role key in a NEXT_PUBLIC variable.
  */
-export function getSupabaseClient(): SupabaseClient {
+export function getSupabaseClient(): SupabaseClient<Database> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim();
 
@@ -17,7 +18,7 @@ export function getSupabaseClient(): SupabaseClient {
   }
 
   if (!client) {
-    client = createClient(url, publishableKey, {
+    client = createClient<Database>(url, publishableKey, {
       accessToken: async () => auth.currentUser?.getIdToken() ?? null,
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     });

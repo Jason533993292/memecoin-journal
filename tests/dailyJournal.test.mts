@@ -11,6 +11,8 @@ test("daily journal exposes one free-writing mode and the three approved guided 
   const guided = createDailyJournalEntry("post_trade", new Date("2026-10-25T12:00:00Z"));
   assert.equal(guided.title, "Post-trade reflection");
   assert.match(guided.contentHtml, /Did I follow my plan/);
+  const justAfterLocalMidnight = createDailyJournalEntry("free", new Date(2026, 9, 26, 0, 15));
+  assert.equal(justAfterLocalMidnight.entryDate, "2026-10-26");
 });
 
 test("journal search includes writing, emotions, and tags without changing the entry", () => {

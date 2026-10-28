@@ -117,6 +117,7 @@ export interface DailyJournalEntry {
   linkedTradeIds: string[];
   createdAt: number;
   updatedAt: number;
+  details?: import("./journalWorkbench").JournalDetails;
 }
 
 export interface ToastMessage {

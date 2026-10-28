@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Trade } from "../lib/types";
-import { getTradeDate } from "../lib/utils";
+import { formatRealizedPnl, getTradeDate } from "../lib/utils";
 import { DEFAULT_GOOD_TAGS } from "../lib/constants";
 import { getUsdValueStatus } from "../lib/tradeCalculations";
 import { BarChart3, Layers, Target, Clock, Tag, Lightbulb, CalendarDays, ShieldCheck, Gauge } from "lucide-react";
@@ -16,9 +16,8 @@ interface StatisticsViewProps {
 
 export default function StatisticsView({ trades, solPrice = 150, onSelectTrade }: StatisticsViewProps) {
   const [currencyMode, setCurrencyMode] = useState<"SOL" | "USD">("SOL");
-  const formatPnl = (sol: number, usd = sol * solPrice) => currencyMode === "SOL"
-    ? `${sol >= 0 ? "+" : ""}${sol.toFixed(2)} SOL`
-    : `${usd >= 0 ? "+$" : "−$"}${Math.abs(usd).toFixed(2)}`;
+  const formatPnl = (sol: number, usd = sol * solPrice) =>
+    formatRealizedPnl(currencyMode === "SOL" ? sol : usd, currencyMode);
 
   // 1. Results Breakdown
   const results = useMemo(() => {

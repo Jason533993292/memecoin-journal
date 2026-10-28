@@ -6,7 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import { Trade } from "../lib/types";
 import { getUsdValueStatus } from "../lib/tradeCalculations";
 import { useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
-import { getLocalDayKey, getTradeDate } from "../lib/utils";
+import { formatRealizedPnl, getLocalDayKey, getTradeDate } from "../lib/utils";
 
 interface TiltStreakHeatmapProps {
   trades: Trade[];
@@ -33,6 +33,9 @@ export default function TiltStreakHeatmap({ trades, solPrice = 150, onSelectTrad
   const todayKey = getLocalDayKey(currentDate);
   const [visibleMonth, setVisibleMonth] = useState(() => ({ year: currentYear, month: currentMonth }));
   const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
+  const [walletFilter, setWalletFilter] = useState("all");
+  const [setupFilter, setSetupFilter] = useState("all");
+  const [modeFilter, setModeFilter] = useState<"all" | "paper" | "real">("all");
 
   const currencyStorageKey = user ? `memecoin_journal_${user.uid}_calendar_currency` : "calendar_currency";
   const storedCurrency = useLocalStorageValue(currencyStorageKey);
@@ -42,14 +45,26 @@ export default function TiltStreakHeatmap({ trades, solPrice = 150, onSelectTrad
     if (user) writeLocalStorageValue(currencyStorageKey, nextCurrency);
   };
 
+  const filterOptions = useMemo(() => ({
+    wallets: Array.from(new Set(trades.map((trade) => trade.wallet).filter(Boolean))).sort(),
+    setups: Array.from(new Set(trades.map((trade) => trade.setupType || "General / Discretionary"))).sort(),
+  }), [trades]);
+
+  const filteredTrades = useMemo(() => trades.filter((trade) => {
+    const mode = trade.tradeMode ?? (trade.isPaper ? "paper" : "real");
+    return (walletFilter === "all" || trade.wallet === walletFilter)
+      && (setupFilter === "all" || (trade.setupType || "General / Discretionary") === setupFilter)
+      && (modeFilter === "all" || mode === modeFilter);
+  }), [modeFilter, setupFilter, trades, walletFilter]);
+
   const dailyBuckets = useMemo(() => {
     const buckets = new Map<string, Trade[]>();
-    trades.forEach((trade) => {
+    filteredTrades.forEach((trade) => {
       const key = getLocalDayKey(getTradeDate(trade));
       buckets.set(key, [...(buckets.get(key) ?? []), trade]);
     });
     return buckets;
-  }, [trades]);
+  }, [filteredTrades]);
 
   const { calendarDays, leadingBlankDays, monthlyProfitInfo, todayLosses, isTiltAlert } = useMemo(() => {
     const firstDay = new Date(visibleMonth.year, visibleMonth.month, 1, 12);
@@ -108,12 +123,7 @@ export default function TiltStreakHeatmap({ trades, solPrice = 150, onSelectTrad
 
   const formatDayPnl = (day: CalendarDay) => {
     if (day.tradeCount === 0) return "—";
-    if (currency === "SOL") return `${day.pnlSol > 0 ? "+" : ""}${day.pnlSol.toFixed(2)}`;
-    return day.pnlUsd > 0
-      ? `+$${day.pnlUsd.toFixed(2)}`
-      : day.pnlUsd < 0
-        ? `−$${Math.abs(day.pnlUsd).toFixed(2)}`
-        : "$0.00";
+    return formatRealizedPnl(currency === "SOL" ? day.pnlSol : day.pnlUsd, currency).replace(" SOL", "");
   };
 
   const monthlyPnl = currency === "SOL" ? monthlyProfitInfo.pnlSol : monthlyProfitInfo.pnlUsd;
@@ -153,12 +163,35 @@ export default function TiltStreakHeatmap({ trades, solPrice = 150, onSelectTrad
           <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#e9e9e7] rounded-full font-bold shadow-xs">
             <span className="text-[10px] text-[#787774] font-medium uppercase">Month P&amp;L</span>
             <span className={monthlyPnl >= 0 ? "text-emerald-600" : "text-rose-600"}>
-              {currency === "SOL"
-                ? `${monthlyPnl >= 0 ? "+" : ""}${monthlyPnl.toFixed(2)} SOL`
-                : `${monthlyPnl >= 0 ? "+$" : "−$"}${Math.abs(monthlyPnl).toFixed(2)}`}
+              {formatRealizedPnl(monthlyPnl, currency)}
             </span>
           </div>
         </div>
+      </div>
+
+      <div data-tour="calendar-filters" className="grid gap-2 rounded-xl border border-[#e9e9e7] bg-white p-3 sm:grid-cols-3">
+        <label className="text-[10px] font-semibold uppercase tracking-wide text-[#787774]">
+          Wallet
+          <select value={walletFilter} onChange={(event) => { setWalletFilter(event.target.value); setSelectedDayKey(null); }} className="mt-1 block w-full rounded-lg border border-[#e3e2de] bg-[#fbfbfa] px-2.5 py-2 text-xs font-medium normal-case tracking-normal text-[#37352f]">
+            <option value="all">All wallets</option>
+            {filterOptions.wallets.map((wallet) => <option key={wallet} value={wallet}>{wallet}</option>)}
+          </select>
+        </label>
+        <label className="text-[10px] font-semibold uppercase tracking-wide text-[#787774]">
+          Strategy
+          <select value={setupFilter} onChange={(event) => { setSetupFilter(event.target.value); setSelectedDayKey(null); }} className="mt-1 block w-full rounded-lg border border-[#e3e2de] bg-[#fbfbfa] px-2.5 py-2 text-xs font-medium normal-case tracking-normal text-[#37352f]">
+            <option value="all">All strategies</option>
+            {filterOptions.setups.map((setup) => <option key={setup} value={setup}>{setup}</option>)}
+          </select>
+        </label>
+        <label className="text-[10px] font-semibold uppercase tracking-wide text-[#787774]">
+          Trading mode
+          <select value={modeFilter} onChange={(event) => { setModeFilter(event.target.value as typeof modeFilter); setSelectedDayKey(null); }} className="mt-1 block w-full rounded-lg border border-[#e3e2de] bg-[#fbfbfa] px-2.5 py-2 text-xs font-medium normal-case tracking-normal text-[#37352f]">
+            <option value="all">Paper and live</option>
+            <option value="paper">Paper only</option>
+            <option value="real">Live only</option>
+          </select>
+        </label>
       </div>
 
       {isTiltAlert && (
@@ -261,7 +294,7 @@ export default function TiltStreakHeatmap({ trades, solPrice = 150, onSelectTrad
                 return (
                   <button key={trade.id} type="button" onClick={() => onSelectTrade?.(trade)} className="calendar-trade-card flex items-center justify-between gap-3 rounded-lg border border-[#e9e9e7] bg-white p-3 text-left transition-colors hover:bg-[#f7f6f3]">
                     <span className="min-w-0"><span className="block truncate text-xs font-bold text-[#37352f]">{trade.name || trade.symbol}</span><span className="block text-[10px] text-[#787774]">${trade.symbol} · {getTradeDate(trade).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</span></span>
-                    <span className={`shrink-0 font-mono text-xs font-bold ${pnl > 0 ? "text-emerald-600" : pnl < 0 ? "text-rose-600" : "text-[#787774]"}`}>{pnl > 0 ? "+" : ""}{pnl.toFixed(2)} SOL</span>
+                    <span className={`shrink-0 font-mono text-xs font-bold ${pnl > 0 ? "text-emerald-600" : pnl < 0 ? "text-rose-600" : "text-[#787774]"}`}>{formatRealizedPnl(pnl, "SOL")}</span>
                   </button>
                 );
               })}

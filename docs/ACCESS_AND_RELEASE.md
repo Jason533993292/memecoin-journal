@@ -59,6 +59,8 @@ SUPABASE_ACCESS_TOKEN
 STAGING_FIREBASE_API_KEY
 STAGING_SUPABASE_URL
 STAGING_SUPABASE_PUBLISHABLE_KEY
+STAGING_SUPABASE_PROJECT_REF
+STAGING_SUPABASE_DB_PASSWORD
 ```
 
 `PRODUCTION_HEALTHCHECK_TOKEN` and `STAGING_HEALTHCHECK_TOKEN` must exactly match the server-only `HEALTHCHECK_TOKEN` configured in the corresponding Railway environment. Never prefix them with `NEXT_PUBLIC_`.
@@ -66,6 +68,20 @@ STAGING_SUPABASE_PUBLISHABLE_KEY
 Create a Supabase personal access token with the narrowest available project-management access and store it only as `SUPABASE_ACCESS_TOKEN` in GitHub Actions. It is used only to verify that a recent backup exists; it is not bundled into the app.
 
 After adding the secrets, open GitHub Actions and manually run both workflows once. Confirm that both jobs pass before relying on their schedules.
+
+The `Database contract` workflow also regenerates the hosted TypeScript definitions and performs a dry-run migration push against staging. It prevents a release when the committed types are stale or a local migration was not applied to staging.
+
+## Firebase App Check rollout
+
+The web client initializes App Check only when `NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY` is configured.
+
+1. In Firebase App Check, register the production web app with reCAPTCHA Enterprise and copy its site key into Railway as `NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY`.
+2. Add the production and staging hostnames to the provider configuration. Never add `localhost` to a production reCAPTCHA key; use Firebase App Check debug tokens for local testing instead.
+3. Deploy without enforcement and observe App Check metrics for at least one normal usage period.
+4. Confirm Google sign-in, email sign-in, trade saves, journal saves, account deletion, and feedback still work.
+5. Enable enforcement one Firebase product at a time, beginning with Firestore. Keep an immediate rollback window.
+
+Do not enable enforcement before valid production traffic appears in App Check metrics; doing so can lock real users out.
 
 ## Backup restoration drill
 

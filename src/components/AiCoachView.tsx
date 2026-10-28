@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, type ReactNode } from "react";
 import { Trade, AiCoachBrief, ResearchItem } from "../lib/types";
 import { Bot, RefreshCw, AlertTriangle, ShieldCheck, Target, HelpCircle, Eye, EyeOff, KeyRound } from "lucide-react";
 import { DEFAULT_GOOD_TAGS } from "../lib/constants";
@@ -32,9 +32,11 @@ interface AiCoachViewProps {
   loadingAi: boolean;
 }
 
-function escapeHtml(s: string) {
-  return s.replace(/[&<>"']/g, (c) =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] || c)
+function renderInlineMarkup(value: string): ReactNode[] {
+  return value.split(/(\*\*[^*]{1,500}\*\*)/g).map((part, index) =>
+    part.startsWith("**") && part.endsWith("**")
+      ? <strong key={index} className="font-bold text-[#37352f]">{part.slice(2, -2)}</strong>
+      : part,
   );
 }
 
@@ -230,19 +232,31 @@ export default function AiCoachView({
 
   const renderFormattedText = (text: string) => {
     if (!text) return null;
-    const escaped = escapeHtml(text);
-    const html = escaped
-      .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-[#37352f]">$1</strong>')
-      .replace(/### (.*?)\n/g, '<strong class="block text-sm mt-2 mb-1">$1</strong>\n')
-      .replace(/## (.*?)\n/g, '<strong class="block text-base mt-3 mb-1">$1</strong>\n')
-      .replace(/# (.*?)\n/g, '<strong class="block text-lg mt-4 mb-2">$1</strong>\n');
-    return <div dangerouslySetInnerHTML={{ __html: html }} className="whitespace-pre-line font-sans" />;
+    const lines = text.slice(0, 12_000).split("\n").slice(0, 180);
+    return (
+      <div className="space-y-1.5 font-sans">
+        {lines.map((rawLine, index) => {
+          const line = rawLine.trim();
+          if (!line) return <div key={index} className="h-1" aria-hidden="true" />;
+          const heading = line.match(/^(#{1,3})\s+(.+)$/);
+          if (heading) {
+            const size = heading[1].length === 1 ? "text-base mt-4" : heading[1].length === 2 ? "text-sm mt-3" : "text-xs mt-2";
+            return <h3 key={index} className={`${size} font-bold text-[#37352f]`}>{renderInlineMarkup(heading[2])}</h3>;
+          }
+          const bullet = line.match(/^[-*]\s+(.+)$/);
+          if (bullet) return <div key={index} className="flex gap-2"><span aria-hidden="true">•</span><p>{renderInlineMarkup(bullet[1])}</p></div>;
+          const numbered = line.match(/^(\d{1,2})[.)]\s+(.+)$/);
+          if (numbered) return <div key={index} className="flex gap-2"><span className="font-mono text-[#787774]">{numbered[1]}.</span><p>{renderInlineMarkup(numbered[2])}</p></div>;
+          return <p key={index}>{renderInlineMarkup(line)}</p>;
+        })}
+      </div>
+    );
   };
 
   return (
     <div className="journal-page">
       {/* Title */}
-      <div className="pt-6">
+      <div data-tour="ai-overview" className="pt-6">
         <div className="flex items-center gap-2 text-xs text-[#787774] mb-2">
           <span>Journal</span>
           <span>/</span>
@@ -275,7 +289,7 @@ export default function AiCoachView({
       </div>
 
       {/* Snapshot Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div data-tour="ai-snapshot" className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl p-4">
           <div className="flex items-center gap-2 text-xs text-[#787774] mb-1">
             <Target size={14} className="text-[#2383e2]" />

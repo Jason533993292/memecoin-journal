@@ -7,7 +7,7 @@ import type { ResearchDecision, ResearchItem, ResearchStage, ResearchSnapshot, T
 import { db } from "@/lib/firebase";
 import { deleteSupabaseResearch, listSupabaseResearch, saveSupabaseResearch, usesSupabaseJournal } from "@/lib/journalBackend";
 import { useToast } from "@/components/Toast";
-import { getTradeDate } from "@/lib/utils";
+import { formatSol, getTradeDate } from "@/lib/utils";
 import ResearchEvidenceImage from "@/components/ResearchEvidenceImage";
 import BetaBadge from "@/components/BetaBadge";
 
@@ -30,7 +30,7 @@ function buildShareableThesis(item: ResearchItem) {
       `**Stage:** ${stage}`,
       `**Confidence:** ${item.confidence}%`,
       item.horizon.trim() ? `**Time horizon:** ${item.horizon.trim()}` : "",
-      item.sizeSol !== undefined ? `**Planned size:** ${item.sizeSol.toFixed(2)} SOL` : "",
+      item.sizeSol !== undefined ? `**Planned size:** ${formatSol(item.sizeSol)} SOL` : "",
     ].filter(Boolean).join("\n"),
     item.thesis.trim() ? `## Core thesis\n${item.thesis.trim()}` : "",
     item.bullCase.trim() ? `## Bull case\n${item.bullCase.trim()}` : "",

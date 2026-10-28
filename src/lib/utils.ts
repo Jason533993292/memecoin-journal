@@ -47,6 +47,44 @@ export function formatSol(value: number, maximumFractionDigits = 2): string {
   }).format(value);
 }
 
+/** Format a stored quantity without changing its underlying precision. */
+export function formatQuantity(value: number, fractionDigits = 2): string {
+  if (!Number.isFinite(value)) return "—";
+  const digits = Math.min(9, Math.max(0, fractionDigits));
+  return new Intl.NumberFormat(undefined, {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(value);
+}
+
+/** Format a USD amount consistently across cards, tables, and calendars. */
+export function formatUsd(value: number, options: { signed?: boolean } = {}): string {
+  if (!Number.isFinite(value)) return "—";
+  const absolute = new Intl.NumberFormat(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Math.abs(value));
+  if (!options.signed) return `${value < 0 ? "−" : ""}$${absolute}`;
+  return value > 0 ? `+$${absolute}` : value < 0 ? `−$${absolute}` : "$0.00";
+}
+
+/** Format a percentage with a bounded, predictable number of decimal places. */
+export function formatPercent(value: number, fractionDigits = 0): string {
+  if (!Number.isFinite(value)) return "—";
+  const digits = Math.min(2, Math.max(0, fractionDigits));
+  return `${new Intl.NumberFormat(undefined, {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(value)}%`;
+}
+
+/** Format realized P&L in the selected display currency. */
+export function formatRealizedPnl(value: number, currency: "SOL" | "USD"): string {
+  if (!Number.isFinite(value)) return "—";
+  if (currency === "USD") return formatUsd(value, { signed: true });
+  return `${value > 0 ? "+" : ""}${formatSol(value)} SOL`;
+}
+
 /**
  * Client-side image compression with a strict Firestore-safe output size.
  */

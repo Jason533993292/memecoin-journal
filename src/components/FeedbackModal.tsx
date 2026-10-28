@@ -118,7 +118,7 @@ export default function FeedbackModal({ isOpen, onClose, user, currentSection }:
             <h2 id="feedback-title" className="text-lg font-bold">Share feedback</h2>
             <p className="mt-1 text-xs leading-5 text-[#787774]">Report a problem or suggest an improvement. Do not include wallet keys, API keys, or passwords.</p>
           </div>
-          <button type="button" onClick={close} aria-label="Close feedback form" className="rounded-lg p-1.5 text-[#787774] transition-colors hover:bg-[#f1f1ef] hover:text-[#37352f]"><X size={18} /></button>
+          <button type="button" data-tour="feedback-close" onClick={close} aria-label="Close feedback form" className="rounded-lg p-1.5 text-[#787774] transition-colors hover:bg-[#f1f1ef] hover:text-[#37352f]"><X size={18} /></button>
         </div>
 
         <div className="mt-5 grid grid-cols-3 gap-2" aria-label="Feedback category">

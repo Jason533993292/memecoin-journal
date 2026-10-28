@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowRight, BookOpenCheck, CheckCircle2, Clock3, Rocket, ShieldCheck } from "lucide-react";
+import FeedbackAdminPanel from "@/components/FeedbackAdminPanel";
 
 type RoadmapItem = { text: string; status: "Available" | "In progress" | "Planned" };
 
@@ -16,24 +17,24 @@ const ROADMAP: Array<{ title: string; description: string; items: RoadmapItem[] 
       { text: "Scheduled dependency and code-security scans", status: "Available" },
       { text: "Encrypted storage option for persistent AI provider keys", status: "Planned" },
       { text: "Security history for sensitive account actions", status: "Planned" },
-      { text: "Regular credential-rotation checks", status: "Planned" },
+      { text: "Regular credential-rotation checks", status: "Available" },
       { text: "Verified backup restoration exercises", status: "Planned" },
-      { text: "Audited administration for feedback reports", status: "In progress" },
+      { text: "Audited administration for feedback reports", status: "Available" },
     ],
   },
   {
     title: "Backend reliability",
     description: "Making saving, importing, notifications, and recovery predictable.",
     items: [
-      { text: "Reconciled and repeatable database migration history", status: "In progress" },
+      { text: "Reconciled and repeatable database migration history", status: "Available" },
       { text: "Integration tests against a protected staging database", status: "In progress" },
       { text: "Resumable account deletion across every data store", status: "Available" },
       { text: "Duplicate-safe feedback and import operations", status: "In progress" },
       { text: "Request IDs in server logs for faster diagnosis", status: "Available" },
-      { text: "Health checks for important external services", status: "In progress" },
+      { text: "Health checks for important external services", status: "Available" },
       { text: "Queued feedback email delivery with retries", status: "In progress" },
-      { text: "Automatic monitoring for market-price outages", status: "Planned" },
-      { text: "Verified database backup checks", status: "Planned" },
+      { text: "Automatic monitoring for market-price outages", status: "Available" },
+      { text: "Verified database backup checks", status: "In progress" },
       { text: "Alerts for unusual authentication and database errors", status: "Planned" },
     ],
   },
@@ -46,10 +47,10 @@ const ROADMAP: Array<{ title: string; description: string; items: RoadmapItem[] 
       { text: "Friendly recovery screen for unexpected errors", status: "Available" },
       { text: "Clear offline and reconnecting states", status: "Available" },
       { text: "Lazy-loaded charts and large dialogs", status: "Available" },
-      { text: "Database-generated TypeScript definitions", status: "In progress" },
+      { text: "Database-generated TypeScript definitions", status: "Available" },
       { text: "One shared currency and quantity formatter", status: "In progress" },
-      { text: "Safer component-based AI response formatting", status: "Planned" },
-      { text: "Warning-free automated test configuration", status: "Planned" },
+      { text: "Safer component-based AI response formatting", status: "Available" },
+      { text: "Warning-free automated test configuration", status: "Available" },
       { text: "Consistent loading placeholders and request cancellation", status: "In progress" },
     ],
   },
@@ -78,7 +79,7 @@ const ROADMAP: Array<{ title: string; description: string; items: RoadmapItem[] 
       { text: "Undo after deleting a trade", status: "Available" },
       { text: "Import preview with duplicate and error explanations", status: "In progress" },
       { text: "Discoverable keyboard-shortcut guide", status: "Available" },
-      { text: "Calendar filters for wallet, currency, and strategy", status: "Planned" },
+      { text: "Calendar filters for wallet, currency, and strategy", status: "Available" },
       { text: "Direct links between coin theses and resulting trades", status: "Available" },
       { text: "Persistent saved, syncing, and offline status", status: "In progress" },
       { text: "Backup and export reminders", status: "Available" },
@@ -93,17 +94,17 @@ const STATUS_STYLES = {
   Planned: "bg-[#f1f1ef] text-[#5a5957]",
 };
 
-const RECOMMENDED_NEXT = [
-  { title: "Activate protected staging checks", detail: "Connect the new two-account privacy journey to protected GitHub staging secrets." },
-  { title: "Activate service alerts", detail: "Connect authenticated health tokens so database and feedback-email failures trigger alerts." },
-  { title: "Complete a database restore drill", detail: "Restore a recent backup into an isolated project and verify record counts without touching production." },
-  { title: "Enable Firebase App Check", detail: "Observe valid traffic first, then enforce requests from the real web app." },
-  { title: "Feedback administration", detail: "Review, assign, resolve, and audit feedback reports from a protected maintainer inbox." },
-  { title: "Shared financial formatting", detail: "Use one formatter for every SOL, USD, percentage, size, and realized P&L display." },
-  { title: "Generated database types", detail: "Regenerate and verify TypeScript definitions whenever the Supabase schema changes." },
-  { title: "Safer AI response rendering", detail: "Render bounded structured sections and make timeouts, cancellation, and provider failures explicit." },
-  { title: "Reconciled migration history", detail: "Keep local migrations, hosted migration records, and staging schema checks synchronized." },
-  { title: "Calendar filters", detail: "Filter monthly results by wallet, currency, strategy, and paper or live trading." },
+const RECOMMENDED_NEXT: Array<{ title: string; detail: string; status: "Ready" | "In progress" | "Needs setup" }> = [
+  { title: "Activate protected staging checks", detail: "Connect the two-account privacy journey to protected GitHub staging secrets.", status: "Needs setup" },
+  { title: "Activate service alerts", detail: "Add health tokens so database, backup, and feedback-email failures open an incident.", status: "Needs setup" },
+  { title: "Complete a database restore drill", detail: "Restore a recent backup into an isolated project and verify it without touching production.", status: "Needs setup" },
+  { title: "Enable Firebase App Check", detail: "Observe valid traffic first, then enforce requests from the real web app.", status: "Needs setup" },
+  { title: "Feedback administration", detail: "A private allowlisted inbox can assign, resolve, and audit feedback reports.", status: "Ready" },
+  { title: "Shared financial formatting", detail: "The shared formatter is live in statistics and the calendar; remaining displays are being migrated.", status: "In progress" },
+  { title: "Generated database types", detail: "Hosted definitions are committed and a workflow now rejects stale generated types.", status: "Ready" },
+  { title: "Safer AI response rendering", detail: "AI output now uses bounded React sections without HTML injection.", status: "Ready" },
+  { title: "Reconciled migration history", detail: "Local filenames now match hosted versions and staging performs a dry-run migration check.", status: "Ready" },
+  { title: "Calendar filters", detail: "Filter monthly results by wallet, currency, strategy, and paper or live trading.", status: "Ready" },
 ];
 
 export default function GuideView({ onStartTour }: { onStartTour: () => void }) {
@@ -130,11 +131,16 @@ export default function GuideView({ onStartTour }: { onStartTour: () => void }) 
           {RECOMMENDED_NEXT.map((item, index) => (
             <li key={item.title} className="recommended-next-card flex gap-3 rounded-xl border border-blue-100 bg-white/85 p-4">
               <span className="recommended-next-number flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[11px] font-bold text-[#176bbd]">{index + 1}</span>
-              <div><h3 className="text-xs font-bold text-[#263d57]">{item.title}</h3><p className="mt-1 text-[11px] leading-4 text-[#607892]">{item.detail}</p></div>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-xs font-bold text-[#263d57]">{item.title}</h3><span className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${item.status === "Ready" ? "bg-emerald-100 text-emerald-700" : item.status === "In progress" ? "bg-blue-100 text-blue-700" : "bg-amber-100 text-amber-800"}`}>{item.status}</span></div>
+                <p className="mt-1 text-[11px] leading-4 text-[#607892]">{item.detail}</p>
+              </div>
             </li>
           ))}
         </ol>
       </section>
+
+      <FeedbackAdminPanel />
 
       <section aria-labelledby="roadmap-title">
         <div className="mb-5 flex flex-wrap items-end justify-between gap-3">

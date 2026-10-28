@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  distDir: process.env.JOURNAL_ISOLATED_QA === "1" ? ".next-journal-qa" : ".next",
   experimental: {
     agentUpgrade: "security",
   },
