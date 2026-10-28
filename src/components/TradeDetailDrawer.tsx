@@ -1,6 +1,6 @@
 "use client";
 
-import { Trade } from "../lib/types";
+import { ResearchItem, Trade } from "../lib/types";
 import { formatSol, getTradeTimestamp } from "../lib/utils";
 import {
   X,
@@ -18,11 +18,15 @@ import {
   Clock,
   Layers,
   Maximize2,
+  BookOpenCheck,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "./Toast";
 import ImageLightboxModal from "./ImageLightboxModal";
 import { getTradeBoughtUsd, getTradeSoldUsd, getUsdValueStatus } from "../lib/tradeCalculations";
+import { auth, db } from "../lib/firebase";
+import { collection, getDocs } from "firebase/firestore";
+import { listSupabaseResearch, usesSupabaseJournal } from "../lib/journalBackend";
 
 interface TradeDetailDrawerProps {
   trade: Trade | null;
@@ -50,6 +54,33 @@ export default function TradeDetailDrawer({
   const { showToast } = useToast();
   const [copied, setCopied] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [linkedResearch, setLinkedResearch] = useState<ResearchItem | null>(null);
+  const [possibleStaleLink, setPossibleStaleLink] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen || !trade) return;
+    let active = true;
+    const loadResearchLink = async () => {
+      const currentUser = auth.currentUser;
+      if (!currentUser) return;
+      try {
+        const items = usesSupabaseJournal()
+          ? await listSupabaseResearch(currentUser.uid)
+          : (await getDocs(collection(db, "users", currentUser.uid, "research"))).docs.map((entry) => entry.data() as ResearchItem);
+        if (!active) return;
+        const exact = items.find((item) => item.ca.trim() === trade.ca?.trim()) ?? null;
+        setLinkedResearch(exact);
+        setPossibleStaleLink(!exact && items.some((item) =>
+          item.symbol?.trim().toLowerCase() === trade.symbol?.trim().toLowerCase() ||
+          item.name?.trim().toLowerCase() === trade.name?.trim().toLowerCase()
+        ));
+      } catch {
+        if (active) { setLinkedResearch(null); setPossibleStaleLink(false); }
+      }
+    };
+    void loadResearchLink();
+    return () => { active = false; };
+  }, [isOpen, trade]);
 
   // Close on Escape key
   useEffect(() => {
@@ -213,6 +244,24 @@ export default function TradeDetailDrawer({
                       <span>Hold Time: {formatDuration(trade.durationMinutes)}</span>
                     </div>
                   )}
+                </div>
+              )}
+
+              {linkedResearch && (
+                <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-3">
+                  <div className="flex items-start gap-2">
+                    <BookOpenCheck size={15} className="mt-0.5 shrink-0 text-blue-700" />
+                    <div className="min-w-0">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-blue-700">Linked coin thesis</div>
+                      <div className="truncate text-xs font-semibold text-blue-950">{linkedResearch.name}{linkedResearch.symbol ? ` · $${linkedResearch.symbol}` : ""}</div>
+                      <div className="mt-0.5 text-[10px] text-blue-800">{linkedResearch.stage} · {linkedResearch.confidence}% confidence · updated {new Date(linkedResearch.updatedAt).toLocaleDateString()}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {possibleStaleLink && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-900">
+                  A saved thesis has the same token name or symbol, but its contract address differs. Edit this trade and relink it before comparing research with execution.
                 </div>
               )}
 

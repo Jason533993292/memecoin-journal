@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { db, auth } from "../lib/firebase";
-import { doc, Timestamp, updateDoc } from "firebase/firestore";
+import { collection, doc, getDocs, Timestamp, updateDoc } from "firebase/firestore";
 import {
   X,
   Loader2,
@@ -13,14 +13,15 @@ import {
   Clock,
   Upload,
   Layers,
+  BookOpenCheck,
 } from "lucide-react";
 import TradeDateTimePicker from "./TradeDateTimePicker";
-import { Trade } from "../lib/types";
+import { ResearchItem, Trade } from "../lib/types";
 import { useToast } from "./Toast";
 import { COMMON_SETUPS, DURATION_PRESETS, DEFAULT_GOOD_TAGS, DEFAULT_MISTAKE_TAGS } from "../lib/constants";
 import { compressImage, getTradeTimestamp } from "../lib/utils";
 import { getTradeCreateValidationError, quoteAmountsToBase, defaultQuoteUsdRate, QUOTE_CURRENCIES, TRADING_VENUES } from "../lib/tradeInput";
-import { saveSupabaseTrade, usesSupabaseJournal } from "../lib/journalBackend";
+import { listSupabaseResearch, saveSupabaseTrade, usesSupabaseJournal } from "../lib/journalBackend";
 
 interface EditTradeModalProps {
   trade: Trade | null;
@@ -46,7 +47,7 @@ export default function EditTradeModal({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
 
-  const [ca] = useState(trade?.ca || "");
+  const [ca, setCa] = useState(trade?.ca || "");
   const [name, setName] = useState(trade?.name || "");
   const [symbol, setSymbol] = useState(trade?.symbol || "");
   const [saving, setSaving] = useState(false);
@@ -87,6 +88,38 @@ export default function EditTradeModal({
   const [showAdvanced, setShowAdvanced] = useState(
     Boolean(trade?.initialRiskSol || trade?.feesSol || trade?.stopPrice)
   );
+  const [researchItems, setResearchItems] = useState<ResearchItem[]>([]);
+  const [researchLoading, setResearchLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let active = true;
+    const loadResearch = async () => {
+      const currentUser = auth.currentUser;
+      if (!currentUser) return;
+      setResearchLoading(true);
+      try {
+        const items = usesSupabaseJournal()
+          ? await listSupabaseResearch(currentUser.uid)
+          : (await getDocs(collection(db, "users", currentUser.uid, "research"))).docs.map((entry) => entry.data() as ResearchItem);
+        if (active) setResearchItems(items.filter((item) => item.ca && item.name).sort((a, b) => b.updatedAt - a.updatedAt));
+      } catch {
+        if (active) setResearchItems([]);
+      } finally {
+        if (active) setResearchLoading(false);
+      }
+    };
+    void loadResearch();
+    return () => { active = false; };
+  }, [isOpen]);
+
+  const selectResearchThesis = (researchCa: string) => {
+    const thesis = researchItems.find((item) => item.ca === researchCa);
+    if (!thesis) return;
+    setCa(thesis.ca);
+    setName(thesis.name);
+    setSymbol(thesis.symbol || symbol || "MEME");
+  };
 
   // Global Clipboard Paste Listener for screenshots with compression
   useEffect(() => {
@@ -718,6 +751,28 @@ export default function EditTradeModal({
               maxLength={4000}
               className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg p-2.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2] resize-none"
             />
+          </div>
+
+          <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-3">
+            <label htmlFor="edit-linked-thesis" className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-blue-900">
+              <BookOpenCheck size={13} />
+              Linked coin thesis
+            </label>
+            <select
+              id="edit-linked-thesis"
+              value={researchItems.some((item) => item.ca === ca.trim()) ? ca.trim() : ""}
+              onChange={(event) => selectResearchThesis(event.target.value)}
+              disabled={researchLoading || researchItems.length === 0}
+              className="w-full rounded-lg border border-blue-200 bg-white px-2.5 py-2 text-xs text-[#37352f] disabled:opacity-60"
+            >
+              <option value="">{researchLoading ? "Loading saved theses…" : researchItems.length ? "Not linked to a saved thesis" : "No saved theses yet"}</option>
+              {researchItems.map((item) => <option key={item.ca} value={item.ca}>{item.name}{item.symbol ? ` ($${item.symbol})` : ""} · {item.stage}</option>)}
+            </select>
+            <p className="mt-1.5 text-[10px] text-blue-800">
+              {researchItems.some((item) => item.ca === ca.trim())
+                ? "Linked by exact contract address. This trade appears in the thesis execution review."
+                : "Choose a thesis to update this trade's contract address and keep research and execution connected."}
+            </p>
           </div>
 
           {/* Action Buttons */}

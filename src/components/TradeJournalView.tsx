@@ -22,7 +22,8 @@ import { useCurrentTime, useLocalStorageValue, writeLocalStorageValue } from "..
 import { useToast } from "./Toast";
 import { getTradeBoughtUsd, getTradeSoldUsd, getUsdValueStatus } from "../lib/tradeCalculations";
 import ImageLightboxModal from "./ImageLightboxModal";
-import { deleteSupabaseTrade, saveSupabaseTrade, usesSupabaseJournal } from "../lib/journalBackend";
+import { deleteSupabaseTrade, importSupabaseTrades, usesSupabaseJournal } from "../lib/journalBackend";
+import type { ImportedTrade } from "../lib/exportImport";
 
 interface TradeJournalViewProps {
   userId: string;
@@ -69,6 +70,12 @@ export default function TradeJournalView({
   const [viewMode, setViewMode] = useState<"table" | "cards">("cards");
   const [currencyMode, setCurrencyMode] = useState<"SOL" | "USD">("SOL");
   const [tradeToDelete, setTradeToDelete] = useState<string | null>(null);
+  const [pendingImport, setPendingImport] = useState<{
+    fileName: string;
+    trades: ImportedTrade[];
+    duplicateCount: number;
+  } | null>(null);
+  const [importing, setImporting] = useState(false);
 
   const [lightboxImage, setLightboxImage] = useState<{ url: string; title: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -160,39 +167,64 @@ export default function TradeJournalView({
       const uniqueImported = filterNewTradeImports(imported, trades);
 
       if (uniqueImported.length > 0) {
-        let count = 0;
-        const currentUser = auth.currentUser;
-        if (!currentUser) throw new Error("Please sign in to import trades.");
-        if (usesSupabaseJournal()) {
-          await Promise.all(uniqueImported.map(async (item) => {
-            await saveSupabaseTrade(currentUser.uid, { ...item, date: new Date(item.tradedAt) });
-            count++;
-          }));
-        } else {
-          const batch = writeBatch(db);
-          for (const item of uniqueImported) {
-            const tradeRef = doc(collection(db, "users", currentUser.uid, "trades"));
-            batch.set(tradeRef, { ...item, date: Timestamp.fromMillis(item.tradedAt) });
-            count++;
-          }
-          await batch.commit();
-        }
-        const skipped = imported.length - uniqueImported.length;
-        showToast(
-          `Imported ${count} trade${count === 1 ? "" : "s"}.`,
-          "success",
-          skipped > 0 ? `${skipped} duplicate${skipped === 1 ? " was" : "s were"} skipped.` : undefined
-        );
-        onTradeDeleted();
+        setPendingImport({
+          fileName: file.name,
+          trades: uniqueImported,
+          duplicateCount: imported.length - uniqueImported.length,
+        });
       } else {
         showToast("No new trades to import", "info", "Every trade in this file is already in the journal.");
       }
     } catch (err) {
       console.error(err);
-      showToast("Failed to parse and import file", "error");
+      showToast(
+        "Import could not be prepared",
+        "error",
+        err instanceof Error ? err.message : "Check the file and try again."
+      );
     }
 
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const confirmImport = async () => {
+    if (!pendingImport || importing) return;
+    setImporting(true);
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) throw new Error("Please sign in to import trades.");
+      if (usesSupabaseJournal()) {
+        await importSupabaseTrades(
+          currentUser.uid,
+          pendingImport.trades.map((item) => ({ ...item, date: new Date(item.tradedAt) }))
+        );
+      } else {
+        const batch = writeBatch(db);
+        for (const item of pendingImport.trades) {
+          const tradeRef = doc(collection(db, "users", currentUser.uid, "trades"));
+          batch.set(tradeRef, { ...item, date: Timestamp.fromMillis(item.tradedAt) });
+        }
+        await batch.commit();
+      }
+      const count = pendingImport.trades.length;
+      const skipped = pendingImport.duplicateCount;
+      showToast(
+        `Imported ${count} trade${count === 1 ? "" : "s"}.`,
+        "success",
+        skipped > 0 ? `${skipped} duplicate${skipped === 1 ? " was" : "s were"} skipped.` : "The import completed as one atomic operation."
+      );
+      setPendingImport(null);
+      onTradeDeleted();
+    } catch (err) {
+      console.error(err);
+      showToast(
+        "Nothing was imported",
+        "error",
+        err instanceof Error ? err.message : "The atomic import failed. Your existing journal was not changed."
+      );
+    } finally {
+      setImporting(false);
+    }
   };
 
   // Filter & Sort Trades
@@ -953,6 +985,45 @@ export default function TradeJournalView({
           imageUrl={lightboxImage.url}
           title={lightboxImage.title}
         />
+      )}
+      {/* Import Preview */}
+      {pendingImport && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="trade-import-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs"
+          onClick={() => !importing && setPendingImport(null)}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl border border-[#e3e2de] bg-white p-5 text-[#37352f] shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 id="trade-import-title" className="text-base font-bold">Review trade import</h3>
+            <p className="mt-1 text-xs text-[#787774]">
+              {pendingImport.fileName} passed validation. Nothing is written until you confirm.
+            </p>
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              <div className="rounded-xl bg-blue-50 p-3"><div className="text-xl font-bold text-blue-700">{pendingImport.trades.length}</div><div className="text-[11px] text-blue-800">new trades</div></div>
+              <div className="rounded-xl bg-amber-50 p-3"><div className="text-xl font-bold text-amber-800">{pendingImport.duplicateCount}</div><div className="text-[11px] text-amber-900">duplicates skipped</div></div>
+              <div className="rounded-xl bg-emerald-50 p-3"><div className="text-xl font-bold text-emerald-700">1</div><div className="text-[11px] text-emerald-800">atomic write</div></div>
+            </div>
+            <div className="mt-4 max-h-44 overflow-y-auto rounded-xl border border-[#e9e9e7]">
+              {pendingImport.trades.slice(0, 10).map((trade, index) => (
+                <div key={`${trade.ca}-${trade.tradedAt}-${index}`} className="flex items-center justify-between border-b border-[#f1f1ef] px-3 py-2 text-xs last:border-0">
+                  <span className="font-semibold">{trade.name} <span className="font-normal text-[#787774]">${trade.symbol}</span></span>
+                  <span className={trade.pnlSol >= 0 ? "font-mono text-emerald-700" : "font-mono text-rose-700"}>{trade.pnlSol >= 0 ? "+" : ""}{trade.pnlSol.toFixed(2)} SOL</span>
+                </div>
+              ))}
+              {pendingImport.trades.length > 10 && <div className="px-3 py-2 text-center text-[11px] text-[#787774]">and {pendingImport.trades.length - 10} more…</div>}
+            </div>
+            <p className="mt-3 text-[11px] text-[#787774]">If any row fails to save, the whole import is rejected and your existing journal remains unchanged.</p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" disabled={importing} onClick={() => setPendingImport(null)} className="rounded-lg border border-[#e3e2de] px-4 py-2 text-xs font-semibold disabled:opacity-50">Cancel</button>
+              <button type="button" disabled={importing} onClick={() => void confirmImport()} className="rounded-lg bg-[#1a73ca] px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">{importing ? "Importing…" : `Import ${pendingImport.trades.length} trades`}</button>
+            </div>
+          </div>
+        </div>
       )}
       {/* Delete Confirmation Modal */}
       {tradeToDelete && (

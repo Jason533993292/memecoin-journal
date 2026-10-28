@@ -293,6 +293,27 @@ export async function saveSupabaseTrade(userId: string, trade: Record<string, un
   return id;
 }
 
+/**
+ * Imports a validated set of trades with one PostgREST insert statement.
+ * PostgreSQL treats the statement atomically, so a rejected row cannot leave
+ * the user's journal half-imported.
+ */
+export async function importSupabaseTrades(
+  userId: string,
+  trades: Array<Record<string, unknown>>
+) {
+  if (!trades.length) return [];
+  const ids = trades.map(() => crypto.randomUUID());
+  const rows = trades.map((trade, index) =>
+    toTradeRow(userId, ids[index], trade as unknown as Omit<Trade, "id">)
+  );
+  const { error } = await getSupabaseClient()
+    .from("trades")
+    .insert(rows as unknown as TablesInsert<"trades">[]);
+  throwIfError(error);
+  return ids;
+}
+
 export async function deleteSupabaseTrade(userId: string, id: string) {
   const { error } = await getSupabaseClient().from("trades").delete().eq("user_id", userId).eq("id", id);
   throwIfError(error);
