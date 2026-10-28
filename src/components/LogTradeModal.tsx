@@ -90,7 +90,13 @@ export default function LogTradeModal({
     marketCap: number;
     liquidity: number;
     imageUrl?: string;
-  } | null>(null);
+  } | null>(initialData?.name ? {
+    name: initialData.name,
+    symbol: initialData.symbol || "MEME",
+    priceUsd: String(initialData.price || 0),
+    marketCap: initialData.mcap || 0,
+    liquidity: initialData.liquidity || 0,
+  } : null);
 
   // Trade fields
   const initialSetup = initialData?.setupType || "Breakout / ATH Push";

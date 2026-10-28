@@ -547,7 +547,7 @@ function AuthenticatedApp({ user }: { user: User }) {
 
         {currentTab === "statistics" && <StatisticsView key={user.uid} trades={activeTrades} solPrice={solPrice} onSelectTrade={setInspectingTrade} />}
 
-        {currentTab === "research" && <ResearchView key={user.uid} userId={user.uid} trades={activeTrades} />}
+        {currentTab === "research" && <ResearchView key={user.uid} userId={user.uid} trades={activeTrades} onLogTradeFromResearch={(item) => { setClonedTrade({ ca: item.ca, name: item.name, symbol: item.symbol, notes: `Thesis: ${item.thesis}\nEntry plan: ${item.entryPlan}\nInvalidation: ${item.invalidation}`, initialRiskSol: item.sizeSol }); setIsNewTradeModalOpen(true); }} />}
 
         {currentTab === "ai-coach" && (
           <AiCoachView
