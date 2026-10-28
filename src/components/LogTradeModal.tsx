@@ -150,6 +150,9 @@ export default function LogTradeModal({
   const [draftSavedAt, setDraftSavedAt] = useState<number | null>(null);
   const [researchItems, setResearchItems] = useState<ResearchItem[]>([]);
   const [researchLoading, setResearchLoading] = useState(false);
+  const [selectedPlaybookId, setSelectedPlaybookId] = useState(initialData?.playbookId || "");
+  const [completedPlaybookChecks, setCompletedPlaybookChecks] = useState<string[]>(initialData?.playbookChecks || []);
+  const activePlaybook = rules?.playbooks?.find((playbook) => playbook.id === selectedPlaybookId);
   const draftKey = user ? tradeDraftStorageKey(user.uid) : "";
 
   const clearDraft = useCallback(() => {
@@ -565,8 +568,13 @@ export default function LogTradeModal({
         mistakes: selectedMistakes,
         notes: notes.trim(),
         fills,
+        ...(activePlaybook ? {
+          playbookId: activePlaybook.id,
+          playbookName: activePlaybook.name,
+          playbookChecks: completedPlaybookChecks,
+        } : {}),
         date: Timestamp.fromMillis(tradedAt),
-        createdAt: Date.now(),
+        createdAt: tradedAt,
       };
       const validationError = getTradeCreateValidationError(tradeDocument);
       if (validationError) throw new RangeError(validationError);
@@ -1020,6 +1028,12 @@ export default function LogTradeModal({
                 <label className="text-[10px] text-[#787774]">Confidence at entry · {confidenceAtEntry}%<input type="range" min="0" max="100" step="5" value={confidenceAtEntry} onChange={(event) => setConfidenceAtEntry(event.target.value)} className="mt-1 w-full accent-[#2383e2]" /></label>
                 <label className="text-[10px] text-[#787774]">Process grade<select value={processGrade || ""} onChange={(event) => setProcessGrade((event.target.value || undefined) as Trade["processGrade"])} className="mt-1 w-full rounded-lg border border-[#e3e2de] bg-white px-2 py-1.5 text-xs text-[#37352f]"><option value="">Not graded</option><option value="A">A · Followed plan</option><option value="B">B · Minor deviation</option><option value="C">C · Poor execution</option><option value="D">D · Broke rules</option></select></label>
               </div>
+              {rules?.playbooks && rules.playbooks.length > 0 && <div className="mt-3 border-t border-[#e9e9e7] pt-3">
+                <label className="text-[10px] font-semibold text-[#787774]">Strategy playbook
+                  <select value={selectedPlaybookId} onChange={(event) => { setSelectedPlaybookId(event.target.value); setCompletedPlaybookChecks([]); }} className="mt-1 w-full rounded-lg border border-[#e3e2de] bg-white px-2.5 py-2 text-xs text-[#37352f]"><option value="">No playbook</option>{rules.playbooks.map((playbook) => <option key={playbook.id} value={playbook.id}>{playbook.name}</option>)}</select>
+                </label>
+                {activePlaybook && <div className="mt-2 space-y-1.5">{activePlaybook.checklist.map((item) => <label key={item} className="flex items-start gap-2 rounded-md bg-white px-2 py-1.5 text-[11px] text-[#5a5957]"><input type="checkbox" checked={completedPlaybookChecks.includes(item)} onChange={(event) => setCompletedPlaybookChecks(event.target.checked ? [...completedPlaybookChecks, item] : completedPlaybookChecks.filter((check) => check !== item))} className="mt-0.5"/><span>{item}</span></label>)}<p className="text-[10px] text-[#787774]">{completedPlaybookChecks.length}/{activePlaybook.checklist.length} conditions confirmed. Unchecked items do not block saving, but remain visible in review.</p></div>}
+              </div>}
             </section>
 
             {/* Wallet Selection */}

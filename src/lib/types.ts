@@ -66,6 +66,9 @@ export interface Trade {
   quoteUsdRate?: number;
   venue?: string;
   fills?: TradeFill[];
+  playbookId?: string;
+  playbookName?: string;
+  playbookChecks?: string[];
   date?: TradeDate;
   createdAt?: number;
 }
@@ -93,6 +96,13 @@ export interface WalletTransaction {
 export interface JournalRules {
   riskManagement: string[];
   tradePlan: string[];
+  playbooks?: TradingPlaybook[];
+}
+
+export interface TradingPlaybook {
+  id: string;
+  name: string;
+  checklist: string[];
 }
 
 export interface GoalSettings {

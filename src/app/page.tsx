@@ -58,6 +58,10 @@ const DEFAULT_RULES: JournalRules = {
     "Take initial investment (50%) out at 2x. Let house money ride.",
     "Leave a 10-20% moonbag with trailing stop on psychological levels.",
   ],
+  playbooks: [
+    { id: "breakout", name: "Breakout / ATH push", checklist: ["Volume expansion confirmed", "Liquidity is sufficient for my size", "Invalidation level is defined", "Entry is not an emotional chase"] },
+    { id: "pullback", name: "Pullback entry", checklist: ["Trend remains intact", "Pullback reached a planned level", "Selling pressure is slowing", "Risk and first scale-out are defined"] },
+  ],
 };
 
 const DEFAULT_GOALS: GoalSettings = {

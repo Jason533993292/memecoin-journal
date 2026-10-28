@@ -139,7 +139,7 @@ function optionalNumber(value: unknown): number | null {
 
 function toTradeRow(userId: string, id: string, trade: Omit<Trade, "id">): JsonRecord {
   const currencyExtra = Object.fromEntries(
-    (["quoteCurrency", "quoteSymbol", "boughtQuote", "soldQuote", "pnlQuote", "quoteUsdRate", "venue", "processGrade", "confidenceAtEntry", "fills"] as const)
+    (["quoteCurrency", "quoteSymbol", "boughtQuote", "soldQuote", "pnlQuote", "quoteUsdRate", "venue", "processGrade", "confidenceAtEntry", "fills", "playbookId", "playbookName", "playbookChecks"] as const)
       .filter((field) => trade[field] !== undefined)
       .map((field) => [field, trade[field]])
   );
@@ -254,6 +254,9 @@ function fromTradeRow(row: JsonRecord): Trade {
       const item = fill as JsonRecord;
       return typeof item.id === "string" && ["entry", "exit"].includes(String(item.side)) && typeof item.quoteAmount === "number" && typeof item.feeSol === "number" && typeof item.executedAt === "number";
     }).slice(0, 100) : undefined,
+    playbookId: typeof extra.playbookId === "string" ? extra.playbookId.slice(0, 80) : undefined,
+    playbookName: typeof extra.playbookName === "string" ? extra.playbookName.slice(0, 120) : undefined,
+    playbookChecks: Array.isArray(extra.playbookChecks) ? extra.playbookChecks.filter((item): item is string => typeof item === "string").slice(0, 20) : undefined,
   };
 }
 

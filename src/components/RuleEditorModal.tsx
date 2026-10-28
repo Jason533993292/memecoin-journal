@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { X, Plus, Trash2, Check } from "lucide-react";
-import { JournalRules } from "../lib/types";
+import { JournalRules, TradingPlaybook } from "../lib/types";
 import { useToast } from "./Toast";
 
 interface RuleEditorModalProps {
@@ -23,6 +23,7 @@ export default function RuleEditorModal({
   const [planList, setPlanList] = useState<string[]>([...rules.tradePlan]);
   const [newRisk, setNewRisk] = useState("");
   const [newPlan, setNewPlan] = useState("");
+  const [playbooks, setPlaybooks] = useState<TradingPlaybook[]>(rules.playbooks || []);
 
   if (!isOpen) return null;
 
@@ -31,13 +32,14 @@ export default function RuleEditorModal({
     const tradePlan = planList.filter((rule) => rule.trim().length > 0);
     if (
       riskManagement.length > 20 || tradePlan.length > 20 ||
-      [...riskManagement, ...tradePlan].some((rule) => rule.length > 300)
+      [...riskManagement, ...tradePlan, ...playbooks.flatMap((playbook) => playbook.checklist)].some((rule) => rule.length > 300) ||
+      playbooks.length > 20 || playbooks.some((playbook) => !playbook.name.trim() || playbook.name.length > 120 || playbook.checklist.length > 20)
     ) {
       showToast("Rules exceed the limit", "error", "Use no more than 20 rules per list and keep each under 300 characters.");
       return;
     }
     try {
-      await onSaveRules({ riskManagement, tradePlan });
+      await onSaveRules({ riskManagement, tradePlan, playbooks: playbooks.map((playbook) => ({ ...playbook, name: playbook.name.trim(), checklist: playbook.checklist.map((item) => item.trim()).filter(Boolean) })) });
       onClose();
     } catch {
       // The dashboard displays the cloud-save error and leaves this editor open.
@@ -197,6 +199,27 @@ export default function RuleEditorModal({
               >
                 <Plus size={12} /> Add
               </button>
+            </div>
+          </div>
+
+          <div className="border-t border-[#f1f1ef] pt-3">
+            <div className="mb-2 flex items-center justify-between">
+              <div><div className="font-semibold text-[#37352f]">Strategy playbooks</div><p className="mt-0.5 text-[10px] text-[#787774]">Reusable setup checklists shown while logging a trade.</p></div>
+              <button type="button" disabled={playbooks.length >= 20} onClick={() => setPlaybooks([...playbooks, { id: crypto.randomUUID(), name: "New playbook", checklist: ["Setup conditions confirmed"] }])} className="flex items-center gap-1 rounded-md bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700 disabled:opacity-50"><Plus size={11}/> Add playbook</button>
+            </div>
+            <div className="space-y-2">
+              {playbooks.map((playbook) => (
+                <div key={playbook.id} className="rounded-lg border border-[#e9e9e7] bg-[#fbfbfa] p-2.5">
+                  <div className="flex gap-2">
+                    <input aria-label="Playbook name" maxLength={120} value={playbook.name} onChange={(event) => setPlaybooks(playbooks.map((item) => item.id === playbook.id ? { ...item, name: event.target.value } : item))} className="flex-1 rounded-md border border-[#e3e2de] bg-white px-2 py-1.5 text-xs font-semibold" />
+                    <button type="button" onClick={() => setPlaybooks(playbooks.filter((item) => item.id !== playbook.id))} className="rounded p-1.5 text-rose-600 hover:bg-rose-50" aria-label={`Delete ${playbook.name}`}><Trash2 size={13}/></button>
+                  </div>
+                  <label className="mt-2 block text-[10px] text-[#787774]">Required checks · one per line
+                    <textarea rows={3} value={playbook.checklist.join("\n")} onChange={(event) => setPlaybooks(playbooks.map((item) => item.id === playbook.id ? { ...item, checklist: event.target.value.split("\n").slice(0, 20) } : item))} className="mt-1 w-full resize-y rounded-md border border-[#e3e2de] bg-white px-2 py-1.5 text-xs" />
+                  </label>
+                </div>
+              ))}
+              {!playbooks.length && <p className="rounded-lg border border-dashed border-[#e3e2de] p-3 text-center text-[11px] text-[#787774]">No playbooks yet. Add one for setups you repeat.</p>}
             </div>
           </div>
         </div>

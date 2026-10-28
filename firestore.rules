@@ -121,7 +121,8 @@ service cloud.firestore {
           'durationMinutes', 'entryTime', 'exitTime', 'initialRiskSol',
           'stopPrice', 'feesSol', 'entryTimezoneOffset', 'tradedAt',
           'solUsdRate', 'solUsdRateSource', 'tradeMode', 'date', 'createdAt',
-          'quoteCurrency', 'quoteSymbol', 'boughtQuote', 'soldQuote', 'pnlQuote', 'quoteUsdRate', 'venue', 'fills'
+          'quoteCurrency', 'quoteSymbol', 'boughtQuote', 'soldQuote', 'pnlQuote', 'quoteUsdRate', 'venue', 'fills',
+          'playbookId', 'playbookName', 'playbookChecks'
         ])
         && data.keys().hasAll([
           'ca', 'name', 'symbol', 'wallet', 'result', 'setupType',
@@ -156,20 +157,25 @@ service cloud.firestore {
         && validOptionalString(data, 'screenshotUrl', 500000)
         && validOptionalString(data, 'quoteSymbol', 12)
         && validOptionalString(data, 'venue', 80)
+        && validOptionalString(data, 'playbookId', 80)
+        && validOptionalString(data, 'playbookName', 120)
         && (!('quoteCurrency' in data) || data.quoteCurrency == null
           || data.quoteCurrency in ['SOL', 'USD', 'USDC', 'USDT', 'ETH', 'BTC', 'EUR', 'GBP', 'OTHER'])
         && (!('goodTags' in data) || data.goodTags == null
           || validTradeTags(data.goodTags))
         && (!('fills' in data) || data.fills == null
-          || (data.fills is list && data.fills.size() <= 100));
+          || (data.fills is list && data.fills.size() <= 100))
+        && (!('playbookChecks' in data) || data.playbookChecks == null
+          || validShortStringList(data.playbookChecks, 20, 300));
     }
 
     function validRules(rules) {
       return rules is map
-        && rules.keys().hasOnly(['riskManagement', 'tradePlan'])
+        && rules.keys().hasOnly(['riskManagement', 'tradePlan', 'playbooks'])
         && rules.keys().hasAll(['riskManagement', 'tradePlan'])
         && validShortStringList(rules.riskManagement, 20, 300)
-        && validShortStringList(rules.tradePlan, 20, 300);
+        && validShortStringList(rules.tradePlan, 20, 300)
+        && (!('playbooks' in rules) || (rules.playbooks is list && rules.playbooks.size() <= 20));
     }
 
     function validGoals(goals) {

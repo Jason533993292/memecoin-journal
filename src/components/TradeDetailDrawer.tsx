@@ -422,6 +422,17 @@ export default function TradeDetailDrawer({
                 </div>
               )}
 
+              {trade.playbookName && (
+                <div className="rounded-lg border border-violet-200 bg-violet-50/70 p-3">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-violet-700">Playbook review</div>
+                  <div className="mt-0.5 text-xs font-semibold text-violet-950">{trade.playbookName}</div>
+                  <div className="mt-2 space-y-1">
+                    {(trade.playbookChecks || []).map((check) => <div key={check} className="text-[11px] text-violet-900">✓ {check}</div>)}
+                    {!trade.playbookChecks?.length && <div className="text-[11px] text-violet-800">No checklist conditions were confirmed.</div>}
+                  </div>
+                </div>
+              )}
+
               {/* Mistake & Discipline Tags */}
               <div>
                 <h3 className="text-[10px] font-bold text-[#787774] uppercase tracking-wider mb-1.5">

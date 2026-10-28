@@ -78,6 +78,7 @@ const TRADE_CREATE_FIELDS = new Set([
   "quoteCurrency", "quoteSymbol", "boughtQuote", "soldQuote", "pnlQuote", "quoteUsdRate", "venue",
   "processGrade", "confidenceAtEntry",
   "fills",
+  "playbookId", "playbookName", "playbookChecks",
 ]);
 
 const OPTIONAL_NUMBER_LIMITS: Record<string, [number, number]> = {
@@ -117,6 +118,8 @@ const OPTIONAL_STRING_LIMITS: Record<string, number> = {
   executionType: 20,
   quoteSymbol: 12,
   venue: 80,
+  playbookId: 80,
+  playbookName: 120,
 };
 
 function validateStringField(data: Record<string, unknown>, field: string, maxLength: number, minLength = 0): string | null {
@@ -199,6 +202,7 @@ export function getTradeCreateValidationError(
       if (record.note != null && (typeof record.note !== "string" || record.note.length > 200)) return "Partial fill notes must be 200 characters or fewer.";
     }
   }
+  if (value.playbookChecks != null && (!Array.isArray(value.playbookChecks) || value.playbookChecks.length > 20 || value.playbookChecks.some((item) => typeof item !== "string" || item.length > 300))) return "Playbook checks must contain up to 20 checklist items.";
   if (requireCreateMetadata && typeof value.notes !== "string") return "Trade notes are missing. Refresh and try again.";
   if (requireCreateMetadata && (typeof value.createdAt !== "number" || !Number.isFinite(value.createdAt))) return "Trade creation time is missing. Refresh and try again.";
 

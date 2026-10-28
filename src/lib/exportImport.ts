@@ -322,6 +322,9 @@ export function parseTradeImport(text: string, format: TradeImportFormat): Impor
       quoteUsdRate: optionalNumber(raw.quoteUsdRate ?? raw["Quote USD Rate"]),
       venue: optionalText(raw.venue ?? raw["Trading Venue"], 80),
       fills: fills(raw.fills),
+      playbookId: optionalText(raw.playbookId, 80),
+      playbookName: optionalText(raw.playbookName, 120),
+      playbookChecks: raw.playbookChecks == null ? undefined : tags(raw.playbookChecks),
     }) as ImportedTrade;
 
     const boundedValues: Array<[number | undefined, number, number]> = [
