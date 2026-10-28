@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { db } from "../lib/firebase";
-import { collection, addDoc, Timestamp } from "firebase/firestore";
+import { collection, addDoc, getDocs, Timestamp } from "firebase/firestore";
 import {
   X,
   Search,
@@ -21,9 +21,10 @@ import {
   Layers,
   CloudCheck,
   CloudOff,
+  BookOpenCheck,
 } from "lucide-react";
 import TradeDateTimePicker from "./TradeDateTimePicker";
-import { GoalSettings, JournalRules, Trade } from "../lib/types";
+import { GoalSettings, JournalRules, ResearchItem, Trade } from "../lib/types";
 import { useToast } from "./Toast";
 import {
   DEFAULT_GOOD_TAGS,
@@ -37,7 +38,7 @@ import BetaBadge from "./BetaBadge";
 import { useAuth } from "../context/AuthContext";
 import { parseLocalStorageValue, useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
 import { lookupTokenMetadata } from "../lib/tokenLookupClient";
-import { saveSupabaseTrade, usesSupabaseJournal } from "../lib/journalBackend";
+import { listSupabaseResearch, saveSupabaseTrade, usesSupabaseJournal } from "../lib/journalBackend";
 import { hasMeaningfulTradeDraft, parseStoredTradeDraft, TRADE_DRAFT_VERSION, tradeDraftStorageKey, type TradeDraftData } from "../lib/tradeDraft";
 
 // Re-export for backward compatibility
@@ -145,6 +146,8 @@ export default function LogTradeModal({
   const [draftHydrated, setDraftHydrated] = useState(Boolean(initialData));
   const [draftStatus, setDraftStatus] = useState<"idle" | "restored" | "saving" | "saved" | "offline" | "error">("idle");
   const [draftSavedAt, setDraftSavedAt] = useState<number | null>(null);
+  const [researchItems, setResearchItems] = useState<ResearchItem[]>([]);
+  const [researchLoading, setResearchLoading] = useState(false);
   const draftKey = user ? tradeDraftStorageKey(user.uid) : "";
 
   const clearDraft = useCallback(() => {
@@ -201,6 +204,28 @@ export default function LogTradeModal({
     return () => { window.removeEventListener("online", update); window.removeEventListener("offline", update); };
   }, [isOpen]);
 
+  useEffect(() => {
+    if (!isOpen || !user) return;
+    let active = true;
+    const loadResearch = async () => {
+      try {
+        const items = usesSupabaseJournal()
+          ? await listSupabaseResearch(user.uid)
+          : (await getDocs(collection(db, "users", user.uid, "research"))).docs.map((entry) => entry.data() as ResearchItem);
+        if (active) setResearchItems(items.filter((item) => item.ca.length <= 64 && item.name).sort((a, b) => b.updatedAt - a.updatedAt));
+      } catch {
+        if (active) setResearchItems([]);
+      } finally {
+        if (active) setResearchLoading(false);
+      }
+    };
+    const loadTimer = window.setTimeout(() => {
+      setResearchLoading(true);
+      void loadResearch();
+    }, 0);
+    return () => { active = false; window.clearTimeout(loadTimer); };
+  }, [isOpen, user]);
+
   const planReview = useMemo(() => {
     const start = new Date(); start.setHours(0, 0, 0, 0);
     const todayCount = trades.filter((trade) => (trade.tradedAt || trade.createdAt || 0) >= start.getTime()).length;
@@ -213,8 +238,7 @@ export default function LogTradeModal({
       { label: "Reason recorded", ok: notes.trim().length >= 12 },
       { label: "Daily trade limit", ok: !goals?.maxDailyTrades || todayCount < goals.maxDailyTrades },
     ];
-    const failed = checks.filter((check) => !check.ok).length;
-    return { checks, verdict: failed >= 3 ? "Do not trade yet" : failed ? "Pass with modifications" : "Pass", failed, ruleCount: (rules?.tradePlan.length || 0) + (rules?.riskManagement.length || 0) };
+    return { checks, ruleCount: (rules?.tradePlan.length || 0) + (rules?.riskManagement.length || 0) };
   }, [customSetup, goals?.maxDailyTrades, initialData?.ca, initialRiskSol, notes, rules, setupType, stopPrice, tokenData, trades]);
 
   const parseQuickPaste = (value: string) => {
@@ -336,6 +360,22 @@ export default function LogTradeModal({
         fetchTokenData(val.trim());
       }, 450);
     }
+  };
+
+  const linkThesis = (researchCa: string) => {
+    const thesis = researchItems.find((item) => item.ca === researchCa);
+    if (!thesis) return;
+    setCa(thesis.ca);
+    setTokenData({
+      name: thesis.name,
+      symbol: thesis.symbol || "MEME",
+      priceUsd: "0",
+      marketCap: 0,
+      liquidity: 0,
+    });
+    setFetchError("");
+    if (caDebounceRef.current) clearTimeout(caDebounceRef.current);
+    void fetchTokenData(thesis.ca);
   };
 
   const solUsdRateAtTrade = initialData?.solUsdRate ?? solPrice;
@@ -958,9 +998,8 @@ export default function LogTradeModal({
 
             {/* Pre-trade discipline check */}
             <section className="rounded-xl border border-[#e3e2de] bg-[#fbfbfa] p-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
                 <div><p className="text-xs font-semibold text-[#37352f]">Plan check</p><p className="text-[10px] text-[#787774]">A discipline prompt, not financial advice · checks {planReview.ruleCount} saved rules</p></div>
-                <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${planReview.failed === 0 ? "bg-emerald-100 text-emerald-800" : planReview.failed >= 3 ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-800"}`}>{planReview.verdict}</span>
               </div>
               <div className="mt-3 grid gap-1.5 sm:grid-cols-2">{planReview.checks.map((check) => <div key={check.label} className="flex items-center gap-2 text-[11px]"><span className={check.ok ? "text-emerald-600" : "text-amber-600"}>{check.ok ? "✓" : "○"}</span><span className="text-[#5a5957]">{check.label}</span></div>)}</div>
               <div className="mt-3 grid grid-cols-2 gap-3 border-t border-[#e9e9e7] pt-3">
@@ -1125,6 +1164,31 @@ export default function LogTradeModal({
                 placeholder="Why did you enter? Did you stick to take-profit levels? What would you do differently?"
                 className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg p-2.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2] resize-none"
               />
+            </div>
+
+            {/* Saved thesis link. Research and trades share the exact contract address. */}
+            <div className="rounded-xl border border-[#e3e2de] bg-[#fbfbfa] p-3">
+              <label htmlFor="linked-thesis" className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-[#37352f]">
+                <BookOpenCheck size={14} className="text-[#2383e2]" />
+                Link a saved coin thesis
+              </label>
+              <select
+                id="linked-thesis"
+                value={researchItems.some((item) => item.ca === ca.trim()) ? ca.trim() : ""}
+                onChange={(event) => linkThesis(event.target.value)}
+                disabled={researchLoading || researchItems.length === 0}
+                className="w-full rounded-lg border border-[#e3e2de] bg-white px-2.5 py-2 text-xs text-[#37352f] outline-none focus:border-[#2383e2] disabled:bg-[#f1f1ef] disabled:text-[#9b9a97]"
+              >
+                <option value="">{researchLoading ? "Loading saved theses…" : researchItems.length ? "Choose a thesis…" : "No saved theses yet"}</option>
+                {researchItems.map((item) => <option key={item.ca} value={item.ca}>{item.name}{item.symbol ? ` ($${item.symbol})` : ""} · {item.stage}</option>)}
+              </select>
+              <p className="mt-1.5 text-[10px] leading-4 text-[#787774]">
+                {researchItems.some((item) => item.ca === ca.trim())
+                  ? "Linked. This trade will appear in the thesis’s execution review."
+                  : researchItems.length
+                    ? "Selecting a thesis also uses its exact contract address so the trade stays linked."
+                    : "Create and save a thesis in Research first, then return here to link it."}
+              </p>
             </div>
 
             {/* Action Buttons */}
