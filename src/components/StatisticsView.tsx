@@ -8,6 +8,7 @@ import { getUsdValueStatus } from "../lib/tradeCalculations";
 import { BarChart3, Layers, Target, Clock, Tag, Lightbulb, CalendarDays, ShieldAlert, ShieldCheck, Gauge } from "lucide-react";
 import TiltStreakHeatmap from "./TiltStreakHeatmap";
 import { calculateRiskAnalytics } from "../lib/riskAnalytics";
+import TradeComparisonCard from "./TradeComparisonCard";
 
 interface StatisticsViewProps {
   trades: Trade[];
@@ -270,6 +271,8 @@ export default function StatisticsView({ trades, solPrice = 150, onSelectTrade }
           <Concentration label="Largest token share of deployed capital" name={riskAnalytics.largestToken?.name ?? "No token data"} share={riskAnalytics.largestToken?.share ?? 0} amount={riskAnalytics.largestToken?.amountSol ?? 0}/>
         </div>
       </section>
+
+      <TradeComparisonCard trades={trades} onSelectTrade={onSelectTrade}/>
 
       {/* Discipline, confidence calibration, and period comparison */}
       <div data-tour="analytics-discipline" className="bg-white border border-[#e9e9e7] rounded-xl p-5 shadow-xs space-y-4">
