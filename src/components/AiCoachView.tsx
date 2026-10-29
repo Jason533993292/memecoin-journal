@@ -24,6 +24,7 @@ import {
   AiProvider,
   getAiProviderKeyError,
 } from "@/lib/aiProvider";
+import { decryptBrowserSecret, encryptBrowserSecret, isEncryptedBrowserSecret } from "@/lib/browserEncryption";
 
 interface AiCoachViewProps {
   trades: Trade[];
@@ -55,6 +56,10 @@ export default function AiCoachView({
   const [showKey, setShowKey] = useState(false);
   const [research, setResearch] = useState<ResearchItem[]>([]);
   const [rememberKey, setRememberKey] = useState(false);
+  const [encryptionPassphrase, setEncryptionPassphrase] = useState("");
+  const [unlockPassphrase, setUnlockPassphrase] = useState("");
+  const [unlockedApiKey, setUnlockedApiKey] = useState("");
+  const [keyOperationBusy, setKeyOperationBusy] = useState(false);
   const apiKeyStorageKey = user ? "ai_" + user.uid + "_provider_api_key" : "ai_signed_out_provider_api_key";
   const providerStorageKey = user ? "ai_" + user.uid + "_provider" : "ai_signed_out_provider";
   const savedApiKey = useLocalStorageValue(apiKeyStorageKey);
@@ -69,8 +74,11 @@ export default function AiCoachView({
   const effectiveSavedProvider = savedProvider === "gemini" || savedProvider === "openai"
     ? savedProvider
     : "deepseek";
-  const savedKeyForSession = sessionApiKey || savedApiKey || "";
-  const providerChanged = Boolean(savedKeyForSession && effectiveSavedProvider !== provider);
+  const hasEncryptedKey = isEncryptedBrowserSecret(savedApiKey);
+  const legacyLocalApiKey = savedApiKey && !hasEncryptedKey ? savedApiKey : "";
+  const savedKeyForSession = sessionApiKey || unlockedApiKey || legacyLocalApiKey || "";
+  const hasStoredKey = Boolean(sessionApiKey || savedApiKey || unlockedApiKey);
+  const providerChanged = Boolean(hasStoredKey && effectiveSavedProvider !== provider);
   const apiKey = apiKeyDraft || (providerChanged ? "" : savedKeyForSession);
   const isApiKeySet = Boolean(savedKeyForSession);
   const savedKeyError = savedKeyForSession
@@ -96,7 +104,7 @@ export default function AiCoachView({
     return () => { active = false; };
   }, [user]);
 
-  const saveProviderSettings = () => {
+  const saveProviderSettings = async () => {
     const nextKey = apiKeyDraft.trim();
     if (!user) return;
     if ((providerChanged || !savedKeyForSession) && !nextKey) {
@@ -112,9 +120,24 @@ export default function AiCoachView({
     let keySaved = true;
     if (nextKey) {
       if (rememberKey) {
-        keySaved = writeLocalStorageValue(apiKeyStorageKey, nextKey);
-        keySaved = removeSessionStorageValue(apiKeyStorageKey) && keySaved;
-        setSessionApiKey("");
+        if (encryptionPassphrase.length < 8) {
+          showToast("Choose a stronger encryption passphrase", "error", "Use at least 8 characters. The passphrase is never stored and cannot be recovered.");
+          return;
+        }
+        setKeyOperationBusy(true);
+        try {
+          const encryptedKey = await encryptBrowserSecret(nextKey, encryptionPassphrase);
+          keySaved = writeLocalStorageValue(apiKeyStorageKey, encryptedKey);
+          keySaved = removeSessionStorageValue(apiKeyStorageKey) && keySaved;
+          setSessionApiKey("");
+          setUnlockedApiKey(nextKey);
+          setEncryptionPassphrase("");
+        } catch (error) {
+          showToast("API key could not be encrypted", "error", error instanceof Error ? error.message : "Try a different passphrase.");
+          return;
+        } finally {
+          setKeyOperationBusy(false);
+        }
       } else {
         keySaved = writeSessionStorageValue(apiKeyStorageKey, nextKey);
         setSessionApiKey(nextKey);
@@ -129,9 +152,26 @@ export default function AiCoachView({
     setApiKeyDraft("");
     setProviderOverride(null);
     showToast(
-      rememberKey ? `${providerLabel} settings saved on this device` : `${providerLabel} key saved for this tab session`,
+      rememberKey ? `${providerLabel} key encrypted on this device` : `${providerLabel} key saved for this tab session`,
       "success"
     );
+  };
+
+  const unlockSavedKey = async () => {
+    if (!savedApiKey || !hasEncryptedKey) return;
+    setKeyOperationBusy(true);
+    try {
+      const unlocked = await decryptBrowserSecret(savedApiKey, unlockPassphrase);
+      const keyError = getAiProviderKeyError(effectiveSavedProvider, unlocked);
+      if (keyError) throw new Error(keyError);
+      setUnlockedApiKey(unlocked);
+      setUnlockPassphrase("");
+      showToast("Encrypted API key unlocked", "success", "It is available in memory until this page is closed or refreshed.");
+    } catch (error) {
+      showToast("Could not unlock API key", "error", error instanceof Error ? error.message : "Check your passphrase and try again.");
+    } finally {
+      setKeyOperationBusy(false);
+    }
   };
 
   const resetApiKey = () => {
@@ -142,6 +182,9 @@ export default function AiCoachView({
       return;
     }
     setSessionApiKey("");
+    setUnlockedApiKey("");
+    setUnlockPassphrase("");
+    setEncryptionPassphrase("");
     setApiKeyDraft("");
     showToast("Saved API key removed", "success");
   };
@@ -320,7 +363,7 @@ export default function AiCoachView({
               {isProviderReady ? `${providerLabel} configured` : "Not configured"}
             </div>
           </div>
-          {isApiKeySet && (
+          {hasStoredKey && (
             <button
               onClick={resetApiKey}
               className="mt-2 self-start flex items-center gap-1 text-[10px] text-amber-600 hover:text-amber-700 font-medium px-2 py-1 rounded bg-amber-50 hover:bg-amber-100 transition-colors border border-amber-200"
@@ -340,7 +383,7 @@ export default function AiCoachView({
             <span>{isProviderReady ? "AI provider settings" : "Set up an AI provider API key"}</span>
           </div>
           <p className={`text-xs leading-relaxed ${isProviderReady ? "text-[#787774]" : "text-rose-700"}`}>
-              Your key is stored in this browser (not encrypted) and sent over HTTPS to our server only when you request an analysis; it is forwarded to your selected provider and is not intentionally stored by the app. Supported providers: DeepSeek, Google Gemini, and OpenAI.
+              Session-only keys stay in this browser tab. If you choose persistent storage, the key is encrypted in this browser with your passphrase. The passphrase is never stored. Keys are sent over HTTPS only when you request analysis, forwarded to your selected provider, and not intentionally stored by the app.
           </p>
           <div className="space-y-2 pt-2">
             <div>
@@ -384,9 +427,17 @@ export default function AiCoachView({
                 The saved key does not match {AI_PROVIDER_LABELS[effectiveSavedProvider]}. Enter the correct key and save again.
               </p>
             )}
+            {hasEncryptedKey && !unlockedApiKey && !sessionApiKey && !apiKeyDraft && (
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+                <p className="text-[11px] font-semibold text-blue-900">An encrypted {AI_PROVIDER_LABELS[effectiveSavedProvider]} key is saved on this device.</p>
+                <div className="mt-2 flex gap-2"><input aria-label="Encryption passphrase" type="password" value={unlockPassphrase} onChange={(event) => setUnlockPassphrase(event.target.value)} maxLength={256} placeholder="Enter passphrase to unlock" className="min-w-0 flex-1 rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs text-[#37352f]"/><button type="button" disabled={keyOperationBusy || unlockPassphrase.length < 8} onClick={() => void unlockSavedKey()} className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Unlock</button></div>
+              </div>
+            )}
+            {legacyLocalApiKey && <p role="alert" className="text-[11px] font-medium text-amber-700">This key was saved by an older version without encryption. Enter it again, enable encrypted persistence below, and save to upgrade it.</p>}
             <button
-              onClick={saveProviderSettings}
-              disabled={!apiKey.trim() || (providerChanged && !apiKeyDraft.trim())}
+              type="button"
+              onClick={() => void saveProviderSettings()}
+              disabled={keyOperationBusy || !apiKey.trim() || (providerChanged && !apiKeyDraft.trim())}
               className="provider-save-button px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-medium rounded-lg disabled:opacity-50 transition-colors"
             >
               Save Provider Settings
@@ -399,8 +450,9 @@ export default function AiCoachView({
               onChange={(event) => setRememberKey(event.target.checked)}
               className="h-3.5 w-3.5 rounded border-[#c9c7c2]"
             />
-            Keep this key after I close the browser (off keeps it for this tab session only)
+            Keep this key encrypted after I close the browser (off keeps it for this tab session only)
           </label>
+          {rememberKey && <div className="rounded-lg border border-[#e3e2de] bg-white p-3"><label className="block text-[11px] font-semibold text-[#37352f]">Encryption passphrase<input aria-label="New encryption passphrase" type="password" value={encryptionPassphrase} onChange={(event) => setEncryptionPassphrase(event.target.value)} minLength={8} maxLength={256} autoComplete="new-password" placeholder="At least 8 characters" className="mt-1.5 w-full rounded-lg border border-[#e3e2de] px-3 py-2 text-xs"/></label><p className="mt-1.5 text-[10px] text-[#787774]">This passphrase never leaves the browser and cannot be recovered. You will enter it after each refresh to unlock the key.</p></div>}
         </div>
       )}
 
