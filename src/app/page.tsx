@@ -42,6 +42,7 @@ import { useAuth } from "../context/AuthContext";
 import AuthModal from "../components/AuthModal";
 import LegalModal from "../components/LegalModal";
 import { buildDemoTrades } from "../lib/demoTrades";
+import { isTradeSyncMessage, publishTradeSync, TRADE_SYNC_CHANNEL } from "../lib/tradeSync";
 
 const DEFAULT_RULES: JournalRules = {
   riskManagement: [
@@ -301,6 +302,15 @@ function AuthenticatedApp({ user }: { user: User }) {
       .catch((error) => console.error("Supabase trade refresh failed", error));
   }, [user.uid]);
 
+  useEffect(() => {
+    if (!usesSupabaseJournal() || !("BroadcastChannel" in window)) return;
+    const channel = new BroadcastChannel(TRADE_SYNC_CHANNEL);
+    channel.onmessage = (event) => {
+      if (isTradeSyncMessage(event.data)) fetchTrades();
+    };
+    return () => channel.close();
+  }, [fetchTrades]);
+
   // Delete trade
   const handleDeleteTradeDirectly = (id: string) => {
     setTradeToDeleteDirectly(id);
@@ -315,6 +325,7 @@ function AuthenticatedApp({ user }: { user: User }) {
           try {
             if (usesSupabaseJournal()) await saveSupabaseTrade(user.uid, tradeData, id);
             else await setDoc(doc(db, "users", user.uid, "trades", id), tradeData);
+            publishTradeSync({ type: "saved", tradeId: id, sentAt: Date.now() });
             fetchTrades();
             showToast("Trade restored", "success");
           } catch {
@@ -337,6 +348,7 @@ function AuthenticatedApp({ user }: { user: User }) {
       } else {
         await deleteDoc(doc(db, "users", user.uid, "trades", id));
       }
+      publishTradeSync({ type: "deleted", tradeId: id, sentAt: Date.now() });
       if (deletedTrade) offerTradeUndo(deletedTrade);
     } catch {
       showToast("Could not delete this trade", "error", "Check your connection and try again.");
@@ -580,7 +592,7 @@ function AuthenticatedApp({ user }: { user: User }) {
 
       {/* Edit Trade Modal */}
       {editingTrade && <EditTradeModal
-        key={`${user.uid}:edit-trade`}
+        key={`${user.uid}:edit-trade:${editingTrade.id}`}
         trade={editingTrade}
         isOpen={!!editingTrade}
         onClose={() => setEditingTrade(null)}

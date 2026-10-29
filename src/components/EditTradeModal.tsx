@@ -23,6 +23,7 @@ import { compressImage, getTradeTimestamp } from "../lib/utils";
 import { getTradeCreateValidationError, quoteAmountsToBase, defaultQuoteUsdRate, QUOTE_CURRENCIES, TRADING_VENUES, summarizeTradeFills } from "../lib/tradeInput";
 import { listSupabaseResearch, saveSupabaseTrade, usesSupabaseJournal } from "../lib/journalBackend";
 import TradeFillsEditor from "./TradeFillsEditor";
+import { isTradeSyncMessage, publishTradeSync, TRADE_SYNC_CHANNEL } from "../lib/tradeSync";
 
 interface EditTradeModalProps {
   trade: Trade | null;
@@ -92,6 +93,20 @@ export default function EditTradeModal({
   );
   const [researchItems, setResearchItems] = useState<ResearchItem[]>([]);
   const [researchLoading, setResearchLoading] = useState(false);
+  const [changedElsewhere, setChangedElsewhere] = useState(false);
+  const [allowOverwrite, setAllowOverwrite] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen || !trade || !("BroadcastChannel" in window)) return;
+    const channel = new BroadcastChannel(TRADE_SYNC_CHANNEL);
+    channel.onmessage = (event) => {
+      if (isTradeSyncMessage(event.data) && event.data.tradeId === trade.id) {
+        setChangedElsewhere(true);
+        setAllowOverwrite(false);
+      }
+    };
+    return () => channel.close();
+  }, [isOpen, trade]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -243,6 +258,10 @@ export default function EditTradeModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!trade) return;
+    if (changedElsewhere && !allowOverwrite) {
+      showToast("This trade changed in another tab", "error", "Close and reopen it to use the latest version, or explicitly keep your current edits.");
+      return;
+    }
     setSaving(true);
     try {
       const rawBought = Number(boughtQuote);
@@ -324,6 +343,8 @@ export default function EditTradeModal({
         await updateDoc(tradeRef, updateData);
       }
 
+      publishTradeSync({ type: "saved", tradeId: trade.id, sentAt: Date.now() });
+
       showToast("Trade updated successfully", "success");
       onTradeUpdated();
       onClose();
@@ -367,6 +388,16 @@ export default function EditTradeModal({
         </div>
 
         <form ref={formRef} id="edit-trade-form" onSubmit={handleSubmit} className="space-y-4 text-xs">
+          {changedElsewhere && (
+            <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-amber-950">
+              <p className="font-semibold">This trade changed in another browser tab.</p>
+              <p className="mt-1 text-[11px] text-amber-800">Close and reopen this editor to load the latest version. If your edits should replace it, confirm that choice first.</p>
+              <label className="mt-2 flex cursor-pointer items-center gap-2 font-medium">
+                <input type="checkbox" checked={allowOverwrite} onChange={(event) => setAllowOverwrite(event.target.checked)} />
+                Keep my current edits and overwrite the other tab
+              </label>
+            </div>
+          )}
           {/* Token Identification */}
           <div className="grid grid-cols-2 gap-3">
             <div>

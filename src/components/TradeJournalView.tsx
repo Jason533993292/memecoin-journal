@@ -26,6 +26,7 @@ import ImageLightboxModal from "./ImageLightboxModal";
 import { deleteSupabaseTrade, importSupabaseTrades, usesSupabaseJournal } from "../lib/journalBackend";
 import type { ImportedTrade } from "../lib/exportImport";
 import { parseTradeFilterPresets, type TradeFilterPreset } from "../lib/tradeFilterPresets";
+import { publishTradeSync } from "../lib/tradeSync";
 
 interface TradeJournalViewProps {
   userId: string;
@@ -153,6 +154,7 @@ export default function TradeJournalView({
         const tradeDocRef = doc(db, "users", currentUser.uid, "trades", id);
         await deleteDoc(tradeDocRef);
       }
+      publishTradeSync({ type: "deleted", tradeId: id, sentAt: Date.now() });
       onTradeDeleted();
       if (deletedTrade) onUndoAvailable?.(deletedTrade);
     } catch (err) {
