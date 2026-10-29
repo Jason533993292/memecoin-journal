@@ -15,6 +15,7 @@ import {
   Image as ImageIcon,
   Clock,
   BookOpen,
+  BookmarkPlus,
 } from "lucide-react";
 import { exportTradesToCSV, exportTradesToJSON, filterNewTradeImports, parseTradeImport } from "../lib/exportImport";
 import { getTradeTimestamp } from "../lib/utils";
@@ -24,6 +25,7 @@ import { getTradeBoughtUsd, getTradeSoldUsd, getUsdValueStatus } from "../lib/tr
 import ImageLightboxModal from "./ImageLightboxModal";
 import { deleteSupabaseTrade, importSupabaseTrades, usesSupabaseJournal } from "../lib/journalBackend";
 import type { ImportedTrade } from "../lib/exportImport";
+import { parseTradeFilterPresets, type TradeFilterPreset } from "../lib/tradeFilterPresets";
 
 interface TradeJournalViewProps {
   userId: string;
@@ -51,8 +53,11 @@ export default function TradeJournalView({
   const now = useCurrentTime();
   const lastBackupKey = `memecoin_journal_${userId}_last_backup_at`;
   const backupSnoozeKey = `memecoin_journal_${userId}_backup_snoozed_until`;
+  const savedViewsKey = `memecoin_journal_${userId}_trade_filter_views`;
   const lastBackupAt = Number(useLocalStorageValue(lastBackupKey) || 0);
   const backupSnoozedUntil = Number(useLocalStorageValue(backupSnoozeKey) || 0);
+  const savedViewsRaw = useLocalStorageValue(savedViewsKey);
+  const savedViews = useMemo(() => parseTradeFilterPresets(savedViewsRaw), [savedViewsRaw]);
   const backupReminderDue =
     !readOnly &&
     now > 0 &&
@@ -76,6 +81,8 @@ export default function TradeJournalView({
     duplicateCount: number;
   } | null>(null);
   const [importing, setImporting] = useState(false);
+  const [showSaveView, setShowSaveView] = useState(false);
+  const [savedViewName, setSavedViewName] = useState("");
 
   const [lightboxImage, setLightboxImage] = useState<{ url: string; title: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -275,6 +282,24 @@ export default function TradeJournalView({
         return 0;
       });
   }, [trades, searchQuery, filterResult, filterWallet, filterSetup, filterMistake, dateRange, sortBy, now]);
+
+  const applySavedView = (preset: TradeFilterPreset) => {
+    setSearchQuery(preset.searchQuery); setFilterResult(preset.result); setFilterWallet(preset.wallet); setFilterSetup(preset.setup);
+    setFilterMistake(preset.mistake); setDateRange(preset.dateRange); setSortBy(preset.sortBy); setCurrencyMode(preset.currency); setViewMode(preset.view);
+    showToast(`View “${preset.name}” applied`, "success");
+  };
+  const saveCurrentView = () => {
+    const name = savedViewName.trim().slice(0, 40);
+    if (!name) return;
+    const preset: TradeFilterPreset = { id: crypto.randomUUID(), name, searchQuery: searchQuery.slice(0, 200), result: filterResult as TradeFilterPreset["result"], wallet: filterWallet.slice(0, 120), setup: filterSetup.slice(0, 120), mistake: filterMistake.slice(0, 120), dateRange: dateRange as TradeFilterPreset["dateRange"], sortBy, currency: currencyMode, view: viewMode };
+    const next = [preset, ...savedViews.filter((item) => item.name.toLowerCase() !== name.toLowerCase())].slice(0, 10);
+    if (writeLocalStorageValue(savedViewsKey, JSON.stringify(next))) { setSavedViewName(""); setShowSaveView(false); showToast("Journal view saved", "success", "This view is stored in this browser for your account."); }
+    else showToast("View could not be saved", "error", "Browser storage is unavailable.");
+  };
+  const deleteSavedView = (id: string) => {
+    writeLocalStorageValue(savedViewsKey, JSON.stringify(savedViews.filter((preset) => preset.id !== id)));
+    showToast("Saved view removed", "info");
+  };
 
   const downloadBackup = () => {
     exportTradesToJSON(trades);
@@ -527,6 +552,8 @@ export default function TradeJournalView({
             <option value="7d">Last 7 Days</option>
             <option value="30d">Last 30 Days</option>
           </select>
+          {savedViews.length > 0 && <select aria-label="Apply a saved journal view" defaultValue="" onChange={(event) => { const preset = savedViews.find((item) => item.id === event.target.value); if (preset) applySavedView(preset); event.target.value = ""; }} className="bg-[#f7f6f3] border border-[#e9e9e7] rounded-md px-2 py-1 text-[11px] text-[#37352f] focus:outline-none"><option value="">Saved views…</option>{savedViews.map((preset) => <option key={preset.id} value={preset.id}>{preset.name}</option>)}</select>}
+          <button type="button" onClick={() => setShowSaveView((open) => !open)} className="flex items-center gap-1 rounded-md border border-[#e9e9e7] bg-[#f7f6f3] px-2 py-1 text-[11px] text-[#37352f]"><BookmarkPlus size={12}/> Save view</button>
         </div>
 
         {/* Search and Sort */}
@@ -557,6 +584,7 @@ export default function TradeJournalView({
           </div>
         </div>
       </div>
+      {showSaveView && <div className="flex flex-wrap items-center gap-2 rounded-lg border border-blue-200 bg-blue-50/50 p-3 text-xs"><label className="font-medium text-[#37352f]">View name <input autoFocus value={savedViewName} onChange={(event) => setSavedViewName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") saveCurrentView(); if (event.key === "Escape") setShowSaveView(false); }} maxLength={40} placeholder="e.g. Recent breakout losses" className="ml-2 w-56 rounded-md border border-blue-200 bg-white px-2.5 py-1.5 outline-none"/></label><button type="button" onClick={saveCurrentView} disabled={!savedViewName.trim()} className="rounded-md bg-[#2383e2] px-3 py-1.5 font-semibold text-white disabled:opacity-40">Save</button><button type="button" onClick={() => setShowSaveView(false)} className="px-2 py-1.5 text-[#5a5957]">Cancel</button>{savedViews.length > 0 && <details className="ml-auto"><summary className="cursor-pointer text-[#5a5957]">Manage {savedViews.length}</summary><div className="mt-2 space-y-1 rounded-lg border border-[#e3e2de] bg-white p-2">{savedViews.map((preset) => <div key={preset.id} className="flex items-center justify-between gap-3"><span className="max-w-48 truncate">{preset.name}</span><button type="button" onClick={() => deleteSavedView(preset.id)} className="text-rose-700">Remove</button></div>)}</div></details>}</div>}
 
       {/* Main Content: Table or Cards View or Empty State */}
       {trades.length === 0 ? (
