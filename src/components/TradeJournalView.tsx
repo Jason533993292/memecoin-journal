@@ -39,6 +39,8 @@ interface TradeJournalViewProps {
   readOnly?: boolean;
 }
 
+const JOURNAL_PAGE_SIZE = 30;
+
 export default function TradeJournalView({
   userId,
   trades,
@@ -83,6 +85,7 @@ export default function TradeJournalView({
   const [importing, setImporting] = useState(false);
   const [showSaveView, setShowSaveView] = useState(false);
   const [savedViewName, setSavedViewName] = useState("");
+  const [page, setPage] = useState(1);
 
   const [lightboxImage, setLightboxImage] = useState<{ url: string; title: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -282,8 +285,12 @@ export default function TradeJournalView({
         return 0;
       });
   }, [trades, searchQuery, filterResult, filterWallet, filterSetup, filterMistake, dateRange, sortBy, now]);
+  const pageCount = Math.max(1, Math.ceil(filteredTrades.length / JOURNAL_PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const visibleTrades = useMemo(() => filteredTrades.slice((currentPage - 1) * JOURNAL_PAGE_SIZE, currentPage * JOURNAL_PAGE_SIZE), [filteredTrades, currentPage]);
 
   const applySavedView = (preset: TradeFilterPreset) => {
+    setPage(1);
     setSearchQuery(preset.searchQuery); setFilterResult(preset.result); setFilterWallet(preset.wallet); setFilterSetup(preset.setup);
     setFilterMistake(preset.mistake); setDateRange(preset.dateRange); setSortBy(preset.sortBy); setCurrencyMode(preset.currency); setViewMode(preset.view);
     showToast(`View “${preset.name}” applied`, "success");
@@ -450,7 +457,7 @@ export default function TradeJournalView({
             {["All", "Win", "Loss", "BE"].map((tab) => (
               <button
                 key={tab}
-                onClick={() => setFilterResult(tab)}
+                onClick={() => { setPage(1); setFilterResult(tab); }}
                 className={`px-2 py-0.5 rounded text-[11px] font-medium transition-all ${
                   filterResult === tab
                     ? "bg-white text-[#37352f] shadow-xs font-semibold"
@@ -473,7 +480,7 @@ export default function TradeJournalView({
           <select
             aria-label="Filter by setup"
             value={filterSetup}
-            onChange={(e) => setFilterSetup(e.target.value)}
+            onChange={(e) => { setPage(1); setFilterSetup(e.target.value); }}
             className="w-full bg-[#f7f6f3] border border-[#e9e9e7] rounded-md px-2 py-1.5 text-[11px] text-[#37352f] focus:outline-none"
           >
             <option value="All">All Setups</option>
@@ -488,7 +495,7 @@ export default function TradeJournalView({
           <select
             aria-label="Filter by wallet"
             value={filterWallet}
-            onChange={(e) => setFilterWallet(e.target.value)}
+            onChange={(e) => { setPage(1); setFilterWallet(e.target.value); }}
             className="w-full bg-[#f7f6f3] border border-[#e9e9e7] rounded-md px-2 py-1.5 text-[11px] text-[#37352f] focus:outline-none"
           >
             <option value="All">All Wallets</option>
@@ -503,7 +510,7 @@ export default function TradeJournalView({
             <select
               aria-label="Filter by emotion tag"
               value={filterMistake}
-              onChange={(e) => setFilterMistake(e.target.value)}
+              onChange={(e) => { setPage(1); setFilterMistake(e.target.value); }}
               className="w-full bg-[#f7f6f3] border border-[#e9e9e7] rounded-md px-2 py-1.5 text-[11px] text-[#37352f] focus:outline-none"
             >
               <option value="All">All Emotion Tags</option>
@@ -544,7 +551,7 @@ export default function TradeJournalView({
           <select
             aria-label="Filter by date range"
             value={dateRange}
-            onChange={(e) => setDateRange(e.target.value)}
+            onChange={(e) => { setPage(1); setDateRange(e.target.value); }}
             className="bg-[#f7f6f3] border border-[#e9e9e7] rounded-md px-2 py-1 text-[11px] text-[#37352f] focus:outline-none"
           >
             <option value="all">All Time</option>
@@ -561,7 +568,7 @@ export default function TradeJournalView({
           <select
             aria-label="Sort trades"
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+            onChange={(e) => { setPage(1); setSortBy(e.target.value as typeof sortBy); }}
             className="bg-[#fbfbfa] border border-[#e3e2de] rounded-md px-2 py-1 text-xs text-[#37352f] focus:outline-none"
           >
             <option value="date-desc">Newest First</option>
@@ -577,7 +584,7 @@ export default function TradeJournalView({
               aria-label="Search trades"
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => { setPage(1); setSearchQuery(e.target.value); }}
               placeholder="Search by coin, setup, or notes..."
               className="bg-[#fbfbfa] border border-[#e3e2de] rounded-md pl-7 pr-3 py-1 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2] w-40 sm:w-56"
             />
@@ -630,7 +637,7 @@ export default function TradeJournalView({
       ) : viewMode === "cards" ? (
         /* Cards Grid View */
         <div data-tour="journal-results" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredTrades.map((trade, tradeIndex) => {
+          {visibleTrades.map((trade, tradeIndex) => {
             const timestamp = getTradeTimestamp(trade);
             const dateStr = timestamp
               ? new Date(timestamp).toLocaleDateString("en-US", {
@@ -816,7 +823,7 @@ export default function TradeJournalView({
                 </tr>
               </thead>
               <tbody>
-                {filteredTrades.map((trade, tradeIndex) => {
+                {visibleTrades.map((trade, tradeIndex) => {
                   const timestamp = getTradeTimestamp(trade);
                   const dateStr = timestamp
                     ? new Date(timestamp).toLocaleDateString("en-US", {
@@ -1004,6 +1011,8 @@ export default function TradeJournalView({
           </div>
         </div>
       )}
+
+      {filteredTrades.length > JOURNAL_PAGE_SIZE && <nav aria-label="Trade journal pages" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#e9e9e7] bg-white px-4 py-3 text-xs"><p className="text-[#787774]">Showing {(currentPage - 1) * JOURNAL_PAGE_SIZE + 1}–{Math.min(currentPage * JOURNAL_PAGE_SIZE, filteredTrades.length)} of {filteredTrades.length} trades</p><div className="flex items-center gap-2"><button type="button" onClick={() => setPage(Math.max(1, currentPage - 1))} disabled={currentPage === 1} className="rounded-md border border-[#e3e2de] px-3 py-1.5 font-semibold text-[#37352f] disabled:opacity-40">Previous</button><span className="min-w-20 text-center font-mono text-[#5a5957]">{currentPage} / {pageCount}</span><button type="button" onClick={() => setPage(Math.min(pageCount, currentPage + 1))} disabled={currentPage === pageCount} className="rounded-md border border-[#e3e2de] px-3 py-1.5 font-semibold text-[#37352f] disabled:opacity-40">Next</button></div></nav>}
 
       {/* Lightbox for Chart Screenshots */}
       {lightboxImage && (
