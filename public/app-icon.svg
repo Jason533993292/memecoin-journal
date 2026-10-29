@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Memecoin Journal">
+  <rect width="512" height="512" rx="112" fill="#0f1015"/>
+  <path d="M120 128h232c22 0 40 18 40 40v224H160c-22 0-40-18-40-40V128Z" fill="#2383e2"/>
+  <path d="M160 128h216c9 0 16 7 16 16v216H176c-9 0-16-7-16-16V128Z" fill="#fff"/>
+  <path d="M208 208h136M208 256h136M208 304h96" stroke="#2383e2" stroke-width="24" stroke-linecap="round"/>
+  <path d="M120 352c0-22 18-40 40-40h16v80h-16c-22 0-40-18-40-40Z" fill="#176bbd"/>
+</svg>

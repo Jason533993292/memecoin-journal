@@ -28,6 +28,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { LogIn, LogOut, MailCheck, Trash2, User as UserIcon } from "lucide-react";
 import { useToast } from "./Toast";
+import InstallAppButton from "./InstallAppButton";
 
 interface TopBannerProps {
   currentTab: string;
@@ -304,6 +305,7 @@ export default function TopBanner({
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
+          <InstallAppButton />
           <CursorPicker />
           <div role="status" aria-live="polite" title={connectionState === "online" ? "Connected" : connectionState === "reconnecting" ? "Connection restored; checking services" : "Offline; browser drafts remain available"} className={`hidden items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-semibold sm:flex ${connectionState === "online" ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : connectionState === "reconnecting" ? "border-amber-500/30 bg-amber-500/10 text-amber-200" : "border-rose-500/30 bg-rose-500/10 text-rose-200"}`}>
             {connectionState === "offline" ? <WifiOff size={12}/> : <Wifi size={12}/>}<span>{connectionState === "online" ? "Online" : connectionState === "reconnecting" ? "Reconnecting…" : "Offline"}</span>

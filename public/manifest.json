@@ -1,16 +1,21 @@
 {
   "name": "Memecoin Journal",
   "short_name": "Journal",
-  "description": "Your ultimate degenerate trading journal.",
+  "description": "A private trading journal for reviewing crypto trades, risk, discipline, and performance.",
+  "id": "/",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#12122a",
   "theme_color": "#12122a",
   "icons": [
     {
-      "src": "/favicon.ico",
-      "sizes": "64x64",
-      "type": "image/x-icon"
+      "src": "/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     }
-  ]
+  ],
+  "categories": ["finance", "productivity"],
+  "shortcuts": [{ "name": "Open journal", "short_name": "Journal", "url": "/#journal", "icons": [{ "src": "/app-icon.svg", "sizes": "any", "type": "image/svg+xml" }] }]
 }
