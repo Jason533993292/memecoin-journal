@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Bug, Lightbulb, MessageSquare, Send, X } from "lucide-react";
+import { Bug, ChevronDown, History, Lightbulb, MessageSquare, Send, X } from "lucide-react";
 import type { User } from "firebase/auth";
 import type { FeedbackCategory } from "@/lib/feedback";
 import { useToast } from "./Toast";
@@ -18,6 +18,15 @@ const categories: Array<{ id: FeedbackCategory; label: string; description: stri
   { id: "suggestion", label: "Suggestion", description: "An idea to improve the app", icon: Lightbulb },
   { id: "other", label: "Other", description: "General feedback", icon: MessageSquare },
 ];
+
+type FeedbackReceipt = {
+  reference: string;
+  category: string;
+  message: string;
+  status: "new" | "reviewing" | "resolved" | "closed";
+  resolutionNote: string | null;
+  createdAt: string;
+};
 
 function browserName() {
   const ua = navigator.userAgent;
@@ -45,6 +54,9 @@ export default function FeedbackModal({ isOpen, onClose, user, currentSection }:
   const [allowReply, setAllowReply] = useState(true);
   const [company, setCompany] = useState("");
   const [sending, setSending] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [reports, setReports] = useState<FeedbackReceipt[] | null>(null);
   const submissionIdRef = useRef<string | null>(null);
   const diagnostics = useMemo(() => {
     if (!isOpen || typeof window === "undefined") return null;
@@ -67,6 +79,29 @@ export default function FeedbackModal({ isOpen, onClose, user, currentSection }:
   }, [isOpen, onClose, sending]);
 
   if (!isOpen) return null;
+
+  const loadHistory = async () => {
+    const nextOpen = !historyOpen;
+    setHistoryOpen(nextOpen);
+    if (!nextOpen || reports || historyLoading) return;
+    setHistoryLoading(true);
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch("/api/feedback", {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+        signal: AbortSignal.timeout(10_000),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(typeof result.error === "string" ? result.error : "Feedback history could not be loaded.");
+      setReports(Array.isArray(result.reports) ? result.reports : []);
+    } catch (error) {
+      setHistoryOpen(false);
+      showToast("Feedback history could not be loaded", "error", error instanceof Error ? error.message : "Try again shortly.");
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
 
   const close = () => {
     if (sending) return;
@@ -124,6 +159,28 @@ export default function FeedbackModal({ isOpen, onClose, user, currentSection }:
           </div>
           <button type="button" data-tour="feedback-close" onClick={close} aria-label="Close feedback form" className="rounded-lg p-1.5 text-[#787774] transition-colors hover:bg-[#f1f1ef] hover:text-[#37352f]"><X size={18} /></button>
         </div>
+
+        <button type="button" onClick={() => void loadHistory()} aria-expanded={historyOpen} className="mt-4 flex w-full items-center justify-between rounded-xl border border-[#e3e2de] bg-[#f7f6f3] px-3 py-2.5 text-left text-xs font-semibold text-[#4a4946] hover:bg-[#f1f1ef]">
+          <span className="flex items-center gap-2"><History size={15} /> My reports and resolutions</span>
+          <ChevronDown size={15} className={`transition-transform ${historyOpen ? "rotate-180" : ""}`} />
+        </button>
+        {historyOpen && (
+          <div className="mt-2 max-h-52 space-y-2 overflow-y-auto rounded-xl border border-[#e3e2de] bg-white p-2" aria-live="polite">
+            {historyLoading && <p className="p-3 text-xs text-[#787774]">Loading reports…</p>}
+            {!historyLoading && reports?.length === 0 && <p className="p-3 text-xs text-[#787774]">You have not submitted any feedback yet.</p>}
+            {reports?.map((report) => (
+              <article key={report.reference} className="rounded-lg bg-[#f7f6f3] p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-[#787774]">{report.reference} · {report.category}</p>
+                  <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${report.status === "resolved" || report.status === "closed" ? "bg-emerald-100 text-emerald-700" : report.status === "reviewing" ? "bg-blue-100 text-blue-700" : "bg-amber-100 text-amber-800"}`}>{report.status}</span>
+                </div>
+                <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-[#4a4946]">{report.message}</p>
+                <p className="mt-1 text-[10px] text-[#9b9a97]">{new Date(report.createdAt).toLocaleDateString()}</p>
+                {report.resolutionNote && <p className="mt-2 rounded-md bg-white p-2 text-[11px] leading-4 text-[#37352f]"><strong>Response:</strong> {report.resolutionNote}</p>}
+              </article>
+            ))}
+          </div>
+        )}
 
         <div className="mt-5 grid grid-cols-3 gap-2" aria-label="Feedback category">
           {categories.map(({ id, label, description, icon: Icon }) => (

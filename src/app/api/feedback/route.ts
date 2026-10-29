@@ -7,8 +7,35 @@ import {
 } from "@/lib/firebase-admin";
 import { parseFeedbackPayload } from "@/lib/feedback";
 import { sendFeedbackNotificationWithRetry } from "@/lib/feedbackEmail";
-import { createUserFeedback, recordFeedbackEmailStatus } from "@/lib/supabase-admin";
+import { createUserFeedback, listUserFeedback, recordFeedbackEmailStatus } from "@/lib/supabase-admin";
 import { feedbackReference, requestHeaders, requestIdFor } from "@/lib/requestId";
+
+export async function GET(request: Request) {
+  const requestId = requestIdFor(request);
+  const reply = (body: object, status = 200) => NextResponse.json(body, {
+    status,
+    headers: requestHeaders(requestId),
+  });
+  try {
+    const user = await verifyFirebaseUser(request);
+    if (!user) return reply({ error: "Sign in to view feedback." }, 401);
+    const reports = await listUserFeedback(user.uid);
+    return reply({
+      reports: reports.map((report) => ({
+        reference: feedbackReference(report.id),
+        category: report.category,
+        message: report.message,
+        status: report.status,
+        resolutionNote: report.resolution_note,
+        createdAt: report.created_at,
+        updatedAt: report.updated_at,
+      })),
+    });
+  } catch (error) {
+    console.error("Feedback history failed", { requestId, reason: error instanceof Error ? error.name : "unknown" });
+    return reply({ error: "Feedback history could not be loaded.", requestId }, 500);
+  }
+}
 
 export async function POST(request: Request) {
   const requestId = requestIdFor(request);

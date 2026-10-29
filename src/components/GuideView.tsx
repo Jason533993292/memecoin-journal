@@ -83,7 +83,7 @@ const ROADMAP: Array<{ title: string; description: string; items: RoadmapItem[] 
       { text: "Direct links between coin theses and resulting trades", status: "Available" },
       { text: "Persistent saved, syncing, and offline status", status: "In progress" },
       { text: "Backup and export reminders", status: "Available" },
-      { text: "Feedback receipt and resolution tracking", status: "In progress" },
+      { text: "Feedback receipt and resolution tracking", status: "Available" },
     ],
   },
 ];

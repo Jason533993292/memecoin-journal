@@ -134,6 +134,18 @@ export async function listFeedbackForAdmin(limit = 50) {
   return data;
 }
 
+export async function listUserFeedback(userId: string, limit = 20) {
+  const admin = getSupabaseAdminClient();
+  const { data, error } = await admin
+    .from("user_feedback")
+    .select("id,category,message,status,resolution_note,created_at,updated_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(Math.min(Math.max(limit, 1), 50));
+  if (error) throw new Error(error.message);
+  return data;
+}
+
 export async function updateFeedbackForAdmin(input: {
   id: number;
   status: "new" | "reviewing" | "resolved" | "closed";
