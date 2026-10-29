@@ -19,14 +19,16 @@ import {
   Tooltip,
   CartesianGrid,
   ReferenceLine,
+  ReferenceDot,
 } from "recharts";
 
 interface EquityCurveCardProps {
   trades: Trade[];
   solPrice?: number;
+  onSelectTrade?: (trade: Trade) => void;
 }
 
-export default function EquityCurveCard({ trades, solPrice = 150 }: EquityCurveCardProps) {
+export default function EquityCurveCard({ trades, solPrice = 150, onSelectTrade }: EquityCurveCardProps) {
   const now = useCurrentTime();
   const [timeframe, setTimeframe] = useState<"all" | "30d" | "7d">("all");
   const [currency, setCurrency] = useState<"SOL" | "USD">("SOL");
@@ -76,6 +78,7 @@ export default function EquityCurveCard({ trades, solPrice = 150 }: EquityCurveC
       drawdown: number;
       hasMistake: boolean;
       mistakes: string[];
+      tradeIds: string[];
     }> = [];
 
     const dailyDataMap = new Map<string, {
@@ -84,6 +87,7 @@ export default function EquityCurveCard({ trades, solPrice = 150 }: EquityCurveC
       tradePnl: number;
       tags: string[];
       hasMistake: boolean;
+      tradeIds: string[];
     }>();
 
     filtered.forEach((t) => {
@@ -103,6 +107,7 @@ export default function EquityCurveCard({ trades, solPrice = 150 }: EquityCurveC
         const existing = dailyDataMap.get(dayKey)!;
         existing.tradePnl += pnl;
         existing.tags.push(...mistakesList);
+        existing.tradeIds.push(t.id);
         if (badTags.length > 0) existing.hasMistake = true;
       } else {
         dailyDataMap.set(dayKey, {
@@ -111,6 +116,7 @@ export default function EquityCurveCard({ trades, solPrice = 150 }: EquityCurveC
           tradePnl: pnl,
           tags: [...mistakesList],
           hasMistake: badTags.length > 0,
+          tradeIds: [t.id],
         });
       }
     });
@@ -138,6 +144,7 @@ export default function EquityCurveCard({ trades, solPrice = 150 }: EquityCurveC
         drawdown: parseFloat((-currentDd).toFixed(2)),
         hasMistake: dayData.hasMistake,
         mistakes: uniqueTags,
+        tradeIds: dayData.tradeIds,
       });
     }
 
@@ -155,6 +162,8 @@ export default function EquityCurveCard({ trades, solPrice = 150 }: EquityCurveC
       filteredCount: filtered.length,
     };
   }, [trades, timeframe, currency, solPrice, curveType, startingCapitalSol, now]);
+  const notableDays = useMemo(() => [...chartData].filter((day) => day.tradePnl !== 0).sort((a, b) => Math.abs(b.tradePnl) - Math.abs(a.tradePnl)).slice(0, 3), [chartData]);
+  const tradesById = useMemo(() => new Map(trades.map((trade) => [trade.id, trade])), [trades]);
 
   const isPositive = netPnl >= 0;
   const isUnderwater = chartMode === "underwater";
@@ -424,6 +433,7 @@ export default function EquityCurveCard({ trades, solPrice = 150 }: EquityCurveC
                 }}
               />
               <ReferenceLine y={0} stroke="#d3d1cb" strokeWidth={1} />
+              {notableDays.slice(0, 2).map((day) => <ReferenceDot key={day.index} x={day.index} y={isUnderwater ? day.drawdown : day.equity} r={4} fill={day.tradePnl >= 0 ? "#10b981" : "#f43f5e"} stroke="#ffffff" strokeWidth={2}/>) }
 
               {/* Area Curve without clutter dots */}
               <Area
@@ -439,6 +449,7 @@ export default function EquityCurveCard({ trades, solPrice = 150 }: EquityCurveC
           </ResponsiveContainer>
         )}
       </div>
+      {notableDays.length > 0 && <div className="border-t border-[#f1f1ef] pt-3"><div className="mb-2 flex items-center justify-between"><p className="text-[10px] font-semibold uppercase tracking-wide text-[#787774]">Largest moves in this view</p><span className="text-[10px] text-[#9b9a97]">Select a day to inspect a contributing trade</span></div><div className="grid gap-2 sm:grid-cols-3">{notableDays.map((day, index) => { const trade = tradesById.get(day.tradeIds[0]); return <button type="button" key={day.index} disabled={!trade || !onSelectTrade} onClick={() => trade && onSelectTrade?.(trade)} className="rounded-lg border border-[#e9e9e7] bg-white p-3 text-left hover:border-[#c9c7c1] hover:bg-[#f7f6f3] disabled:cursor-default"><span className="text-[10px] font-semibold uppercase text-[#9b9a97]">#{index + 1} · {day.fullDate}</span><span className={`mt-1 block font-mono text-sm font-bold ${day.tradePnl >= 0 ? "text-emerald-600" : "text-rose-600"}`}>{day.tradePnl >= 0 ? "+" : ""}{day.tradePnl} {currency}</span><span className="mt-1 block text-[10px] text-[#787774]">{day.tradeIds.length} {day.tradeIds.length === 1 ? "trade" : "trades"} that day</span></button>; })}</div></div>}
     </div>
   );
 }

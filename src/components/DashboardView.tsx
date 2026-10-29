@@ -290,7 +290,7 @@ export default function DashboardView({
 
       {/* Primary analysis and recent activity */}
       <div className="grid items-stretch gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(280px,0.8fr)]">
-        <EquityCurveCard trades={trades} solPrice={solPrice} />
+        <EquityCurveCard trades={trades} solPrice={solPrice} onSelectTrade={onSelectTrade} />
 
         <aside className="notion-card flex min-h-[360px] flex-col p-5" aria-labelledby="recent-activity-title">
           <div className="flex items-start justify-between gap-3 border-b border-[#e9e9e7] pb-4">
