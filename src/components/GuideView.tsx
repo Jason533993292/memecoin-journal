@@ -16,7 +16,7 @@ const ROADMAP: Array<{ title: string; description: string; items: RoadmapItem[] 
       { text: "Automated secret scanning before releases", status: "Available" },
       { text: "Scheduled dependency and code-security scans", status: "Available" },
       { text: "Encrypted storage option for persistent AI provider keys", status: "Available" },
-      { text: "Security history for sensitive account actions", status: "Planned" },
+      { text: "Security history for sensitive account actions", status: "Available" },
       { text: "Regular credential-rotation checks", status: "Available" },
       { text: "Verified backup restoration exercises", status: "Planned" },
       { text: "Audited administration for feedback reports", status: "Available" },

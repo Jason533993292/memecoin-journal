@@ -1,7 +1,8 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
+import type { AccountSecurityEventType } from "@/lib/securityHistory";
 
-type JournalTable = "wallet_transactions" | "trades" | "coin_research" | "daily_journal_entries" | "wallets" | "user_settings" | "user_feedback";
+type JournalTable = "wallet_transactions" | "trades" | "coin_research" | "daily_journal_entries" | "wallets" | "user_settings" | "user_feedback" | "account_security_events";
 
 let adminClient: SupabaseClient<Database> | null = null;
 
@@ -29,7 +30,7 @@ export async function deleteSupabaseJournalData(userId: string) {
 
   // Child/history tables go first. Every operation is safe to repeat, allowing
   // a later request to resume after a temporary provider failure.
-  const tables: JournalTable[] = ["wallet_transactions", "trades", "coin_research", "daily_journal_entries", "wallets", "user_settings", "user_feedback"];
+  const tables: JournalTable[] = ["wallet_transactions", "trades", "coin_research", "daily_journal_entries", "wallets", "user_settings", "user_feedback", "account_security_events"];
   for (const table of tables) {
     const { error } = await admin.from(table).delete().eq("user_id", userId);
     if (error) throw new Error(`${table}: ${error.message}`);
@@ -53,6 +54,28 @@ export async function deleteSupabaseTrades(userId: string) {
     .eq("user_id", userId);
   if (verificationError) throw new Error(verificationError.message);
   if ((count ?? 0) !== 0) throw new Error("Trade deletion verification found remaining rows.");
+}
+
+export async function recordAccountSecurityEvent(userId: string, eventType: AccountSecurityEventType, requestId = "") {
+  const admin = getSupabaseAdminClient();
+  const { error } = await admin.from("account_security_events").insert({
+    user_id: userId,
+    event_type: eventType,
+    request_id: requestId.slice(0, 80),
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function listAccountSecurityEvents(userId: string, limit = 30) {
+  const admin = getSupabaseAdminClient();
+  const { data, error } = await admin
+    .from("account_security_events")
+    .select("id,event_type,created_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(Math.min(Math.max(limit, 1), 50));
+  if (error) throw new Error(error.message);
+  return data;
 }
 
 export async function createUserFeedback(input: {

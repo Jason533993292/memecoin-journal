@@ -23,12 +23,14 @@ import {
   Wifi,
   WifiOff,
   KeyRound,
+  ShieldCheck,
 } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
 import { LogIn, LogOut, MailCheck, Trash2, User as UserIcon } from "lucide-react";
 import { useToast } from "./Toast";
 import InstallAppButton from "./InstallAppButton";
+import AccountSecurityHistoryModal from "./AccountSecurityHistoryModal";
 
 interface TopBannerProps {
   currentTab: string;
@@ -60,6 +62,7 @@ export default function TopBanner({
   const { user, loginWithGoogle, logout, resendVerification, resetPassword } = useAuth();
   const { showToast } = useToast();
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [securityHistoryOpen, setSecurityHistoryOpen] = useState(false);
   const accountMenuRef = useRef<HTMLDivElement>(null);
   const [connectionState, setConnectionState] = useState<"online" | "offline" | "reconnecting">("online");
 
@@ -101,6 +104,18 @@ export default function TopBanner({
     const next = !sidebarCollapsed;
     onSidebarCollapsedChange?.(next);
     setAccountMenuOpen(false);
+  };
+
+  const recordSecurityEvent = async (eventType: "password_reset_requested" | "verification_email_requested" | "signed_out") => {
+    if (!user) return;
+    const token = await user.getIdToken();
+    await fetch("/api/account/security-history", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ eventType }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(8_000),
+    });
   };
 
   const tabs = [
@@ -231,6 +246,7 @@ export default function TopBanner({
                   type="button"
                   onClick={() => {
                     void resendVerification()
+                      .then(() => recordSecurityEvent("verification_email_requested").catch(() => undefined))
                       .then(() => {
                         setAccountMenuOpen(false);
                         showToast("Verification email sent", "success", "Check your inbox and spam folder.");
@@ -247,6 +263,7 @@ export default function TopBanner({
                   type="button"
                   onClick={() => {
                     void resetPassword(user.email!)
+                      .then(() => recordSecurityEvent("password_reset_requested").catch(() => undefined))
                       .then(() => {
                         setAccountMenuOpen(false);
                         showToast("Password reset email sent", "success", "Check your inbox and spam folder.");
@@ -270,6 +287,16 @@ export default function TopBanner({
                   <Trash2 size={14} /> Delete all trades & stats
                 </button>
               )}
+              <button
+                type="button"
+                onClick={() => {
+                  setAccountMenuOpen(false);
+                  setSecurityHistoryOpen(true);
+                }}
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs text-emerald-300 hover:bg-white/[0.06]"
+              >
+                <ShieldCheck size={14} /> Security history
+              </button>
               {onDeleteAccount && (
                 <button
                   type="button"
@@ -284,7 +311,7 @@ export default function TopBanner({
               )}
               <button
                 type="button"
-                onClick={() => void logout()}
+                onClick={() => void recordSecurityEvent("signed_out").catch(() => undefined).finally(() => logout())}
                 className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs text-neutral-300 hover:bg-white/[0.06]"
               >
                 <LogOut size={14} /> Sign out
@@ -294,6 +321,8 @@ export default function TopBanner({
           </div>
         </div>
       </aside>
+
+      {securityHistoryOpen && user && <AccountSecurityHistoryModal user={user} onClose={() => setSecurityHistoryOpen(false)} />}
 
       <header className={`fixed left-0 right-0 top-0 z-40 flex h-16 items-center justify-between border-b border-white/8 bg-[#0f1015]/95 px-4 backdrop-blur-xl transition-[left] duration-200 md:px-6 ${sidebarCollapsed ? "md:left-[4.5rem]" : "md:left-60"}`}>
         <div className="flex min-w-0 items-center gap-3">

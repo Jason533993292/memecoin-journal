@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_security_events: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: number
+          request_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: never
+          request_id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: never
+          request_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       coin_research: {
         Row: {
           ca: string

@@ -5,7 +5,7 @@ import {
   getFirebaseAdmin,
   verifyFirebaseUser,
 } from "@/lib/firebase-admin";
-import { deleteSupabaseTrades } from "@/lib/supabase-admin";
+import { deleteSupabaseTrades, recordAccountSecurityEvent } from "@/lib/supabase-admin";
 import { requestHeaders, requestIdFor } from "@/lib/requestId";
 
 export const maxDuration = 60;
@@ -43,6 +43,12 @@ export async function POST(request: Request) {
 
     const { db } = getFirebaseAdmin();
     await db.recursiveDelete(db.collection("users").doc(decodedToken.uid).collection("trades"));
+
+    if (process.env.NEXT_PUBLIC_DATA_BACKEND === "supabase") {
+      await recordAccountSecurityEvent(decodedToken.uid, "trading_data_deleted", requestId).catch((auditError) => {
+        console.error("Trading-data security history failed", { requestId, reason: auditError instanceof Error ? auditError.name : "unknown" });
+      });
+    }
 
     return reply({ deleted: true });
   } catch (error) {
