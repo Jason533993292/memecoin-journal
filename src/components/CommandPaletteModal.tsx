@@ -16,6 +16,7 @@ import { DailyJournalEntry, ResearchItem, Trade } from "../lib/types";
 import { db } from "../lib/firebase";
 import { collection, getDocs } from "firebase/firestore";
 import { listSupabaseDailyJournalEntries, listSupabaseResearch, usesSupabaseJournal } from "../lib/journalBackend";
+import { formatSol } from "../lib/utils";
 
 interface CommandPaletteModalProps {
   isOpen: boolean;
@@ -223,7 +224,7 @@ export default function CommandPaletteModal({
                       (trade.pnlSol || 0) >= 0 ? "text-emerald-600" : "text-rose-600"
                     }`}
                   >
-                    {(trade.pnlSol || 0) >= 0 ? `+${(trade.pnlSol || 0).toFixed(2)}` : (trade.pnlSol || 0).toFixed(2)} SOL
+                    {(trade.pnlSol || 0) >= 0 ? `+${formatSol(trade.pnlSol || 0)}` : formatSol(trade.pnlSol || 0)} SOL
                   </span>
                 </button>
               ))}

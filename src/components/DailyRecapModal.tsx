@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Trade } from "../lib/types";
-import { getTradeTimestamp } from "../lib/utils";
+import { formatSol, getTradeTimestamp } from "../lib/utils";
 import { DEFAULT_GOOD_TAGS } from "../lib/constants";
 import { getUsdValueStatus } from "../lib/tradeCalculations";
 import { X, Calendar, Trophy, AlertTriangle, Sparkles, Copy, Check } from "lucide-react";
@@ -97,9 +97,9 @@ export default function DailyRecapModal({
     const formatted = `MemeCoin Trading Daily Recap — ${todaySummary.dateLabel}
 Trades: ${todaySummary.total} (${todaySummary.winsCount}W / ${todaySummary.lossesCount}L / ${todaySummary.beCount}BE)
 Win Rate: ${todaySummary.winRate}%
-Net P&L: ${todaySummary.netPnlSol >= 0 ? "+" : ""}${todaySummary.netPnlSol.toFixed(2)} SOL ($${todaySummary.netPnlUsd.toFixed(2)})
-${todaySummary.bestTrade ? `Best: $${todaySummary.bestTrade.symbol} (+${todaySummary.bestTrade.pnlSol.toFixed(2)} SOL)` : ""}
-${todaySummary.worstTrade ? `Worst: $${todaySummary.worstTrade.symbol} (${todaySummary.worstTrade.pnlSol.toFixed(2)} SOL)` : ""}
+Net P&L: ${todaySummary.netPnlSol >= 0 ? "+" : ""}${formatSol(todaySummary.netPnlSol)} SOL ($${todaySummary.netPnlUsd.toFixed(2)})
+${todaySummary.bestTrade ? `Best: $${todaySummary.bestTrade.symbol} (+${formatSol(todaySummary.bestTrade.pnlSol)} SOL)` : ""}
+${todaySummary.worstTrade ? `Worst: $${todaySummary.worstTrade.symbol} (${formatSol(todaySummary.worstTrade.pnlSol)} SOL)` : ""}
 #Solana #Memecoins #TradingJournal`;
 
     navigator.clipboard.writeText(formatted.trim());
@@ -163,7 +163,7 @@ ${todaySummary.worstTrade ? `Worst: $${todaySummary.worstTrade.symbol} (${todayS
                   Today&apos;s Net Realized
                 </span>
                 <div className="text-2xl font-mono font-extrabold mt-0.5">
-                  {todaySummary.netPnlSol >= 0 ? `+${todaySummary.netPnlSol.toFixed(2)}` : todaySummary.netPnlSol.toFixed(2)} SOL
+                  {todaySummary.netPnlSol >= 0 ? `+${formatSol(todaySummary.netPnlSol)}` : formatSol(todaySummary.netPnlSol)} SOL
                 </div>
                 <div className="text-xs font-mono font-medium opacity-85">
                   {todaySummary.netPnlUsd >= 0 ? `+$${todaySummary.netPnlUsd.toFixed(2)}` : `-$${Math.abs(todaySummary.netPnlUsd).toFixed(2)}`} USD
@@ -196,7 +196,7 @@ ${todaySummary.worstTrade ? `Worst: $${todaySummary.worstTrade.symbol} (${todayS
                       ${todaySummary.bestTrade.symbol}
                     </div>
                     <div className="font-mono text-emerald-600 font-semibold text-xs mt-0.5">
-                      +{todaySummary.bestTrade.pnlSol.toFixed(2)} SOL
+                      +{formatSol(todaySummary.bestTrade.pnlSol)} SOL
                     </div>
                   </div>
                 ) : (
@@ -215,7 +215,7 @@ ${todaySummary.worstTrade ? `Worst: $${todaySummary.worstTrade.symbol} (${todayS
                       ${todaySummary.worstTrade.symbol}
                     </div>
                     <div className="font-mono text-rose-600 font-semibold text-xs mt-0.5">
-                      {todaySummary.worstTrade.pnlSol.toFixed(2)} SOL
+                      {formatSol(todaySummary.worstTrade.pnlSol)} SOL
                     </div>
                   </div>
                 ) : (

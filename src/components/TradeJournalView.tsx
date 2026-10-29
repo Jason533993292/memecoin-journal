@@ -18,7 +18,7 @@ import {
   BookmarkPlus,
 } from "lucide-react";
 import { exportTradesToCSV, exportTradesToJSON, filterNewTradeImports, parseTradeImport } from "../lib/exportImport";
-import { getTradeTimestamp } from "../lib/utils";
+import { formatSol, getTradeTimestamp } from "../lib/utils";
 import { useCurrentTime, useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
 import { useToast } from "./Toast";
 import { getTradeBoughtUsd, getTradeSoldUsd, getUsdValueStatus } from "../lib/tradeCalculations";
@@ -745,7 +745,7 @@ export default function TradeJournalView({
                             : "text-[#787774]"
                         }`}
                       >
-                        {currencyMode === "SOL" ? ((trade.pnlSol || 0) > 0 ? `+${(trade.pnlSol || 0).toFixed(2)} SOL` : `${(trade.pnlSol || 0).toFixed(2)} SOL`) : (() => { const value = getUsdValueStatus(trade, solPrice).value ?? 0; return value > 0 ? `+$${value.toFixed(2)}` : value < 0 ? `-$${Math.abs(value).toFixed(2)}` : "$0.00"; })()}
+                        {currencyMode === "SOL" ? ((trade.pnlSol || 0) > 0 ? `+${formatSol(trade.pnlSol || 0)} SOL` : `${formatSol(trade.pnlSol || 0)} SOL`) : (() => { const value = getUsdValueStatus(trade, solPrice).value ?? 0; return value > 0 ? `+$${value.toFixed(2)}` : value < 0 ? `-$${Math.abs(value).toFixed(2)}` : "$0.00"; })()}
                       </span>
                     </div>
                   </div>
@@ -938,12 +938,12 @@ export default function TradeJournalView({
 
                       {/* Bought SOL */}
                       <td className="notion-table-td font-mono text-[#37352f]">
-                        {currencyMode === "SOL" ? (trade.boughtSol || 0).toFixed(2) : "$" + (getTradeBoughtUsd(trade, solPrice).value ?? 0).toFixed(2)}
+                        {currencyMode === "SOL" ? formatSol(trade.boughtSol || 0) : "$" + (getTradeBoughtUsd(trade, solPrice).value ?? 0).toFixed(2)}
                       </td>
 
                       {/* Sold SOL */}
                       <td className="notion-table-td font-mono text-[#37352f]">
-                        {currencyMode === "SOL" ? (trade.soldSol || 0).toFixed(2) : "$" + (getTradeSoldUsd(trade, solPrice).value ?? 0).toFixed(2)}
+                        {currencyMode === "SOL" ? formatSol(trade.soldSol || 0) : "$" + (getTradeSoldUsd(trade, solPrice).value ?? 0).toFixed(2)}
                       </td>
 
                       {/* Net PnL SOL */}
@@ -956,7 +956,7 @@ export default function TradeJournalView({
                             : "text-[#787774]"
                         }`}
                       >
-                        {currencyMode === "SOL" ? ((trade.pnlSol || 0) > 0 ? `+${(trade.pnlSol || 0).toFixed(2)}` : (trade.pnlSol || 0).toFixed(2)) : (() => { const value = getUsdValueStatus(trade, solPrice).value ?? 0; return value > 0 ? `+$${value.toFixed(2)}` : value < 0 ? `-$${Math.abs(value).toFixed(2)}` : "$0.00"; })()}
+                        {currencyMode === "SOL" ? ((trade.pnlSol || 0) > 0 ? `+${formatSol(trade.pnlSol || 0)}` : formatSol(trade.pnlSol || 0)) : (() => { const value = getUsdValueStatus(trade, solPrice).value ?? 0; return value > 0 ? `+$${value.toFixed(2)}` : value < 0 ? `-$${Math.abs(value).toFixed(2)}` : "$0.00"; })()}
                       </td>
 
                       {/* Tags */}
@@ -1051,7 +1051,7 @@ export default function TradeJournalView({
               {pendingImport.trades.slice(0, 10).map((trade, index) => (
                 <div key={`${trade.ca}-${trade.tradedAt}-${index}`} className="flex items-center justify-between border-b border-[#f1f1ef] px-3 py-2 text-xs last:border-0">
                   <span className="font-semibold">{trade.name} <span className="font-normal text-[#787774]">${trade.symbol}</span></span>
-                  <span className={trade.pnlSol >= 0 ? "font-mono text-emerald-700" : "font-mono text-rose-700"}>{trade.pnlSol >= 0 ? "+" : ""}{trade.pnlSol.toFixed(2)} SOL</span>
+                  <span className={trade.pnlSol >= 0 ? "font-mono text-emerald-700" : "font-mono text-rose-700"}>{trade.pnlSol >= 0 ? "+" : ""}{formatSol(trade.pnlSol)} SOL</span>
                 </div>
               ))}
               {pendingImport.trades.length > 10 && <div className="px-3 py-2 text-center text-[11px] text-[#787774]">and {pendingImport.trades.length - 10} more…</div>}

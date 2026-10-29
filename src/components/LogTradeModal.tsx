@@ -32,7 +32,7 @@ import {
   COMMON_SETUPS,
   DURATION_PRESETS,
 } from "../lib/constants";
-import { compressImage } from "../lib/utils";
+import { compressImage, formatSol } from "../lib/utils";
 import { getTradeCreateValidationError, parseQuickTradePaste, quoteAmountsToBase, defaultQuoteUsdRate, QUOTE_CURRENCIES, TRADING_VENUES, summarizeTradeFills } from "../lib/tradeInput";
 import BetaBadge from "./BetaBadge";
 import { useAuth } from "../context/AuthContext";
@@ -597,7 +597,7 @@ export default function LogTradeModal({
       showToast(
         "Trade saved to Cloud",
         "success",
-        `${tokenData?.name || "Token"} logged (${quoteBase.pnlSol >= 0 ? "+" : ""}${quoteBase.pnlSol.toFixed(2)} SOL)`
+        `${tokenData?.name || "Token"} logged (${quoteBase.pnlSol >= 0 ? "+" : ""}${formatSol(quoteBase.pnlSol)} SOL)`
       );
       onTradeLogged();
       onClose();

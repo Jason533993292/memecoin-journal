@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@heroui/react";
 import { Trade, JournalRules, AiCoachBrief, GoalSettings } from "../lib/types";
-import { getTradeTimestamp } from "../lib/utils";
+import { formatSol, getTradeTimestamp } from "../lib/utils";
 import { getUsdValueStatus } from "../lib/tradeCalculations";
 import {
   Banknote,
@@ -208,7 +208,7 @@ export default function DashboardView({
           <AlertOctagon size={20} className="text-rose-600 shrink-0 mt-0.5" />
           <div className="space-y-0.5">
             <strong className="text-sm font-bold text-rose-950 block">
-              Daily max loss cap exceeded (-{todayLossSol.toFixed(2)} SOL / max {goals.maxDailyLossSol} SOL)
+              Daily max loss cap exceeded (-{formatSol(todayLossSol)} SOL / max {formatSol(goals.maxDailyLossSol)} SOL)
             </strong>
             <p className="text-rose-800">
               Discipline Rule Triggered: You have reached your maximum daily loss threshold for today. Do not revenge trade. Step away from BullX / Photon to protect your capital.
@@ -229,7 +229,7 @@ export default function DashboardView({
           <div>
             <span className="text-[11px] sm:text-xs text-[#787774] font-medium block">Net P&L</span>
             <div className={`text-sm sm:text-base font-semibold font-mono tabular-nums tracking-tight mt-1 ${netPnlSol >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
-              {netPnlSol >= 0 ? `+${netPnlSol.toFixed(2)}` : netPnlSol.toFixed(2)} SOL
+              {netPnlSol >= 0 ? `+${formatSol(netPnlSol)}` : formatSol(netPnlSol)} SOL
             </div>
             <div className="mt-1 text-[11px] font-mono text-[#787774] tabular-nums">
               {netPnlUsd >= 0
@@ -281,7 +281,7 @@ export default function DashboardView({
           <div>
             <span className="text-[11px] sm:text-xs text-[#787774] font-medium block">Today</span>
             <div className={`mt-1 text-sm font-semibold font-mono tabular-nums tracking-tight ${pnlTodaySol >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
-              {pnlTodaySol >= 0 ? `+${pnlTodaySol.toFixed(2)}` : pnlTodaySol.toFixed(2)} SOL
+              {pnlTodaySol >= 0 ? `+${formatSol(pnlTodaySol)}` : formatSol(pnlTodaySol)} SOL
             </div>
             <div className="mt-1 text-[11px] text-[#787774]">{tradesToday.length} {tradesToday.length === 1 ? "trade" : "trades"}</div>
           </div>
@@ -343,7 +343,7 @@ export default function DashboardView({
                     <span className={`shrink-0 font-mono text-[11px] font-semibold tabular-nums ${
                       trade.pnlSol >= 0 ? "text-emerald-600" : "text-rose-600"
                     }`}>
-                      {trade.pnlSol >= 0 ? "+" : ""}{trade.pnlSol.toFixed(2)} SOL
+                      {trade.pnlSol >= 0 ? "+" : ""}{formatSol(trade.pnlSol)} SOL
                     </span>
                   </button>
                 ))}

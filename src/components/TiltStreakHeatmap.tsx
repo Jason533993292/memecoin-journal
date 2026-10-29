@@ -6,7 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import { Trade } from "../lib/types";
 import { getUsdValueStatus } from "../lib/tradeCalculations";
 import { useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
-import { formatRealizedPnl, getLocalDayKey, getTradeDate } from "../lib/utils";
+import { formatRealizedPnl, formatSol, getLocalDayKey, getTradeDate } from "../lib/utils";
 
 interface TiltStreakHeatmapProps {
   trades: Trade[];
@@ -247,7 +247,7 @@ export default function TiltStreakHeatmap({ trades, solPrice = 150, onSelectTrad
             const isGreen = day.pnlSol > 0;
             const isRed = day.pnlSol < 0;
             const isToday = day.dayKey === todayKey;
-            const tooltipText = `${day.dayLabel}: ${day.tradeCount} trade${day.tradeCount === 1 ? "" : "s"}; ${day.pnlSol >= 0 ? "+" : ""}${day.pnlSol.toFixed(2)} SOL; ${day.pnlUsd >= 0 ? "+$" : "−$"}${Math.abs(day.pnlUsd).toFixed(2)}`;
+            const tooltipText = `${day.dayLabel}: ${day.tradeCount} trade${day.tradeCount === 1 ? "" : "s"}; ${day.pnlSol >= 0 ? "+" : ""}${formatSol(day.pnlSol)} SOL; ${day.pnlUsd >= 0 ? "+$" : "−$"}${Math.abs(day.pnlUsd).toFixed(2)}`;
 
             return (
               <button

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Trade } from "../lib/types";
-import { formatRealizedPnl, getTradeDate } from "../lib/utils";
+import { formatRealizedPnl, formatSol, getTradeDate } from "../lib/utils";
 import { DEFAULT_GOOD_TAGS } from "../lib/constants";
 import { getUsdValueStatus } from "../lib/tradeCalculations";
 import { BarChart3, Layers, Target, Clock, Tag, Lightbulb, CalendarDays, ShieldAlert, ShieldCheck, Gauge } from "lucide-react";
@@ -264,10 +264,10 @@ export default function StatisticsView({ trades, solPrice = 150, onSelectTrade }
       <section className="rounded-xl border border-[#e9e9e7] bg-white p-5 shadow-xs" aria-labelledby="risk-dashboard-title">
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#f1f1ef] pb-3"><div className="flex items-center gap-2"><ShieldAlert size={16} className="text-amber-600"/><div><h2 id="risk-dashboard-title" className="text-sm font-semibold text-[#37352f]">Risk &amp; Capital Deployment</h2><p className="text-xs text-[#787774]">Historical completed trades only—not a live open-position or wallet-exposure feed.</p></div></div><span className="text-[10px] text-[#9b9a97]">{riskAnalytics.recordedRiskCount}/{trades.length} trades include initial risk</span></div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <RiskMetric label="Average initial risk" value={riskAnalytics.recordedRiskCount ? `${riskAnalytics.averageInitialRiskSol.toFixed(2)} SOL` : "Not recorded"} detail={riskAnalytics.recordedRiskCount ? `Largest planned risk ${riskAnalytics.maxInitialRiskSol.toFixed(2)} SOL` : "Add initial risk when logging trades"}/>
+          <RiskMetric label="Average initial risk" value={riskAnalytics.recordedRiskCount ? `${formatSol(riskAnalytics.averageInitialRiskSol)} SOL` : "Not recorded"} detail={riskAnalytics.recordedRiskCount ? `Largest planned risk ${formatSol(riskAnalytics.maxInitialRiskSol)} SOL` : "Add initial risk when logging trades"}/>
           <RiskMetric label="Risk-limit breaches" value={String(riskAnalytics.riskBreachCount)} detail="Loss exceeded recorded initial risk by more than 5%" tone={riskAnalytics.riskBreachCount ? "warning" : "normal"}/>
-          <RiskMetric label="Capital deployed" value={`${riskAnalytics.totalCapitalDeployedSol.toFixed(2)} SOL`} detail={`Largest single entry ${riskAnalytics.largestTradeSol.toFixed(2)} SOL`}/>
-          <RiskMetric label="Recorded fees" value={`${riskAnalytics.totalFeesSol.toFixed(2)} SOL`} detail="Aggregated from saved trade fees and partial fills"/>
+          <RiskMetric label="Capital deployed" value={`${formatSol(riskAnalytics.totalCapitalDeployedSol)} SOL`} detail={`Largest single entry ${formatSol(riskAnalytics.largestTradeSol)} SOL`}/>
+          <RiskMetric label="Recorded fees" value={`${formatSol(riskAnalytics.totalFeesSol)} SOL`} detail="Aggregated from saved trade fees and partial fills"/>
         </div>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <Concentration label="Largest wallet share of deployed capital" name={riskAnalytics.largestWallet?.name ?? "No wallet data"} share={riskAnalytics.largestWallet?.share ?? 0} amount={riskAnalytics.largestWallet?.amountSol ?? 0}/>
@@ -544,5 +544,5 @@ function RiskMetric({ label, value, detail, tone = "normal" }: { label: string; 
 }
 
 function Concentration({ label, name, share, amount }: { label: string; name: string; share: number; amount: number }) {
-  return <div className="rounded-lg border border-[#e9e9e7] p-3"><div className="flex items-center justify-between gap-3 text-xs"><div><p className="text-[#787774]">{label}</p><p className="mt-1 font-semibold text-[#37352f]">{name}</p></div><div className="text-right"><p className="font-mono font-bold text-[#37352f]">{share.toFixed(0)}%</p><p className="text-[10px] text-[#9b9a97]">{amount.toFixed(2)} SOL</p></div></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-[#f1f1ef]"><div className={`h-full rounded-full ${share >= 50 ? "bg-amber-500" : "bg-[#2383e2]"}`} style={{ width: `${Math.min(100, share)}%` }}/></div></div>;
+  return <div className="rounded-lg border border-[#e9e9e7] p-3"><div className="flex items-center justify-between gap-3 text-xs"><div><p className="text-[#787774]">{label}</p><p className="mt-1 font-semibold text-[#37352f]">{name}</p></div><div className="text-right"><p className="font-mono font-bold text-[#37352f]">{share.toFixed(0)}%</p><p className="text-[10px] text-[#9b9a97]">{formatSol(amount)} SOL</p></div></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-[#f1f1ef]"><div className={`h-full rounded-full ${share >= 50 ? "bg-amber-500" : "bg-[#2383e2]"}`} style={{ width: `${Math.min(100, share)}%` }}/></div></div>;
 }

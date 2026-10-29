@@ -20,6 +20,7 @@ import { getTradeBoughtUsd, getTradeSoldUsd, getUsdValueStatus } from "../lib/tr
 import { selectSolanaTokenPair } from "../lib/tokenMarketData";
 import { useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
 import BetaBadge from "./BetaBadge";
+import { formatSol } from "../lib/utils";
 
 interface ShareablePnlCardModalProps {
   trade: Trade | null;
@@ -211,7 +212,7 @@ export default function ShareablePnlCardModal({
   const formatValue = (sol: number, usd: number, showSign = false) => {
     if (unit === "SOL") {
       const sign = showSign && sol > 0 ? "+" : "";
-      return `${sign}${sol.toFixed(2)} SOL`;
+      return `${sign}${formatSol(sol)} SOL`;
     }
     const sign = showSign && usd > 0 ? "+" : usd < 0 ? "-" : "";
     return `${sign}$${Math.abs(usd).toFixed(2)}`;
