@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Bug, Lightbulb, MessageSquare, Send, X } from "lucide-react";
 import type { User } from "firebase/auth";
 import type { FeedbackCategory } from "@/lib/feedback";
@@ -45,6 +45,7 @@ export default function FeedbackModal({ isOpen, onClose, user, currentSection }:
   const [allowReply, setAllowReply] = useState(true);
   const [company, setCompany] = useState("");
   const [sending, setSending] = useState(false);
+  const submissionIdRef = useRef<string | null>(null);
   const diagnostics = useMemo(() => {
     if (!isOpen || typeof window === "undefined") return null;
     return {
@@ -72,6 +73,7 @@ export default function FeedbackModal({ isOpen, onClose, user, currentSection }:
     setMessage("");
     setCategory("bug");
     setCompany("");
+    submissionIdRef.current = null;
     onClose();
   };
 
@@ -83,11 +85,12 @@ export default function FeedbackModal({ isOpen, onClose, user, currentSection }:
     }
     setSending(true);
     try {
+      submissionIdRef.current ??= crypto.randomUUID();
       const token = await user.getIdToken();
       const response = await fetch("/api/feedback", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ category, message: clean, allowReply, company, ...diagnostics }),
+        body: JSON.stringify({ submissionId: submissionIdRef.current, category, message: clean, allowReply, company, ...diagnostics }),
         cache: "no-store",
         signal: AbortSignal.timeout(12_000),
       });
@@ -96,6 +99,7 @@ export default function FeedbackModal({ isOpen, onClose, user, currentSection }:
       setMessage("");
       setCategory("bug");
       setCompany("");
+      submissionIdRef.current = null;
       onClose();
       const reference = typeof result.reference === "string" ? result.reference : null;
       showToast(

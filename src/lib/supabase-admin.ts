@@ -57,6 +57,7 @@ export async function deleteSupabaseTrades(userId: string) {
 
 export async function createUserFeedback(input: {
   userId: string;
+  idempotencyKey: string;
   category: "bug" | "suggestion" | "other";
   message: string;
   contactEmail: string | null;
@@ -67,8 +68,23 @@ export async function createUserFeedback(input: {
   theme: string;
 }) {
   const admin = getSupabaseAdminClient();
+  const findExisting = async () => {
+    const { data, error } = await admin
+      .from("user_feedback")
+      .select("id,email_delivery_status")
+      .eq("user_id", input.userId)
+      .eq("idempotency_key", input.idempotencyKey)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return data;
+  };
+
+  const existing = await findExisting();
+  if (existing) return { ...existing, created: false };
+
   const { data, error } = await admin.from("user_feedback").insert({
     user_id: input.userId,
+    idempotency_key: input.idempotencyKey,
     category: input.category,
     message: input.message,
     contact_email: input.contactEmail,
@@ -77,10 +93,14 @@ export async function createUserFeedback(input: {
     browser: input.browser,
     viewport: input.viewport,
     theme: input.theme,
-  }).select("id").single();
+  }).select("id,email_delivery_status").single();
+  if (error?.code === "23505") {
+    const raced = await findExisting();
+    if (raced) return { ...raced, created: false };
+  }
   if (error) throw new Error(error.message);
   if (!data || typeof data.id !== "number") throw new Error("Feedback receipt was not returned.");
-  return data.id;
+  return { ...data, created: true };
 }
 
 export async function recordFeedbackEmailStatus(

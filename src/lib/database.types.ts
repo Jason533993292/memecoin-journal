@@ -311,6 +311,7 @@ export type Database = {
           email_delivery_error: string | null
           email_delivery_status: string
           id: number
+          idempotency_key: string
           message: string
           page: string
           resolution_note: string | null
@@ -333,6 +334,7 @@ export type Database = {
           email_delivery_error?: string | null
           email_delivery_status?: string
           id?: never
+          idempotency_key: string
           message: string
           page?: string
           resolution_note?: string | null
@@ -355,6 +357,7 @@ export type Database = {
           email_delivery_error?: string | null
           email_delivery_status?: string
           id?: never
+          idempotency_key?: string
           message?: string
           page?: string
           resolution_note?: string | null

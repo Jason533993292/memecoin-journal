@@ -29,7 +29,7 @@ const ROADMAP: Array<{ title: string; description: string; items: RoadmapItem[] 
       { text: "Reconciled and repeatable database migration history", status: "Available" },
       { text: "Integration tests against a protected staging database", status: "In progress" },
       { text: "Resumable account deletion across every data store", status: "Available" },
-      { text: "Duplicate-safe feedback and import operations", status: "In progress" },
+      { text: "Duplicate-safe feedback and import operations", status: "Available" },
       { text: "Request IDs in server logs for faster diagnosis", status: "Available" },
       { text: "Health checks for important external services", status: "Available" },
       { text: "Queued feedback email delivery with retries", status: "In progress" },

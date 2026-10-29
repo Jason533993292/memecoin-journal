@@ -4,6 +4,7 @@ import { parseFeedbackPayload } from "../src/lib/feedback.ts";
 
 test("accepts and bounds a valid feedback submission", () => {
   const parsed = parseFeedbackPayload({
+    submissionId: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
     category: "suggestion",
     message: `  ${"a".repeat(2100)}  `,
     allowReply: true,
@@ -19,12 +20,15 @@ test("accepts and bounds a valid feedback submission", () => {
 });
 
 test("rejects invalid categories and short messages", () => {
-  assert.equal(parseFeedbackPayload({ category: "complaint", message: "This message is long enough" }), null);
-  assert.equal(parseFeedbackPayload({ category: "bug", message: "Too short" }), null);
+  const submissionId = "6ba7b810-9dad-41d1-80b4-00c04fd430c8";
+  assert.equal(parseFeedbackPayload({ submissionId, category: "complaint", message: "This message is long enough" }), null);
+  assert.equal(parseFeedbackPayload({ submissionId, category: "bug", message: "Too short" }), null);
+  assert.equal(parseFeedbackPayload({ submissionId: "not-a-uuid", category: "bug", message: "This message is long enough" }), null);
 });
 
 test("normalizes optional diagnostics without accepting arbitrary values", () => {
   const parsed = parseFeedbackPayload({
+    submissionId: "6ba7b810-9dad-41d1-80b4-00c04fd430c8",
     category: "bug",
     message: "The save button did not respond.",
     allowReply: "yes",

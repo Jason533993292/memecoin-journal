@@ -50,6 +50,7 @@ export async function POST(request: Request) {
 
     const storedFeedback = {
       userId: user.uid,
+      idempotencyKey: feedback.submissionId,
       category: feedback.category,
       message: feedback.message,
       contactEmail: feedback.allowReply && typeof user.email === "string" ? user.email.slice(0, 320) : null,
@@ -59,8 +60,12 @@ export async function POST(request: Request) {
       viewport: feedback.viewport,
       theme: feedback.theme,
     };
-    const feedbackId = await createUserFeedback(storedFeedback);
+    const receipt = await createUserFeedback(storedFeedback);
+    const feedbackId = receipt.id;
     const reference = feedbackReference(feedbackId);
+    if (!receipt.created && ["sent", "not_configured"].includes(receipt.email_delivery_status)) {
+      return reply({ submitted: true, reference, duplicate: true });
+    }
     try {
       const delivery = await sendFeedbackNotificationWithRetry({ ...storedFeedback, reference });
       await recordFeedbackEmailStatus(feedbackId, delivery);
