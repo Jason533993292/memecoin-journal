@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
+import { getFeedbackDeliveryRetry } from "@/lib/feedbackDeliveryPolicy";
 import type { AccountSecurityEventType } from "@/lib/securityHistory";
 
 type JournalTable = "wallet_transactions" | "trades" | "coin_research" | "daily_journal_entries" | "wallets" | "user_settings" | "user_feedback" | "account_security_events";
@@ -138,6 +139,65 @@ export async function recordFeedbackEmailStatus(
     email_delivered_at: input.status === "sent" ? new Date().toISOString() : null,
   }).eq("id", feedbackId);
   if (error) throw new Error(error.message);
+}
+
+export async function enqueueFeedbackDelivery(feedbackId: number) {
+  const admin = getSupabaseAdminClient();
+  const { error } = await admin.from("feedback_delivery_jobs").upsert({
+    feedback_id: feedbackId,
+    next_attempt_at: new Date().toISOString(),
+    completed_at: null,
+  }, { onConflict: "feedback_id", ignoreDuplicates: true });
+  if (error) throw new Error(error.message);
+}
+
+export async function claimFeedbackDeliveryJobs(workerToken: string, limit = 10) {
+  const admin = getSupabaseAdminClient();
+  const { data, error } = await admin.rpc("claim_feedback_delivery_jobs", {
+    batch_size: Math.min(Math.max(limit, 1), 25),
+    worker_token: workerToken,
+  });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function getFeedbackForDelivery(feedbackId: number) {
+  const admin = getSupabaseAdminClient();
+  const { data, error } = await admin.from("user_feedback")
+    .select("id,category,message,contact_email,page,device,browser,viewport,theme")
+    .eq("id", feedbackId)
+    .single();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function completeFeedbackDeliveryJob(feedbackId: number) {
+  const admin = getSupabaseAdminClient();
+  const now = new Date().toISOString();
+  const { error } = await admin.from("feedback_delivery_jobs").update({
+    completed_at: now,
+    locked_at: null,
+    lock_token: null,
+    last_error: null,
+    updated_at: now,
+  }).eq("feedback_id", feedbackId);
+  if (error) throw new Error(error.message);
+}
+
+export async function rescheduleFeedbackDeliveryJob(feedbackId: number, attempts: number, errorMessage: string) {
+  const admin = getSupabaseAdminClient();
+  const { exhausted, delayMinutes } = getFeedbackDeliveryRetry(attempts);
+  const now = new Date();
+  const { error } = await admin.from("feedback_delivery_jobs").update({
+    completed_at: exhausted ? now.toISOString() : null,
+    next_attempt_at: new Date(now.getTime() + delayMinutes * 60_000).toISOString(),
+    locked_at: null,
+    lock_token: null,
+    last_error: errorMessage.slice(0, 500),
+    updated_at: now.toISOString(),
+  }).eq("feedback_id", feedbackId);
+  if (error) throw new Error(error.message);
+  return { exhausted };
 }
 
 export async function checkSupabaseAdminHealth() {

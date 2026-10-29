@@ -163,6 +163,50 @@ export type Database = {
           },
         ]
       }
+      feedback_delivery_jobs: {
+        Row: {
+          attempts: number
+          completed_at: string | null
+          created_at: string
+          feedback_id: number
+          last_error: string | null
+          locked_at: string | null
+          lock_token: string | null
+          next_attempt_at: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          completed_at?: string | null
+          created_at?: string
+          feedback_id: number
+          last_error?: string | null
+          locked_at?: string | null
+          lock_token?: string | null
+          next_attempt_at?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          completed_at?: string | null
+          created_at?: string
+          feedback_id?: number
+          last_error?: string | null
+          locked_at?: string | null
+          lock_token?: string | null
+          next_attempt_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_delivery_jobs_feedback_id_fkey"
+            columns: ["feedback_id"]
+            isOneToOne: true
+            referencedRelation: "user_feedback"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       revoked_journal_users: {
         Row: {
           revoked_at: string
@@ -492,6 +536,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_feedback_delivery_jobs: {
+        Args: { batch_size: number; worker_token: string }
+        Returns: Database["public"]["Tables"]["feedback_delivery_jobs"]["Row"][]
+      }
       apply_wallet_transaction: {
         Args: {
           p_amount_usd: number

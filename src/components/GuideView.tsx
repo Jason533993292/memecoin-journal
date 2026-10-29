@@ -32,7 +32,7 @@ const ROADMAP: Array<{ title: string; description: string; items: RoadmapItem[] 
       { text: "Duplicate-safe feedback and import operations", status: "Available" },
       { text: "Request IDs in server logs for faster diagnosis", status: "Available" },
       { text: "Health checks for important external services", status: "Available" },
-      { text: "Queued feedback email delivery with retries", status: "In progress" },
+      { text: "Queued feedback email delivery with retries", status: "Available" },
       { text: "Automatic monitoring for market-price outages", status: "Available" },
       { text: "Verified database backup checks", status: "In progress" },
       { text: "Alerts for unusual authentication and database errors", status: "Planned" },

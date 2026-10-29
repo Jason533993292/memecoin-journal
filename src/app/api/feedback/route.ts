@@ -7,7 +7,7 @@ import {
 } from "@/lib/firebase-admin";
 import { parseFeedbackPayload } from "@/lib/feedback";
 import { sendFeedbackNotificationWithRetry } from "@/lib/feedbackEmail";
-import { createUserFeedback, listUserFeedback, recordFeedbackEmailStatus } from "@/lib/supabase-admin";
+import { completeFeedbackDeliveryJob, createUserFeedback, enqueueFeedbackDelivery, listUserFeedback, recordFeedbackEmailStatus, rescheduleFeedbackDeliveryJob } from "@/lib/supabase-admin";
 import { feedbackReference, requestHeaders, requestIdFor } from "@/lib/requestId";
 
 export async function GET(request: Request) {
@@ -93,9 +93,13 @@ export async function POST(request: Request) {
     if (!receipt.created && ["sent", "not_configured"].includes(receipt.email_delivery_status)) {
       return reply({ submitted: true, reference, duplicate: true });
     }
+    // Also repairs reports created by an older deployment that did not yet
+    // create durable delivery jobs.
+    await enqueueFeedbackDelivery(feedbackId);
     try {
       const delivery = await sendFeedbackNotificationWithRetry({ ...storedFeedback, reference });
       await recordFeedbackEmailStatus(feedbackId, delivery);
+      await completeFeedbackDeliveryJob(feedbackId);
       if (delivery.status === "not_configured") console.warn("Feedback email notification is not configured.", { requestId, reference });
     } catch (emailError) {
       // The database remains the durable inbox. A provider outage should not
@@ -113,6 +117,11 @@ export async function POST(request: Request) {
         requestId,
         reference,
         reason: statusError instanceof Error ? statusError.name : "unknown",
+      }));
+      await rescheduleFeedbackDeliveryJob(feedbackId, Math.max(1, receipt.created ? 1 : 2), emailError instanceof Error ? emailError.message : "unknown").catch((queueError) => console.error("Feedback delivery reschedule failed", {
+        requestId,
+        reference,
+        reason: queueError instanceof Error ? queueError.name : "unknown",
       }));
     }
     return reply({ submitted: true, reference });

@@ -6,10 +6,11 @@ set idempotency_key = gen_random_uuid()
 where idempotency_key is null;
 
 alter table public.user_feedback
+  alter column idempotency_key set default gen_random_uuid(),
   alter column idempotency_key set not null;
 
 create unique index if not exists user_feedback_user_id_idempotency_key_idx
   on public.user_feedback (user_id, idempotency_key);
 
 comment on column public.user_feedback.idempotency_key is
-  'Browser-generated submission identifier used to make authenticated feedback retries duplicate-safe.';
+  'Submission identifier used to make authenticated feedback retries duplicate-safe. The database default keeps rolling deployments backward-compatible.';
