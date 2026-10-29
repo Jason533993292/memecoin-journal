@@ -9,6 +9,7 @@ import { BarChart3, Layers, Target, Clock, Tag, Lightbulb, CalendarDays, ShieldA
 import TiltStreakHeatmap from "./TiltStreakHeatmap";
 import { calculateRiskAnalytics } from "../lib/riskAnalytics";
 import TradeComparisonCard from "./TradeComparisonCard";
+import PerformanceReportCard from "./PerformanceReportCard";
 
 interface StatisticsViewProps {
   trades: Trade[];
@@ -254,6 +255,8 @@ export default function StatisticsView({ trades, solPrice = 150, onSelectTrade }
           </div>
         </div>
       </div>
+
+      <PerformanceReportCard trades={trades} currency={currencyMode} solPrice={solPrice} />
 
       {/* Tilt & Streak Heatmap */}
       <TiltStreakHeatmap trades={trades} solPrice={solPrice} onSelectTrade={onSelectTrade} />
