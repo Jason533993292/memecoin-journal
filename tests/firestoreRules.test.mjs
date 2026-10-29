@@ -84,6 +84,7 @@ function validResearch(ca = "So11111111111111111111111111111111111111112") {
     sources: ["https://example.com/source"],
     snapshots: [],
     decisions: [],
+    reminders: [],
     createdAt: 1_700_000_000_000,
     updatedAt: 1_700_000_000_000,
   };
@@ -181,6 +182,11 @@ test("coin research is owner-only and rejects mismatched or oversized records", 
   const path = `users/research-owner/research/${ca}`;
 
   await assertSucceeds(setDoc(doc(ownerDb, path), validResearch(ca)));
+  await assertSucceeds(setDoc(doc(ownerDb, path), {
+    ...validResearch(ca),
+    stage: "watching",
+    reminders: [{ id: "launch", title: "Check confirmed launch", dueAt: 1_800_000_000_000 }],
+  }));
   await assertSucceeds(getDoc(doc(ownerDb, path)));
   await assertFails(getDoc(doc(otherDb, path)));
   await assertFails(getDocs(collection(otherDb, "users/research-owner/research")));
@@ -188,6 +194,10 @@ test("coin research is owner-only and rejects mismatched or oversized records", 
   await assertFails(setDoc(doc(ownerDb, "users/research-owner/research/short-address"), {
     ...validResearch("short-address"),
     thesis: "x".repeat(5_001),
+  }));
+  await assertFails(setDoc(doc(ownerDb, path), {
+    ...validResearch(ca),
+    reminders: Array.from({ length: 21 }, (_, index) => ({ id: String(index), title: "Reminder", dueAt: 1_800_000_000_000 })),
   }));
 });
 

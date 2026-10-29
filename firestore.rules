@@ -255,7 +255,7 @@ service cloud.firestore {
           'ca', 'name', 'symbol', 'stage', 'thesis', 'bullCase', 'bearCase',
           'catalysts', 'risks', 'invalidation', 'entryPlan', 'stopPlan',
           'targetPlan', 'sizeSol', 'horizon', 'confidence', 'tags', 'sources',
-          'snapshots', 'decisions', 'updatedAt', 'createdAt'
+          'snapshots', 'decisions', 'reminders', 'updatedAt', 'createdAt'
         ])
         && data.keys().hasAll([
           'ca', 'name', 'symbol', 'stage', 'thesis', 'bullCase', 'bearCase',
@@ -267,7 +267,7 @@ service cloud.firestore {
         && validString(data, 'ca', 20, 128)
         && validString(data, 'name', 1, 120)
         && validString(data, 'symbol', 0, 40)
-        && data.stage in ['idea', 'researching', 'planned', 'active', 'invalidated', 'archived']
+        && data.stage in ['idea', 'watching', 'researching', 'planned', 'active', 'invalidated', 'archived']
         && validString(data, 'thesis', 0, 5000)
         && validString(data, 'bullCase', 0, 3000)
         && validString(data, 'bearCase', 0, 3000)
@@ -283,6 +283,7 @@ service cloud.firestore {
         && validResearchList(data.sources)
         && data.snapshots is list && data.snapshots.size() <= 100
         && data.decisions is list && data.decisions.size() <= 100
+        && (!('reminders' in data) || (data.reminders is list && data.reminders.size() <= 20))
         && validOptionalNumber(data, 'sizeSol', 0, 100000000)
         && data.updatedAt is number && data.createdAt is number;
     }

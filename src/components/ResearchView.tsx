@@ -2,8 +2,8 @@
 
 import { type ChangeEvent, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { collection, deleteDoc, doc, getDocs, setDoc } from "firebase/firestore";
-import { BookOpenCheck, Clipboard, Download, ExternalLink, FileUp, Plus, Save, Search, Trash2 } from "lucide-react";
-import type { ResearchDecision, ResearchItem, ResearchStage, ResearchSnapshot, Trade } from "@/lib/types";
+import { Bell, BookOpenCheck, Check, Clipboard, Download, ExternalLink, FileUp, Plus, Save, Search, Trash2 } from "lucide-react";
+import type { ResearchDecision, ResearchItem, ResearchReminder, ResearchStage, ResearchSnapshot, Trade } from "@/lib/types";
 import { db } from "@/lib/firebase";
 import { deleteSupabaseResearch, listSupabaseResearch, saveSupabaseResearch, usesSupabaseJournal } from "@/lib/journalBackend";
 import { useToast } from "@/components/Toast";
@@ -12,11 +12,11 @@ import ResearchEvidenceImage from "@/components/ResearchEvidenceImage";
 import BetaBadge from "@/components/BetaBadge";
 
 const STAGES: { id: ResearchStage; label: string }[] = [
-  { id: "idea", label: "Idea" }, { id: "researching", label: "Researching" },
+  { id: "idea", label: "Idea" }, { id: "watching", label: "Watching" }, { id: "researching", label: "Researching" },
   { id: "planned", label: "Planned" }, { id: "active", label: "Active" },
   { id: "invalidated", label: "Invalidated" }, { id: "archived", label: "Archived" },
 ];
-const blank = (): ResearchItem => ({ ca: "", name: "", symbol: "", stage: "idea", thesis: "", bullCase: "", bearCase: "", catalysts: [], risks: [], invalidation: "", entryPlan: "", stopPlan: "", targetPlan: "", horizon: "", confidence: 50, tags: [], sources: [], snapshots: [], decisions: [], createdAt: Date.now(), updatedAt: Date.now() });
+const blank = (): ResearchItem => ({ ca: "", name: "", symbol: "", stage: "idea", thesis: "", bullCase: "", bearCase: "", catalysts: [], risks: [], invalidation: "", entryPlan: "", stopPlan: "", targetPlan: "", horizon: "", confidence: 50, tags: [], sources: [], snapshots: [], decisions: [], reminders: [], createdAt: Date.now(), updatedAt: Date.now() });
 const lines = (value: string) => value.split("\n").map((line) => line.trim()).filter(Boolean).slice(0, 20);
 const text = (value: string[] | undefined) => (value ?? []).join("\n");
 const bulletList = (values: string[]) => values.map((value) => `- ${value}`).join("\n");
@@ -82,6 +82,7 @@ const validResearch = (value: unknown): value is ResearchItem => {
     && boundedLists.every(({ values, maxLength }) => Array.isArray(values) && values.length <= 20 && values.every((entry) => typeof entry === "string" && entry.length <= maxLength))
     && Array.isArray(item.snapshots) && item.snapshots.length <= 100 && item.snapshots.every((snapshot) => snapshot && typeof snapshot.id === "string" && typeof snapshot.note === "string" && snapshot.note.length <= 1000 && Number.isFinite(snapshot.createdAt))
     && Array.isArray(item.decisions) && item.decisions.length <= 100 && item.decisions.every((decision) => decision && typeof decision.id === "string" && typeof decision.note === "string" && decision.note.length <= 2000 && Number.isFinite(decision.createdAt) && ["calm", "confident", "uncertain", "fearful", "fomo"].includes(decision.mood))
+    && (item.reminders === undefined || (Array.isArray(item.reminders) && item.reminders.length <= 20 && item.reminders.every((reminder) => reminder && typeof reminder.id === "string" && reminder.id.length <= 100 && typeof reminder.title === "string" && reminder.title.length > 0 && reminder.title.length <= 200 && Number.isFinite(reminder.dueAt) && (reminder.completedAt === undefined || Number.isFinite(reminder.completedAt)))))
     && Number.isFinite(item.createdAt) && Number.isFinite(item.updatedAt)
     && JSON.stringify(item).length <= 90000;
 };
@@ -123,6 +124,8 @@ export default function ResearchView({ userId, trades, onLogTradeFromResearch }:
   const [decisionNote, setDecisionNote] = useState("");
   const [decisionMood, setDecisionMood] = useState<ResearchDecision["mood"]>("calm");
   const [showReview, setShowReview] = useState(false);
+  const [reminderTitle, setReminderTitle] = useState("");
+  const [reminderDate, setReminderDate] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -133,7 +136,7 @@ export default function ResearchView({ userId, trades, onLogTradeFromResearch }:
         const snapshot = await getDocs(collection(db, "users", userId, "research"));
         result = snapshot.docs.map((entry) => entry.data() as ResearchItem).filter(validResearch);
       }
-      result = result.filter(validResearch);
+      result = result.filter(validResearch).map((item) => ({ ...item, reminders: item.reminders ?? [] }));
       setItems(result);
       setSyncError(false);
       setLastSyncedAt(Date.now());
@@ -163,6 +166,7 @@ export default function ResearchView({ userId, trades, onLogTradeFromResearch }:
   const screenshotTrades = useMemo(() => relatedTrades.filter((trade) => typeof trade.screenshotUrl === "string" && (trade.screenshotUrl.startsWith("https://") || trade.screenshotUrl.startsWith("data:image/"))).sort((a, b) => getTradeDate(a).getTime() - getTradeDate(b).getTime()), [relatedTrades]);
   const pnl = relatedTrades.reduce((sum, trade) => sum + (trade.pnlSol || 0), 0);
   const review = useMemo(() => makeWeeklyReview(trades, items), [trades, items]);
+  const upcomingReminders = useMemo(() => items.flatMap((item) => (item.reminders ?? []).filter((reminder) => reminder.completedAt === undefined).map((reminder) => ({ item, reminder }))).sort((a, b) => a.reminder.dueAt - b.reminder.dueAt).slice(0, 6), [items]);
   const researchStats = useMemo(() => {
     const linked = items.flatMap((item) => trades.filter((trade) => trade.ca?.trim() === item.ca).map((trade) => ({ item, trade })));
     const bandStats = (["0–49%", "50–79%", "80–100%"] as const).map((label, index) => {
@@ -248,6 +252,14 @@ export default function ResearchView({ userId, trades, onLogTradeFromResearch }:
     const decision: ResearchDecision = { id: crypto.randomUUID(), createdAt: Date.now(), mood: decisionMood, note: decisionNote.trim().slice(0, 2000) };
     update("decisions", [...draft.decisions, decision].slice(-100)); setDecisionNote("");
   };
+  const addReminder = () => {
+    const dueAt = new Date(`${reminderDate}T12:00:00`).getTime();
+    if (!reminderTitle.trim() || !reminderDate || !Number.isFinite(dueAt)) return;
+    const reminder: ResearchReminder = { id: crypto.randomUUID(), title: reminderTitle.trim().slice(0, 200), dueAt };
+    update("reminders", [...(draft.reminders ?? []), reminder].slice(-20));
+    setReminderTitle(""); setReminderDate("");
+  };
+  const updateReminder = (id: string, action: "complete" | "delete") => update("reminders", action === "delete" ? (draft.reminders ?? []).filter((reminder) => reminder.id !== id) : (draft.reminders ?? []).map((reminder) => reminder.id === id ? { ...reminder, completedAt: reminder.completedAt === undefined ? Date.now() : undefined } : reminder));
   const copyThesis = async () => {
     const content = buildShareableThesis(draft);
     try {
@@ -279,6 +291,8 @@ export default function ResearchView({ userId, trades, onLogTradeFromResearch }:
       <div><b>Research data health:</b> {loading ? "Syncing…" : syncError ? "Could not sync" : `Connected · ${items.length} ${items.length === 1 ? "entry" : "entries"}`}{lastSyncedAt && !syncError ? <span className="ml-2 text-[#9b9a97]">Last synced {new Date(lastSyncedAt).toLocaleTimeString()}</span> : null}</div>
       {syncError && <button onClick={() => void load()} className="rounded-md border border-amber-300 bg-white px-2.5 py-1.5 font-semibold">Retry sync</button>}
     </section>
+
+    {upcomingReminders.length > 0 && <section className="rounded-xl border border-amber-200 bg-amber-50/60 p-4"><div className="flex items-center gap-2"><Bell size={15} className="text-amber-700"/><div><h2 className="text-sm font-semibold text-amber-950">Upcoming catalyst reminders</h2><p className="text-xs text-amber-800">Open a thesis to complete or reschedule its reminder.</p></div></div><div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{upcomingReminders.map(({ item, reminder }) => { const overdue = reminder.dueAt < new Date().setHours(0, 0, 0, 0); return <button key={`${item.ca}-${reminder.id}`} onClick={() => { setSelectedCa(item.ca); setDraft(structuredClone(item)); }} className={`rounded-lg border bg-white p-3 text-left ${overdue ? "border-rose-200" : "border-amber-200"}`}><p className="truncate text-xs font-semibold">{item.name} · {reminder.title}</p><p className={`mt-1 text-[11px] ${overdue ? "text-rose-700" : "text-amber-800"}`}>{overdue ? "Overdue · " : "Due · "}{new Date(reminder.dueAt).toLocaleDateString()}</p></button>; })}</div></section>}
 
     <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
       <Metric label="Open ideas" value={String(researchStats.ideas)} detail={`${items.length} total entries`} />
@@ -325,6 +339,8 @@ export default function ResearchView({ userId, trades, onLogTradeFromResearch }:
           <Field label="Research tags · one per line"><textarea value={text(draft.tags)} onChange={(e) => update("tags", lines(e.target.value))} rows={2} className={inputClass} placeholder="meme, AI, catalyst…"/></Field>
           <Field label="Source URLs · one per line"><textarea value={text(draft.sources)} onChange={(e) => update("sources", lines(e.target.value).map((url) => url.slice(0, 500)))} rows={2} className={inputClass} placeholder="https://…"/></Field>
         </div>
+
+        <section className="mt-6 rounded-lg border border-amber-200 bg-amber-50/40 p-4"><div><h3 className="flex items-center gap-2 text-sm font-semibold"><Bell size={14}/> Catalyst reminders</h3><p className="mt-1 text-xs text-[#787774]">Keep dated events visible without turning the thesis into a calendar app.</p></div><div className="mt-3 grid gap-2 sm:grid-cols-[1fr_170px_auto]"><input aria-label="Reminder title" value={reminderTitle} onChange={(event) => setReminderTitle(event.target.value)} maxLength={200} placeholder="Listing, unlock, announcement…" className={inputClass}/><input aria-label="Reminder date" type="date" value={reminderDate} onChange={(event) => setReminderDate(event.target.value)} className={inputClass}/><button onClick={addReminder} disabled={!reminderTitle.trim() || !reminderDate || (draft.reminders ?? []).length >= 20} className="rounded-md border border-amber-300 bg-white px-3 text-xs font-semibold disabled:opacity-40">Add reminder</button></div>{(draft.reminders ?? []).length > 0 && <ol className="mt-3 space-y-2">{[...(draft.reminders ?? [])].sort((a, b) => a.dueAt - b.dueAt).map((reminder) => <li key={reminder.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-100 bg-white p-2.5"><div><p className={`text-xs font-medium ${reminder.completedAt ? "text-[#9b9a97] line-through" : "text-[#37352f]"}`}>{reminder.title}</p><time className="text-[10px] text-[#787774]">{new Date(reminder.dueAt).toLocaleDateString()}</time></div><div className="flex gap-1"><button onClick={() => updateReminder(reminder.id, "complete")} title={reminder.completedAt ? "Mark incomplete" : "Mark complete"} className="rounded p-1.5 text-emerald-700 hover:bg-emerald-50"><Check size={14}/></button><button onClick={() => updateReminder(reminder.id, "delete")} title="Delete reminder" className="rounded p-1.5 text-rose-700 hover:bg-rose-50"><Trash2 size={14}/></button></div></li>)}</ol>}</section>
 
         <section className="mt-6 rounded-lg border border-[#f1f1ef] p-4"><div className="flex flex-wrap items-center justify-between gap-2"><div><h3 className="text-sm font-semibold">Research timeline</h3><p className="text-xs text-[#787774]">Add dated snapshots as new evidence arrives.</p></div>{draft.snapshots.length > 0 && <span className="text-xs text-[#787774]">{draft.snapshots.length} updates</span>}</div><div className="mt-3 flex gap-2"><input aria-label="Add research timeline note" value={snapshotNote} onChange={(e) => setSnapshotNote(e.target.value)} maxLength={1000} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSnapshot(); } }} placeholder="New finding, price context, or changed assumption…" className={inputClass}/><button onClick={addSnapshot} disabled={!snapshotNote.trim()} className="shrink-0 rounded-md border border-[#e3e2de] px-3 text-xs disabled:opacity-40">Add</button></div>{draft.snapshots.length > 0 && <ol className="mt-3 max-h-48 space-y-2 overflow-y-auto">{[...draft.snapshots].reverse().map((snapshot) => <li key={snapshot.id} className="border-l-2 border-blue-200 pl-3"><p className="text-xs text-[#5a5957]">{snapshot.note}</p><time className="text-[10px] text-[#9b9a97]">{new Date(snapshot.createdAt).toLocaleString()}</time></li>)}</ol>}</section>
 

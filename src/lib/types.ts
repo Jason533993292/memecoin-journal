@@ -149,7 +149,14 @@ export interface ToastMessage {
   onAction?: () => void;
 }
 
-export type ResearchStage = "idea" | "researching" | "planned" | "active" | "invalidated" | "archived";
+export type ResearchStage = "idea" | "watching" | "researching" | "planned" | "active" | "invalidated" | "archived";
+
+export interface ResearchReminder {
+  id: string;
+  title: string;
+  dueAt: number;
+  completedAt?: number;
+}
 
 export interface ResearchSnapshot {
   id: string;
@@ -189,6 +196,7 @@ export interface ResearchItem {
   sources: string[];
   snapshots: ResearchSnapshot[];
   decisions: ResearchDecision[];
+  reminders?: ResearchReminder[];
   updatedAt: number;
   createdAt: number;
 }
