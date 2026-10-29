@@ -27,6 +27,7 @@ import { getTradeBoughtUsd, getTradeSoldUsd, getUsdValueStatus } from "../lib/tr
 import { auth, db } from "../lib/firebase";
 import { collection, getDocs } from "firebase/firestore";
 import { listSupabaseResearch, usesSupabaseJournal } from "../lib/journalBackend";
+import { findSimilarTrades } from "../lib/tradeSimilarity";
 
 interface TradeDetailDrawerProps {
   trade: Trade | null;
@@ -38,6 +39,8 @@ interface TradeDetailDrawerProps {
   onShare?: (trade: Trade) => void;
   solPrice?: number;
   readOnly?: boolean;
+  allTrades?: Trade[];
+  onSelectRelatedTrade?: (trade: Trade) => void;
 }
 
 export default function TradeDetailDrawer({
@@ -50,6 +53,8 @@ export default function TradeDetailDrawer({
   onShare,
   solPrice = 0,
   readOnly = false,
+  allTrades = [],
+  onSelectRelatedTrade,
 }: TradeDetailDrawerProps) {
   const { showToast } = useToast();
   const [copied, setCopied] = useState(false);
@@ -120,6 +125,7 @@ export default function TradeDetailDrawer({
     trade.boughtSol && trade.boughtSol > 0
       ? (((trade.pnlSol || 0) / trade.boughtSol) * 100).toFixed(1)
       : null;
+  const similarTrades = findSimilarTrades(trade, allTrades);
 
   const formatDuration = (mins?: number) => {
     if (!mins) return null;
@@ -459,6 +465,15 @@ export default function TradeDetailDrawer({
               </div>
 
               {/* Notes & Journal Diary */}
+              {similarTrades.length > 0 && (
+                <div>
+                  <h3 className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-[#787774]">Similar past trades</h3>
+                  <p className="mb-2 text-[10px] text-[#9b9a97]">Matched from saved fields only—no AI inference.</p>
+                  <div className="space-y-1.5">{similarTrades.map((match) => <button key={match.trade.id} onClick={() => onSelectRelatedTrade?.(match.trade)} disabled={!onSelectRelatedTrade} className="flex w-full items-center justify-between gap-3 rounded-lg border border-[#e9e9e7] bg-[#fbfbfa] p-2.5 text-left hover:bg-[#f7f6f3] disabled:cursor-default"><div className="min-w-0"><p className="truncate text-xs font-semibold text-[#37352f]">{match.trade.name} · {match.trade.setupType || "General"}</p><p className="mt-0.5 truncate text-[10px] text-[#787774]">{match.reasons.join(" · ")}</p></div><span className={`shrink-0 font-mono text-xs font-bold ${match.trade.pnlSol >= 0 ? "text-emerald-700" : "text-rose-700"}`}>{match.trade.pnlSol >= 0 ? "+" : ""}{formatSol(match.trade.pnlSol)} SOL</span></button>)}</div>
+                </div>
+              )}
+
+              {/* Notes & Journal Diary */}
               <div>
                 <h3 className="text-[10px] font-bold text-[#787774] uppercase tracking-wider mb-1 flex items-center gap-1">
                   <FileText size={11} />
@@ -473,7 +488,7 @@ export default function TradeDetailDrawer({
 
           {/* Footer Actions */}
           <div className="p-3 px-5 border-t border-[#f1f1ef] bg-[#fcfbf9] flex items-center justify-between shrink-0">
-            <button
+            {!readOnly && <button
               onClick={() => {
                 onClose();
                 onDelete(trade.id);
@@ -481,7 +496,7 @@ export default function TradeDetailDrawer({
               className="text-xs text-rose-600 hover:text-rose-700 font-medium px-2.5 py-1 rounded hover:bg-rose-50 transition-colors"
             >
               Delete Trade
-            </button>
+            </button>}
             <div className="flex items-center gap-2">
               {onDuplicate && !readOnly && (
                 <button
@@ -508,7 +523,7 @@ export default function TradeDetailDrawer({
                   <span>Share P&L Card</span>
                 </button>
               )}
-              <button
+              {!readOnly && <button
                 onClick={() => {
                   onClose();
                   onEdit(trade);
@@ -516,7 +531,7 @@ export default function TradeDetailDrawer({
                 className="bg-[#1a73ca] hover:bg-[#155fa8] text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-xs"
               >
                 Edit Trade
-              </button>
+              </button>}
             </div>
           </div>
         </div>

@@ -603,6 +603,8 @@ function AuthenticatedApp({ user }: { user: User }) {
         onShare={(trade) => setSharingTrade(trade)}
         solPrice={solPrice}
         readOnly={isExampleMode}
+        allTrades={activeTrades}
+        onSelectRelatedTrade={setInspectingTrade}
       />}
 
       {/* Rule Editor Modal */}
