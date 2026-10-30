@@ -3,11 +3,13 @@ const targets = [
     name: "production",
     url: process.env.PRODUCTION_BASE_URL?.trim(),
     token: process.env.PRODUCTION_HEALTHCHECK_TOKEN?.trim(),
+    requireEmail: process.env.PRODUCTION_REQUIRE_EMAIL?.trim() !== "false",
   },
   {
     name: "staging",
     url: process.env.STAGING_BASE_URL?.trim(),
     token: process.env.STAGING_HEALTHCHECK_TOKEN?.trim(),
+    requireEmail: process.env.STAGING_REQUIRE_EMAIL?.trim() === "true",
   },
 ].filter((target) => target.url);
 
@@ -78,9 +80,14 @@ for (const target of targets) {
       throw new Error(`${target.name} ${dependency} probe did not report ok.`);
     }
   }
-  if (readyBody.checks?.resend !== "configured") {
+  if (target.requireEmail && readyBody.checks?.resend !== "configured") {
     throw new Error(`${target.name} feedback email probe did not report configured.`);
   }
-  console.log(`PASS ${target.name}: Firebase Auth, Firestore, Supabase, and feedback email readiness`);
+  console.log(`PASS ${target.name}: Firebase Auth, Firestore, and Supabase readiness`);
+  if (readyBody.checks?.resend === "configured") {
+    console.log(`PASS ${target.name}: feedback email is configured`);
+  } else if (!target.requireEmail) {
+    console.log(`SKIP ${target.name}: feedback email is optional in this environment`);
+  }
 }
 

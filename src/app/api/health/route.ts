@@ -45,7 +45,10 @@ export async function GET(request: Request) {
     timedCheck(checkSupabaseAdminHealth),
   ]);
   const resend = process.env.RESEND_API_KEY?.trim() ? "configured" : "not_configured";
-  const ready = firebaseAuth === "ok" && firestore === "ok" && supabase === "ok" && resend === "configured";
+  // Authentication and both data stores are required for the journal to work.
+  // Feedback email is reported separately because submissions remain safely
+  // queued when email delivery is not configured in an environment.
+  const ready = firebaseAuth === "ok" && firestore === "ok" && supabase === "ok";
 
   return NextResponse.json(
     { status: ready ? "ready" : "degraded", checks: { firebaseAuth, firestore, supabase, resend } },

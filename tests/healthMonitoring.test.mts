@@ -19,5 +19,12 @@ test("service monitor rejects any unavailable authenticated dependency", () => {
     assert.match(monitor, new RegExp(`readyBody\\.checks\\?\\.\\[dependency\\]`));
     assert.ok(dependency.length > 0);
   }
-  assert.match(monitor, /checks\?\.resend !== "configured"/);
+  assert.match(monitor, /target\.requireEmail && readyBody\.checks\?\.resend !== "configured"/);
+  assert.match(monitor, /STAGING_REQUIRE_EMAIL/);
+  assert.match(monitor, /PRODUCTION_REQUIRE_EMAIL/);
+});
+
+test("app readiness does not discard safely queued feedback when email is optional", () => {
+  assert.match(route, /const ready = firebaseAuth === "ok" && firestore === "ok" && supabase === "ok";/);
+  assert.doesNotMatch(route, /supabase === "ok" && resend === "configured"/);
 });

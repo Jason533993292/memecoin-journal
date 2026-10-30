@@ -18,11 +18,19 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Process production feedback queue
-        run: curl --fail-with-body --silent --show-error --max-time 45 --request POST --header "Authorization: Bearer $FEEDBACK_WORKER_TOKEN" https://memecoin-journal.up.railway.app/api/internal/feedback-delivery
+        run: >-
+          curl --fail-with-body --silent --show-error --max-time 45
+          --request POST
+          --header "Authorization: Bearer $FEEDBACK_WORKER_TOKEN"
+          https://memecoin-journal.up.railway.app/api/internal/feedback-delivery
         env:
           FEEDBACK_WORKER_TOKEN: ${{ secrets.PRODUCTION_FEEDBACK_WORKER_TOKEN }}
 
       - name: Process staging feedback queue
-        run: curl --fail-with-body --silent --show-error --max-time 45 --request POST --header "Authorization: Bearer $FEEDBACK_WORKER_TOKEN" https://memecoin-journal-staging.up.railway.app/api/internal/feedback-delivery
+        run: >-
+          curl --fail-with-body --silent --show-error --max-time 45
+          --request POST
+          --header "Authorization: Bearer $FEEDBACK_WORKER_TOKEN"
+          https://memecoin-journal-staging.up.railway.app/api/internal/feedback-delivery
         env:
           FEEDBACK_WORKER_TOKEN: ${{ secrets.STAGING_FEEDBACK_WORKER_TOKEN }}
