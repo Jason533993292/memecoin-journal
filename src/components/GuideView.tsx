@@ -59,10 +59,10 @@ const ROADMAP: Array<{ title: string; description: string; items: RoadmapItem[] 
     description: "Improving readability and consistency across themes, screens, and devices.",
     items: [
       { text: "Automatic contrast checks for every theme", status: "Available" },
-      { text: "A documented set of reusable theme colors", status: "In progress" },
-      { text: "Consistent card borders and visual depth", status: "In progress" },
+      { text: "A documented set of reusable theme colors", status: "Available" },
+      { text: "Consistent card borders and visual depth", status: "Available" },
       { text: "Compact and comfortable calendar density", status: "Available" },
-      { text: "Consistent typography across analytics cards", status: "In progress" },
+      { text: "Consistent typography across analytics cards", status: "Available" },
       { text: "Mobile-friendly full-width forms and panels", status: "In progress" },
       { text: "Consistent chart legends, tooltips, and empty states", status: "Available" },
       { text: "Unified PAPER, LIVE, WIN, and LOSS badges", status: "Available" },

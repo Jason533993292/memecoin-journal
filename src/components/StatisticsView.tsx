@@ -278,7 +278,7 @@ export default function StatisticsView({ trades, solPrice = 150, onSelectTrade }
       <TradeComparisonCard trades={trades} onSelectTrade={onSelectTrade}/>
 
       {/* Discipline, confidence calibration, and period comparison */}
-      <div data-tour="analytics-discipline" className="bg-white border border-[#e9e9e7] rounded-xl p-5 shadow-xs space-y-4">
+      <div data-tour="analytics-discipline" className="analytics-card p-5 space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#f1f1ef] pb-3">
           <div className="flex items-center gap-2">
             <ShieldCheck size={16} className="text-[#2383e2]" />
@@ -313,7 +313,7 @@ export default function StatisticsView({ trades, solPrice = 150, onSelectTrade }
       </div>
 
       {/* Duration Tracking Analytics Card */}
-      <div data-tour="analytics-duration" className="bg-white border border-[#e9e9e7] rounded-xl p-5 shadow-xs space-y-4">
+      <div data-tour="analytics-duration" className="analytics-card p-5 space-y-4">
         <div className="flex items-center justify-between pb-2 border-b border-[#f1f1ef]">
           <div className="flex items-center gap-2">
             <Clock size={16} className="text-amber-600" />
@@ -375,7 +375,7 @@ export default function StatisticsView({ trades, solPrice = 150, onSelectTrade }
       </div>
 
       {/* Strategy / Setup Type Performance Table */}
-      <div data-tour="analytics-setups" className="bg-white border border-[#e9e9e7] rounded-xl p-5 shadow-xs space-y-3">
+      <div data-tour="analytics-setups" className="analytics-card p-5 space-y-3">
         <div className="flex items-center justify-between pb-2 border-b border-[#f1f1ef]">
           <div className="flex items-center gap-2">
             <Layers size={16} className="text-[#2383e2]" />
@@ -475,7 +475,7 @@ export default function StatisticsView({ trades, solPrice = 150, onSelectTrade }
         </div>
 
         {/* 2. Yearly Statistics Card */}
-        <div data-tour="analytics-yearly" className="bg-[#fbfbfa] border border-[#e9e9e7] rounded-xl p-5 shadow-xs">
+        <div data-tour="analytics-yearly" className="analytics-card p-5">
           <div className="pb-3 border-b border-[#e9e9e7]">
             <div className="flex items-center gap-1.5 font-semibold text-xs text-[#37352f]">
               <span className="p-1 rounded bg-neutral-100 text-neutral-600"><CalendarDays size={14} /></span>
