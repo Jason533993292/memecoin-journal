@@ -21,6 +21,7 @@ import {
   ReferenceLine,
   ReferenceDot,
 } from "recharts";
+import { ChartEmptyState, ChartLegend } from "./ChartSupport";
 
 interface EquityCurveCardProps {
   trades: Trade[];
@@ -335,14 +336,18 @@ export default function EquityCurveCard({ trades, solPrice = 150, onSelectTrade 
         </div>
       </div>
 
+      <ChartLegend
+        seriesColor={strokeColor}
+        seriesLabel={isUnderwater ? "Drawdown below the previous peak" : curveType === "balance" ? "Account balance" : "Cumulative realized P&L"}
+        markerLabel="Notable trading day"
+      />
+
       {/* Chart Canvas */}
       <div className="h-64 sm:h-80 w-full pt-2">
         {filteredCount === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-center p-6 border border-dashed border-[#e3e2de] rounded-xl bg-white/50">
-            <p className="text-xs font-semibold text-[#37352f]">No Trades to Graph Yet</p>
-            <p className="text-[11px] text-[#787774] mt-0.5">Log your trades in this timeframe to see your cumulative equity line come alive.</p>
-          </div>
+          <ChartEmptyState title="No trades in this view" detail="Log a trade or choose a wider timeframe to build the cumulative realized P&L chart." />
         ) : (
+          <div role="img" aria-label={`${isUnderwater ? "Drawdown" : curveType === "balance" ? "Account balance" : "Cumulative realized profit and loss"} chart showing ${filteredCount} trades`} className="h-full w-full">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
               <defs>
@@ -447,6 +452,7 @@ export default function EquityCurveCard({ trades, solPrice = 150, onSelectTrade 
               />
             </AreaChart>
           </ResponsiveContainer>
+          </div>
         )}
       </div>
       {notableDays.length > 0 && <div className="border-t border-[#f1f1ef] pt-3"><div className="mb-2 flex items-center justify-between"><p className="text-[10px] font-semibold uppercase tracking-wide text-[#787774]">Largest moves in this view</p><span className="text-[10px] text-[#9b9a97]">Select a day to inspect a contributing trade</span></div><div className="grid gap-2 sm:grid-cols-3">{notableDays.map((day, index) => { const trade = tradesById.get(day.tradeIds[0]); return <button type="button" key={day.index} disabled={!trade || !onSelectTrade} onClick={() => trade && onSelectTrade?.(trade)} className="rounded-lg border border-[#e9e9e7] bg-white p-3 text-left hover:border-[#c9c7c1] hover:bg-[#f7f6f3] disabled:cursor-default"><span className="text-[10px] font-semibold uppercase text-[#9b9a97]">#{index + 1} · {day.fullDate}</span><span className={`mt-1 block font-mono text-sm font-bold ${day.tradePnl >= 0 ? "text-emerald-600" : "text-rose-600"}`}>{day.tradePnl >= 0 ? "+" : ""}{day.tradePnl} {currency}</span><span className="mt-1 block text-[10px] text-[#787774]">{day.tradeIds.length} {day.tradeIds.length === 1 ? "trade" : "trades"} that day</span></button>; })}</div></div>}

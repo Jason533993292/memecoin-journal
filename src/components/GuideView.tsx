@@ -64,7 +64,7 @@ const ROADMAP: Array<{ title: string; description: string; items: RoadmapItem[] 
       { text: "Compact and comfortable calendar density", status: "Available" },
       { text: "Consistent typography across analytics cards", status: "In progress" },
       { text: "Mobile-friendly full-width forms and panels", status: "In progress" },
-      { text: "Consistent chart legends, tooltips, and empty states", status: "Planned" },
+      { text: "Consistent chart legends, tooltips, and empty states", status: "Available" },
       { text: "Unified PAPER, LIVE, WIN, and LOSS badges", status: "Available" },
       { text: "Visible keyboard focus on every control", status: "Available" },
       { text: "Clearer guidance when a page has no data", status: "In progress" },
