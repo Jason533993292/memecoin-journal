@@ -73,6 +73,14 @@ for (const target of targets) {
     const checks = readyBody?.checks ? JSON.stringify(readyBody.checks) : "not returned";
     throw new Error(`${target.name} dependency health failed with HTTP ${readyResponse.status}; checks: ${checks}.`);
   }
-  console.log(`PASS ${target.name}: Firebase, Supabase, and feedback email readiness`);
+  for (const dependency of ["firebaseAuth", "firestore", "supabase"]) {
+    if (readyBody.checks?.[dependency] !== "ok") {
+      throw new Error(`${target.name} ${dependency} probe did not report ok.`);
+    }
+  }
+  if (readyBody.checks?.resend !== "configured") {
+    throw new Error(`${target.name} feedback email probe did not report configured.`);
+  }
+  console.log(`PASS ${target.name}: Firebase Auth, Firestore, Supabase, and feedback email readiness`);
 }
 

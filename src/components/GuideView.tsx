@@ -35,7 +35,7 @@ const ROADMAP: Array<{ title: string; description: string; items: RoadmapItem[] 
       { text: "Queued feedback email delivery with retries", status: "Available" },
       { text: "Automatic monitoring for market-price outages", status: "Available" },
       { text: "Verified database backup checks", status: "In progress" },
-      { text: "Alerts for unusual authentication and database errors", status: "Planned" },
+      { text: "Alerts for authentication and database outages", status: "Available" },
     ],
   },
   {

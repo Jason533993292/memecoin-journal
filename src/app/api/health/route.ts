@@ -33,7 +33,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ status: "ok" }, { headers: requestHeaders(requestId) });
   }
 
-  const [firebase, supabase] = await Promise.all([
+  const [firebaseAuth, firestore, supabase] = await Promise.all([
+    timedCheck(async () => {
+      const { auth } = getFirebaseAdmin();
+      await auth.listUsers(1);
+    }),
     timedCheck(async () => {
       const { db } = getFirebaseAdmin();
       await db.collection("_server_rate_limits").limit(1).get();
@@ -41,10 +45,10 @@ export async function GET(request: Request) {
     timedCheck(checkSupabaseAdminHealth),
   ]);
   const resend = process.env.RESEND_API_KEY?.trim() ? "configured" : "not_configured";
-  const ready = firebase === "ok" && supabase === "ok" && resend === "configured";
+  const ready = firebaseAuth === "ok" && firestore === "ok" && supabase === "ok" && resend === "configured";
 
   return NextResponse.json(
-    { status: ready ? "ready" : "degraded", checks: { firebase, supabase, resend } },
+    { status: ready ? "ready" : "degraded", checks: { firebaseAuth, firestore, supabase, resend } },
     { status: ready ? 200 : 503, headers: requestHeaders(requestId) },
   );
 }
