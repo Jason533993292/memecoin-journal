@@ -15,6 +15,7 @@ const RECENT_AUTH_WINDOW_SECONDS = 5 * 60;
 
 export async function POST(request: Request) {
   const requestId = requestIdFor(request);
+  let deletionStage = "authenticate";
   const reply = (body: object, status = 200) => NextResponse.json(body, {
     status,
     headers: requestHeaders(requestId),
@@ -51,6 +52,7 @@ export async function POST(request: Request) {
   }
 
   try {
+    deletionStage = "rate-limit";
     const allowed = await consumeUserRateLimits(decodedToken.uid, "account-delete", [
       { key: "day", limit: 3, durationMs: 86_400_000 },
     ]);
@@ -65,12 +67,16 @@ export async function POST(request: Request) {
     if (process.env.NEXT_PUBLIC_DATA_BACKEND === "supabase") {
       // Delete the staged Postgres copy first. If it fails, retain Firebase so
       // the user can retry rather than leaving a split account deletion.
+      deletionStage = "supabase-data";
       await deleteSupabaseJournalData(decodedToken.uid);
     }
     // Firestore recursiveDelete includes all subcollections under this UID,
     // including future settings collections. This app does not use Firebase Storage.
+    deletionStage = "firestore-data";
     await db.recursiveDelete(db.collection("users").doc(decodedToken.uid));
+    deletionStage = "firebase-auth";
     await auth.deleteUser(decodedToken.uid);
+    deletionStage = "rate-limit-cleanup";
     await Promise.allSettled(
       ["analyze", "token-lookup", "sol-balance", "account-delete"].map((action) =>
         db.collection("_server_rate_limits").doc(rateLimitDocumentId(decodedToken.uid, action)).delete()
@@ -83,6 +89,7 @@ export async function POST(request: Request) {
     console.error("Account deletion operation failed", {
       requestId,
       uid: decodedToken.uid,
+      stage: deletionStage,
       reason: error instanceof Error ? error.name : "unknown",
     });
     return reply(
