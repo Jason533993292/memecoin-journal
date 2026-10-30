@@ -6,6 +6,8 @@ import { db, type User } from "../lib/firebase";
 import { collection, onSnapshot, query, orderBy, doc, deleteDoc, setDoc } from "firebase/firestore";
 import { Trade, JournalRules, AiCoachBrief, GoalSettings } from "../lib/types";
 import TopBanner from "../components/TopBanner";
+import LoadingState from "../components/LoadingState";
+import { fetchWithTimeout } from "../lib/fetchWithTimeout";
 const DashboardView = dynamic(() => import("../components/DashboardView"), { loading: () => <SectionLoading /> });
 const TradeJournalView = dynamic(() => import("../components/TradeJournalView"), { loading: () => <SectionLoading /> });
 const DailyJournalView = dynamic(() => import("../components/DailyJournalView"), { loading: () => <SectionLoading /> });
@@ -74,7 +76,7 @@ const DEFAULT_GOALS: GoalSettings = {
 };
 
 function SectionLoading() {
-  return <div className="min-h-[240px] flex items-center justify-center text-sm text-[#787774]">Loading section…</div>;
+  return <LoadingState />;
 }
 
 function MainApp() {
@@ -162,10 +164,11 @@ function AuthenticatedApp({ user }: { user: User }) {
   const [permissionError, setPermissionError] = useState(false);
 
   useEffect(() => {
+    const controller = new AbortController();
     let active = true;
     const updateSolPrice = async () => {
       try {
-        const response = await fetch("/api/sol-price");
+        const response = await fetchWithTimeout("/api/sol-price", { signal: controller.signal });
         if (!active || !response.ok) return;
         const data = await response.json();
         if (typeof data.price === "number" && Number.isFinite(data.price) && data.price > 0) setSolPrice(data.price);
@@ -177,6 +180,7 @@ function AuthenticatedApp({ user }: { user: User }) {
     const interval = setInterval(() => void updateSolPrice(), 60_000);
     return () => {
       active = false;
+      controller.abort();
       clearInterval(interval);
     };
   }, []);

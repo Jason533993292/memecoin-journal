@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { MARKET_ASSETS, isMarketAssetSymbol, type MarketAssetSymbol } from "@/lib/marketAssets";
 import { useLocalStorageValue, writeLocalStorageValue } from "@/lib/useLocalStorage";
+import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
 
 type PriceStatus = "live" | "cached" | "stale" | "unavailable";
 type PriceState = { price: number; change24h: number; status: PriceStatus; updatedAt: number | null };
@@ -19,10 +20,11 @@ export default function MarketPricePicker() {
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    const controller = new AbortController();
     let active = true;
     const updatePrice = async () => {
       try {
-        const response = await fetch(`/api/market-price?asset=${asset}`);
+        const response = await fetchWithTimeout(`/api/market-price?asset=${asset}`, { signal: controller.signal });
         if (!active) return;
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
@@ -43,6 +45,7 @@ export default function MarketPricePicker() {
     const interval = window.setInterval(updatePrice, 60_000);
     return () => {
       active = false;
+      controller.abort();
       window.clearInterval(interval);
     };
   }, [asset]);

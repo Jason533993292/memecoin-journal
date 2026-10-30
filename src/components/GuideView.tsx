@@ -51,7 +51,7 @@ const ROADMAP: Array<{ title: string; description: string; items: RoadmapItem[] 
       { text: "One shared currency and quantity formatter", status: "Available" },
       { text: "Safer component-based AI response formatting", status: "Available" },
       { text: "Warning-free automated test configuration", status: "Available" },
-      { text: "Consistent loading placeholders and request cancellation", status: "In progress" },
+      { text: "Consistent loading placeholders and request cancellation", status: "Available" },
     ],
   },
   {

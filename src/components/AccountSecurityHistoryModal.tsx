@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { User } from "firebase/auth";
 import { History, ShieldCheck, X } from "lucide-react";
 import { ACCOUNT_SECURITY_EVENT_LABELS, type AccountSecurityEventType } from "@/lib/securityHistory";
+import { fetchWithTimeout } from "@/lib/fetchWithTimeout";
 
 type SecurityEvent = { eventType: AccountSecurityEventType; createdAt: string };
 
@@ -12,11 +13,12 @@ export default function AccountSecurityHistoryModal({ user, onClose }: { user: U
   const [error, setError] = useState("");
 
   useEffect(() => {
+    const controller = new AbortController();
     let active = true;
-    void user.getIdToken().then((token) => fetch("/api/account/security-history", {
+    void user.getIdToken().then((token) => fetchWithTimeout("/api/account/security-history", {
       headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
-      signal: AbortSignal.timeout(10_000),
+      signal: controller.signal,
     })).then(async (response) => {
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(typeof body.error === "string" ? body.error : "Security history could not be loaded.");
@@ -24,7 +26,7 @@ export default function AccountSecurityHistoryModal({ user, onClose }: { user: U
     }).catch((reason) => {
       if (active) setError(reason instanceof Error ? reason.message : "Security history could not be loaded.");
     });
-    return () => { active = false; };
+    return () => { active = false; controller.abort(); };
   }, [user]);
 
   return (
