@@ -77,11 +77,17 @@ try {
 
   await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 60_000 });
   const signInMode = page.getByRole("button", { name: "Sign In", exact: true });
-  if (await signInMode.isVisible().catch(() => false)) await signInMode.click();
+  await signInMode.click({ timeout: 30_000 });
+  await page.getByRole("button", { name: "Sign In to Journal", exact: true }).waitFor({ timeout: 30_000 });
   await page.getByPlaceholder("trader@solana.com").fill(email);
   await page.locator('input[type="password"]').fill(password);
   await page.locator('form button[type="submit"]').click();
-  await page.getByRole("button", { name: /New Trade/ }).waitFor({ timeout: 45_000 });
+  try {
+    await page.getByRole("button", { name: /New Trade/ }).waitFor({ timeout: 45_000 });
+  } catch (error) {
+    const visibleText = (await page.locator("body").innerText()).replace(/\s+/g, " ").trim().slice(0, 1200);
+    throw new Error(`Email sign-in did not reach the journal. Visible page: ${visibleText}`, { cause: error });
+  }
   await dismissTour(page);
 
   await page.getByRole("button", { name: /New Trade/ }).click();
@@ -93,7 +99,14 @@ try {
   await createDialog.getByLabel("Net P&L (SOL)").fill("0.25");
   await createDialog.getByLabel("Trade Notes & Rationale").fill(initialNote);
   await createDialog.getByRole("button", { name: "Save Trade to Cloud" }).click();
-  await createDialog.waitFor({ state: "detached", timeout: 30_000 });
+  const saveFailure = page.getByText("Could not save trade", { exact: true });
+  await Promise.race([
+    createDialog.waitFor({ state: "detached", timeout: 30_000 }),
+    saveFailure.waitFor({ state: "visible", timeout: 30_000 }).then(async () => {
+      const toast = saveFailure.locator("xpath=..");
+      throw new Error(`Trade save failed: ${(await toast.innerText()).replace(/\s+/g, " ").trim()}`);
+    }),
+  ]);
   console.log("PASS created a trade through the staging interface.");
 
   await page.getByRole("button", { name: "Trades", exact: true }).click();
