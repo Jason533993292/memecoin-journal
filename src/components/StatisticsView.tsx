@@ -6,6 +6,7 @@ import { formatRealizedPnl, formatSol, getTradeDate } from "../lib/utils";
 import { DEFAULT_GOOD_TAGS } from "../lib/constants";
 import { getUsdValueStatus } from "../lib/tradeCalculations";
 import { BarChart3, Layers, Target, Clock, Tag, Lightbulb, CalendarDays, ShieldAlert, ShieldCheck, Gauge } from "lucide-react";
+import EmptyState from "./EmptyState";
 import TiltStreakHeatmap from "./TiltStreakHeatmap";
 import { calculateRiskAnalytics } from "../lib/riskAnalytics";
 import TradeComparisonCard from "./TradeComparisonCard";
@@ -218,15 +219,7 @@ export default function StatisticsView({ trades, solPrice = 150, onSelectTrade }
           </div>
         </div>
 
-        <div className="bg-white border border-[#e9e9e7] rounded-2xl p-12 text-center max-w-lg mx-auto shadow-xs mt-6">
-          <div className="w-14 h-14 bg-[#f7f6f3] border border-[#e3e2de] rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
-            <BarChart3 size={24} />
-          </div>
-          <h3 className="text-base font-bold text-[#37352f] mb-1.5">No Historical Trades Yet</h3>
-          <p className="text-xs text-[#787774] max-w-sm mx-auto leading-relaxed">
-            Log your trades in the journal or dashboard to unlock win-rate analytics, setup performance, holding-time patterns, and tilt & streak heatmaps.
-          </p>
-        </div>
+        <EmptyState icon={<BarChart3 size={22} />} title="Analytics begin with your first trade" detail="Log a trade from the Dashboard or Trade Journal. Setup performance, holding-time patterns, risk, and discipline insights will appear here automatically." />
       </div>
     );
   }

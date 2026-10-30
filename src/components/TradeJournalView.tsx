@@ -28,6 +28,7 @@ import type { ImportedTrade } from "../lib/exportImport";
 import { parseTradeFilterPresets, type TradeFilterPreset } from "../lib/tradeFilterPresets";
 import { publishTradeSync } from "../lib/tradeSync";
 import TradeBadge from "./TradeBadge";
+import EmptyState from "./EmptyState";
 
 interface TradeJournalViewProps {
   userId: string;
@@ -634,8 +635,8 @@ export default function TradeJournalView({
           </div>
         </div>
       ) : filteredTrades.length === 0 ? (
-        <div data-tour="journal-results" className="p-12 text-center text-xs text-[#9b9a97] bg-white border border-[#e9e9e7] rounded-xl">
-          No trades matched your search & filter criteria.
+        <div data-tour="journal-results">
+          <EmptyState icon={<Search size={20} />} title="No matching trades" detail="Your trades are safe. Clear the search or filters to return to the complete journal." actionLabel="Clear filters" onAction={() => { setSearchQuery(""); setFilterResult("All"); setFilterSetup("All"); setFilterWallet("All"); setFilterMistake("All"); setDateRange("all"); setPage(1); }} />
         </div>
       ) : viewMode === "cards" ? (
         /* Cards Grid View */

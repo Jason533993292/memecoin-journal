@@ -67,7 +67,7 @@ const ROADMAP: Array<{ title: string; description: string; items: RoadmapItem[] 
       { text: "Consistent chart legends, tooltips, and empty states", status: "Available" },
       { text: "Unified PAPER, LIVE, WIN, and LOSS badges", status: "Available" },
       { text: "Visible keyboard focus on every control", status: "Available" },
-      { text: "Clearer guidance when a page has no data", status: "In progress" },
+      { text: "Clearer guidance when a page has no data", status: "Available" },
     ],
   },
   {
