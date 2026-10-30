@@ -658,6 +658,7 @@ export default function LogTradeModal({
               <div className="flex gap-2">
                 <input
                   type="text"
+                  aria-label="Solana Contract Address"
                   value={ca}
                   onChange={(e) => handleCaChange(e.target.value)}
                   placeholder="Paste Solana token mint address (e.g. 95pCcNPexz8...)"
@@ -889,6 +890,7 @@ export default function LogTradeModal({
                   </label>
                   <input
                     type="number"
+                    aria-label={`Bought (${quoteCurrency})`}
                     step="any"
                     value={boughtQuote}
                     onChange={(e) => { const nextBought = e.target.value; const nextPnl = soldQuote && nextBought ? String(Number(soldQuote) - Number(nextBought)) : pnlQuote; syncQuoteAmounts(nextBought, soldQuote, nextPnl); }}
@@ -905,6 +907,7 @@ export default function LogTradeModal({
                   </label>
                   <input
                     type="number"
+                    aria-label={`Sold (${quoteCurrency})`}
                     step="any"
                     value={soldQuote}
                     onChange={(e) => { const nextSold = e.target.value; const nextPnl = boughtQuote && nextSold ? String(Number(nextSold) - Number(boughtQuote)) : pnlQuote; syncQuoteAmounts(boughtQuote, nextSold, nextPnl); }}
@@ -920,6 +923,7 @@ export default function LogTradeModal({
                   </label>
                   <input
                     type="number"
+                    aria-label={`Net P&L (${quoteCurrency})`}
                     step="any"
                     value={pnlQuote}
                     onChange={(e) => syncQuoteAmounts(boughtQuote, soldQuote, e.target.value)}
@@ -1192,6 +1196,7 @@ export default function LogTradeModal({
               <label className="block font-medium text-[#787774] mb-1">Trade Notes & Rationale</label>
               <textarea
                 rows={2}
+                aria-label="Trade Notes & Rationale"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 maxLength={4000}

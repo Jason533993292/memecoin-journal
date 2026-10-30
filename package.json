@@ -15,6 +15,7 @@
     "smoke:release": "node scripts/verify-public-release.mjs",
     "monitor:services": "node scripts/verify-service-readiness.mjs",
     "test:staging:isolation": "node scripts/verify-staging-isolation.mjs",
+    "test:staging:trade-lifecycle": "node scripts/verify-staging-trade-lifecycle.mjs",
     "backup:verify": "node scripts/verify-supabase-backups.mjs",
     "security:secrets": "node scripts/scan-secrets.mjs",
     "security:dependencies": "npm audit --omit=dev --audit-level=high",

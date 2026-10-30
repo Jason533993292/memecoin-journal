@@ -31,3 +31,10 @@ jobs:
           STAGING_FIREBASE_API_KEY: ${{ secrets.STAGING_FIREBASE_API_KEY }}
           STAGING_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
           STAGING_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.STAGING_SUPABASE_PUBLISHABLE_KEY }}
+      - name: Install the protected browser-test runtime
+        run: npx playwright install --with-deps chromium
+      - name: Verify trade create, refresh, edit, and delete
+        run: npm run test:staging:trade-lifecycle
+        env:
+          STAGING_BASE_URL: https://memecoin-journal-staging.up.railway.app
+          STAGING_FIREBASE_API_KEY: ${{ secrets.STAGING_FIREBASE_API_KEY }}

@@ -404,6 +404,7 @@ export default function EditTradeModal({
               <label className="block font-medium text-[#787774] mb-1">Token Name</label>
               <input
                 type="text"
+                aria-label="Token Name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 maxLength={120}
@@ -415,6 +416,7 @@ export default function EditTradeModal({
               <label className="block font-medium text-[#787774] mb-1">Token Symbol</label>
               <input
                 type="text"
+                aria-label="Token Symbol"
                 value={symbol}
                 onChange={(e) => setSymbol(e.target.value)}
                 maxLength={40}
@@ -790,6 +792,7 @@ export default function EditTradeModal({
             <label className="block font-medium text-[#787774] mb-1">Trade Notes & Rationale</label>
             <textarea
               rows={2}
+              aria-label="Trade Notes & Rationale"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               maxLength={4000}
