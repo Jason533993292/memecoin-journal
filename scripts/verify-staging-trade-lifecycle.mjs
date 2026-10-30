@@ -76,9 +76,11 @@ try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
 
   await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 60_000 });
+  const signInMode = page.getByRole("button", { name: "Sign In", exact: true });
+  if (await signInMode.isVisible().catch(() => false)) await signInMode.click();
   await page.getByPlaceholder("trader@solana.com").fill(email);
   await page.locator('input[type="password"]').fill(password);
-  await page.getByRole("button", { name: "Sign In to Journal" }).click();
+  await page.locator('form button[type="submit"]').click();
   await page.getByRole("button", { name: /New Trade/ }).waitFor({ timeout: 45_000 });
   await dismissTour(page);
 
