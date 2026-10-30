@@ -27,6 +27,7 @@ import { deleteSupabaseTrade, importSupabaseTrades, usesSupabaseJournal } from "
 import type { ImportedTrade } from "../lib/exportImport";
 import { parseTradeFilterPresets, type TradeFilterPreset } from "../lib/tradeFilterPresets";
 import { publishTradeSync } from "../lib/tradeSync";
+import TradeBadge from "./TradeBadge";
 
 interface TradeJournalViewProps {
   userId: string;
@@ -673,11 +674,7 @@ export default function TradeJournalView({
                     </div>
 
                     <div className="flex items-center gap-1.5">
-                      {(trade.wallet === "Paper" || trade.isPaper) && (
-                        <span className="paper-trade-badge px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-50 text-indigo-700">
-                          PAPER
-                        </span>
-                      )}
+                      <TradeBadge kind={trade.wallet === "Paper" || trade.isPaper ? "paper" : "live"} compact />
                       {trade.screenshotUrl && (
                         <button
                           onClick={(e) => {
@@ -693,17 +690,7 @@ export default function TradeJournalView({
                           <ImageIcon size={13} />
                         </button>
                       )}
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                          trade.result === "Win"
-                            ? "text-emerald-700"
-                            : trade.result === "Loss"
-                            ? "text-rose-700"
-                            : "text-neutral-700"
-                        }`}
-                      >
-                        {trade.result}
-                      </span>
+                      <TradeBadge kind={trade.result} compact />
                     </div>
                   </div>
 
@@ -910,30 +897,15 @@ export default function TradeJournalView({
 
                       {/* Wallet */}
                       <td className="notion-table-td text-[#787774] text-[11px]">
-                        {trade.wallet === "Paper" || trade.isPaper ? (
-                          <span className="paper-trade-badge px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 text-[10px] font-bold">
-                            Paper
-                          </span>
-                        ) : (
-                          <span className="px-1.5 py-0.5 rounded bg-neutral-100 text-neutral-700 text-[10px]">
-                            {trade.wallet || "Main"}
-                          </span>
-                        )}
+                        <span className="inline-flex items-center gap-1.5">
+                          <TradeBadge kind={trade.wallet === "Paper" || trade.isPaper ? "paper" : "live"} compact />
+                          {trade.wallet !== "Paper" && !trade.isPaper && <span>{trade.wallet || "Main"}</span>}
+                        </span>
                       </td>
 
                       {/* Result */}
                       <td className="notion-table-td">
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                            trade.result === "Win"
-                              ? "text-emerald-700"
-                              : trade.result === "Loss"
-                              ? "text-rose-700"
-                              : "text-neutral-700"
-                          }`}
-                        >
-                          {trade.result}
-                        </span>
+                        <TradeBadge kind={trade.result} compact />
                       </td>
 
                       {/* Bought SOL */}
