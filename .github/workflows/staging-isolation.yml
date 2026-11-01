@@ -1,6 +1,8 @@
 name: Protected staging isolation
 
 on:
+  push:
+    branches: [main]
   schedule:
     - cron: "41 4 * * 1"
   workflow_dispatch:
