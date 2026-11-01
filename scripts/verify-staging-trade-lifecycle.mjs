@@ -70,6 +70,26 @@ async function dismissTour(page) {
   if (await skip.isVisible().catch(() => false)) await skip.click();
 }
 
+async function openTradeJournal(page) {
+  await page.getByRole("button", { name: /New Trade/ }).waitFor({ timeout: 45_000 });
+  await dismissTour(page);
+  await page.getByRole("button", { name: "Trades", exact: true }).click();
+}
+
+async function waitForTradeCount(page, count, description) {
+  try {
+    await page.getByText(`All (${count})`, { exact: true }).waitFor({ timeout: 30_000 });
+  } catch (error) {
+    const visibleText = (await page.locator("body").innerText()).replace(/\s+/g, " ").trim().slice(0, 1600);
+    throw new Error(`${description} Visible page: ${visibleText}`, { cause: error });
+  }
+}
+
+async function requireNotes(editDialog, expected, description) {
+  const actual = await editDialog.getByLabel("Trade Notes & Rationale").inputValue();
+  if (actual !== expected) throw new Error(`${description} Expected ${JSON.stringify(expected)}, received ${JSON.stringify(actual)}.`);
+}
+
 try {
   user = await createDisposableUser();
   browser = await chromium.launch({ headless: true });
@@ -109,29 +129,37 @@ try {
   ]);
   console.log("PASS created a trade through the staging interface.");
 
-  await page.getByRole("button", { name: "Trades", exact: true }).click();
-  await page.getByText(initialNote).waitFor({ timeout: 30_000 });
+  await openTradeJournal(page);
+  await waitForTradeCount(page, 1, "The newly created trade was not visible before refresh.");
   await page.reload({ waitUntil: "domcontentloaded" });
-  await page.getByText(initialNote).waitFor({ timeout: 30_000 });
+  await openTradeJournal(page);
+  await waitForTradeCount(page, 1, "The newly created trade was not visible after refresh.");
   console.log("PASS the created trade survived a full page refresh.");
 
   await page.getByRole("button", { name: "Edit trade" }).click();
   const editDialog = page.getByRole("dialog", { name: /Edit Trade:/ });
+  await requireNotes(editDialog, initialNote, "The saved notes did not survive refresh.");
   await editDialog.getByLabel("Trade Notes & Rationale").fill(editedNote);
   await editDialog.getByRole("button", { name: "Update Trade" }).click();
   await editDialog.waitFor({ state: "detached", timeout: 30_000 });
-  await page.getByText(editedNote).waitFor({ timeout: 30_000 });
+  await waitForTradeCount(page, 1, "The edited trade disappeared before refresh.");
   await page.reload({ waitUntil: "domcontentloaded" });
-  await page.getByText(editedNote).waitFor({ timeout: 30_000 });
+  await openTradeJournal(page);
+  await waitForTradeCount(page, 1, "The edited trade was not visible after refresh.");
+  await page.getByRole("button", { name: "Edit trade" }).click();
+  const persistedEditDialog = page.getByRole("dialog", { name: /Edit Trade:/ });
+  await requireNotes(persistedEditDialog, editedNote, "The edited notes did not survive refresh.");
+  await persistedEditDialog.getByRole("button", { name: "Cancel" }).click();
   console.log("PASS edited the trade and verified the change after refresh.");
 
   await page.getByRole("button", { name: "Delete trade" }).click();
   const deleteDialog = page.getByRole("dialog", { name: "Delete this trade?" });
   await deleteDialog.getByRole("button", { name: "Delete Trade" }).click();
   await deleteDialog.waitFor({ state: "detached", timeout: 30_000 });
-  await page.getByText(editedNote).waitFor({ state: "detached", timeout: 30_000 });
+  await waitForTradeCount(page, 0, "The trade count did not update after deletion.");
   await page.reload({ waitUntil: "domcontentloaded" });
-  await page.getByText(editedNote).waitFor({ state: "detached", timeout: 30_000 });
+  await openTradeJournal(page);
+  await waitForTradeCount(page, 0, "The deleted trade returned after refresh.");
   console.log("PASS deleted the trade with confirmation and verified removal after refresh.");
 } finally {
   await browser?.close();
