@@ -27,7 +27,7 @@ const ROADMAP: Array<{ title: string; description: string; items: RoadmapItem[] 
     description: "Making saving, importing, notifications, and recovery predictable.",
     items: [
       { text: "Reconciled and repeatable database migration history", status: "Available" },
-      { text: "Integration tests against a protected staging database", status: "In progress" },
+      { text: "Integration tests against a protected staging database", status: "Available" },
       { text: "Resumable account deletion across every data store", status: "Available" },
       { text: "Duplicate-safe feedback and import operations", status: "Available" },
       { text: "Request IDs in server logs for faster diagnosis", status: "Available" },
@@ -42,7 +42,7 @@ const ROADMAP: Array<{ title: string; description: string; items: RoadmapItem[] 
     title: "Frontend quality",
     description: "Keeping every interaction fast, predictable, accessible, and testable.",
     items: [
-      { text: "Automated trade create, edit, refresh, and delete journeys", status: "In progress" },
+      { text: "Automated trade create, edit, refresh, and delete journeys", status: "Available" },
       { text: "Automated accessibility checks", status: "Available" },
       { text: "Friendly recovery screen for unexpected errors", status: "Available" },
       { text: "Clear offline and reconnecting states", status: "Available" },
@@ -95,15 +95,15 @@ const STATUS_STYLES = {
 };
 
 const RECOMMENDED_NEXT: Array<{ title: string; detail: string; status: "Ready" | "In progress" | "Needs setup" }> = [
-  { title: "Activate protected staging checks", detail: "Connect the two-account privacy journey to protected GitHub staging secrets.", status: "Needs setup" },
+  { title: "Protected staging checks", detail: "Two-account privacy isolation and the complete trade lifecycle now run automatically on every main-branch update.", status: "Ready" },
   { title: "Activate service alerts", detail: "Add health tokens so database, backup, and feedback-email failures open an incident.", status: "Needs setup" },
   { title: "Complete a database restore drill", detail: "Restore a recent backup into an isolated project and verify it without touching production.", status: "Needs setup" },
   { title: "Enable Firebase App Check", detail: "Observe valid traffic first, then enforce requests from the real web app.", status: "Needs setup" },
   { title: "Feedback administration", detail: "A private allowlisted inbox can assign, resolve, and audit feedback reports.", status: "Ready" },
   { title: "Shared financial formatting", detail: "SOL, USD, percentages, sizes, and realized P&L use the shared formatting helpers.", status: "Ready" },
-  { title: "Generated database types", detail: "Hosted definitions are committed and a workflow now rejects stale generated types.", status: "Ready" },
+  { title: "Generated database types", detail: "Hosted definitions are committed; the GitHub Supabase token still needs sufficient project privileges before CI can reject stale generated types.", status: "Needs setup" },
   { title: "Safer AI response rendering", detail: "AI output now uses bounded React sections without HTML injection.", status: "Ready" },
-  { title: "Reconciled migration history", detail: "Local filenames now match hosted versions and staging performs a dry-run migration check.", status: "Ready" },
+  { title: "Reconciled migration history", detail: "Local filenames match hosted versions; the GitHub Supabase token still needs project privileges before CI can verify every update.", status: "Needs setup" },
   { title: "Calendar filters", detail: "Filter monthly results by wallet, currency, strategy, and paper or live trading.", status: "Ready" },
 ];
 
