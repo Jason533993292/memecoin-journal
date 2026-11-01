@@ -170,8 +170,8 @@ export type Database = {
           created_at: string
           feedback_id: number
           last_error: string | null
-          locked_at: string | null
           lock_token: string | null
+          locked_at: string | null
           next_attempt_at: string
           updated_at: string
         }
@@ -181,8 +181,8 @@ export type Database = {
           created_at?: string
           feedback_id: number
           last_error?: string | null
-          locked_at?: string | null
           lock_token?: string | null
+          locked_at?: string | null
           next_attempt_at?: string
           updated_at?: string
         }
@@ -192,8 +192,8 @@ export type Database = {
           created_at?: string
           feedback_id?: number
           last_error?: string | null
-          locked_at?: string | null
           lock_token?: string | null
+          locked_at?: string | null
           next_attempt_at?: string
           updated_at?: string
         }
@@ -402,7 +402,7 @@ export type Database = {
           email_delivery_error?: string | null
           email_delivery_status?: string
           id?: never
-          idempotency_key: string
+          idempotency_key?: string
           message: string
           page?: string
           resolution_note?: string | null
@@ -536,10 +536,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      claim_feedback_delivery_jobs: {
-        Args: { batch_size: number; worker_token: string }
-        Returns: Database["public"]["Tables"]["feedback_delivery_jobs"]["Row"][]
-      }
       apply_wallet_transaction: {
         Args: {
           p_amount_usd: number
@@ -553,6 +549,26 @@ export type Database = {
           p_wallet_name: string
         }
         Returns: undefined
+      }
+      claim_feedback_delivery_jobs: {
+        Args: { batch_size: number; worker_token: string }
+        Returns: {
+          attempts: number
+          completed_at: string | null
+          created_at: string
+          feedback_id: number
+          last_error: string | null
+          lock_token: string | null
+          locked_at: string | null
+          next_attempt_at: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "feedback_delivery_jobs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       is_bounded_text_array: {
         Args: { input_value: Json; max_item_length: number; max_items: number }
