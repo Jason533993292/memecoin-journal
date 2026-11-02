@@ -20,8 +20,8 @@ function Section({ id, title, children }: Readonly<{ id: string; title: string; 
 
 export default function PrivacyPage() {
   return (
-    <main className="min-h-screen bg-[#fbfbfa] px-5 py-10 text-[#37352f] sm:px-8 sm:py-14">
-      <article className="mx-auto max-w-4xl rounded-2xl border border-[#e9e9e7] bg-white px-6 py-8 shadow-sm sm:px-10 sm:py-12">
+    <main className="legal-page min-h-screen bg-[#fbfbfa] px-5 py-10 text-[#37352f] sm:px-8 sm:py-14">
+      <article className="legal-document mx-auto max-w-4xl rounded-2xl border border-[#e9e9e7] bg-white px-6 py-8 shadow-sm sm:px-10 sm:py-12">
         <nav aria-label="Legal navigation" className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
           <Link href="/" className="font-medium text-[#0b63b6] hover:underline">Memecoin Journal</Link>
           <span aria-hidden="true" className="text-[#9b9a97]">/</span>

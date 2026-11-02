@@ -5,8 +5,8 @@ const publicPages = ["/", "/privacy", "/terms"];
 
 for (const path of publicPages) {
   test(`${path} has no serious accessibility violations`, async ({ page }) => {
-    await page.goto(path);
-    await page.waitForLoadState("networkidle");
+    await page.goto(path, { waitUntil: "domcontentloaded" });
+    await expect(page.locator("main")).toBeVisible();
     const results = await new AxeBuilder({ page }).analyze();
     const blocking = results.violations.filter((violation) =>
       violation.impact === "critical" || violation.impact === "serious"
