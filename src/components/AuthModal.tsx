@@ -104,7 +104,7 @@ export default function AuthModal() {
   };
 
   return (
-    <div className="public-auth-modal fixed inset-0 z-50 flex items-center justify-center bg-[radial-gradient(circle_at_top,#153250_0%,#09111d_42%,#05070b_100%)] p-4 backdrop-blur-md animate-in fade-in duration-200">
+    <main className="public-auth-modal fixed inset-0 z-50 flex items-center justify-center bg-[radial-gradient(circle_at_top,#153250_0%,#09111d_42%,#05070b_100%)] p-4 backdrop-blur-md animate-in fade-in duration-200">
       <div className="w-full max-w-md rounded-[28px] border border-sky-400/20 bg-[#0b111b]/95 p-6 text-white shadow-[0_30px_100px_rgba(0,0,0,.55)] md:p-8 space-y-6">
         {/* Header Branding */}
         <div className="text-center space-y-2">
@@ -272,6 +272,6 @@ export default function AuthModal() {
           <a href="/privacy" className="text-neutral-300 underline underline-offset-2">Privacy notice</a>.
         </p>
       </div>
-    </div>
+    </main>
   );
 }
