@@ -4,6 +4,7 @@ import { AuthProvider } from "../context/AuthContext";
 import ErrorBoundary from "../components/ErrorBoundary";
 import { connection } from "next/server";
 import ServiceWorkerRegistration from "../components/ServiceWorkerRegistration";
+import ThemeBootstrap from "../components/ThemeBootstrap";
 
 const publicDomain = process.env.RAILWAY_PUBLIC_DOMAIN?.trim();
 const metadataBase = new URL(
@@ -44,6 +45,7 @@ export default async function RootLayout({
         <link rel="preconnect" href="https://firestore.googleapis.com" />
       </head>
       <body className="min-h-screen bg-white text-[#37352f] antialiased selection:bg-[#2383e2]/20 selection:text-[#2383e2]">
+        <ThemeBootstrap />
         <ServiceWorkerRegistration />
         <ErrorBoundary>
           <AuthProvider>{children}</AuthProvider>

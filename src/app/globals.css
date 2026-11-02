@@ -128,6 +128,43 @@
   border-color: #c8c7c3;
 }
 
+.app-sidebar,
+.app-header {
+  background: color-mix(in srgb, var(--ui-surface) 96%, transparent);
+  border-color: var(--ui-border);
+  color: var(--ui-text);
+}
+.app-header-title { color: var(--ui-text); }
+.app-sidebar [class*="text-neutral-4"], .app-sidebar [class*="text-neutral-5"], .app-header [class*="text-neutral-5"] { color: var(--ui-muted); }
+.app-sidebar button:hover { background: var(--ui-raised); color: var(--ui-text); }
+.app-sidebar button[aria-current="page"] { background: var(--ui-raised); color: var(--ui-text); }
+
+.calendar-date-picker { position:relative; min-width:0; }
+.calendar-date-trigger { display:flex; min-height:38px; width:100%; align-items:center; gap:8px; border:1px solid var(--ui-border); border-radius:9px; background:var(--ui-surface); padding:8px 11px; color:var(--ui-text); font-size:12px; text-align:left; }
+.calendar-date-trigger:hover { border-color:color-mix(in srgb,var(--ui-accent) 45%,var(--ui-border)); }
+.calendar-date-popover { position:absolute; right:0; top:calc(100% + 7px); z-index:80; width:280px; border:1px solid var(--ui-border); border-radius:16px; background:var(--ui-surface); padding:13px; color:var(--ui-text); box-shadow:0 18px 50px #0004; }
+.calendar-date-header { display:grid; grid-template-columns:34px 1fr 34px; align-items:center; text-align:center; }
+.calendar-date-header button, .calendar-date-today { border-radius:8px; padding:7px; }
+.calendar-date-header button:hover, .calendar-date-today:hover { background:var(--ui-raised); }
+.calendar-date-weekdays, .calendar-date-days { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:4px; text-align:center; }
+.calendar-date-weekdays { margin-top:10px; color:var(--ui-muted); font-size:9px; font-weight:700; }
+.calendar-date-days { margin-top:5px; }
+.calendar-date-days button { aspect-ratio:1; border:0; border-radius:9px; font-size:11px; color:var(--ui-text); }
+.calendar-date-days button:hover:not(:disabled) { background:var(--ui-raised); }
+.calendar-date-days button[aria-pressed="true"] { background:var(--ui-accent); color:white; }
+.calendar-date-days button.is-today:not([aria-pressed="true"]) { box-shadow:inset 0 0 0 1px var(--ui-accent); color:var(--ui-accent); }
+.calendar-date-days button:disabled { opacity:.22; }
+.calendar-date-today { margin-top:8px; width:100%; color:var(--ui-accent); font-size:11px; font-weight:700; }
+
+/* Status badges use color and fill, not bright white outlines. */
+.paper-trade-badge { border:0 !important; box-shadow:none !important; }
+
+html[data-theme-preview] .app-sidebar,
+html[data-theme-preview] .app-header { background:color-mix(in srgb,var(--preview-surface) 96%,transparent) !important; border-color:var(--preview-border) !important; color:var(--preview-text) !important; }
+html[data-theme-preview] .app-header-title { color:var(--preview-text) !important; }
+html[data-theme-preview] .legal-modal { background:var(--preview-surface) !important; border-color:var(--preview-border) !important; }
+html[data-theme-preview] .legal-modal header { border-color:var(--preview-border) !important; }
+
 .daily-journal-editor:empty::before {
   color: #9b9a97;
   content: "Write freely. What happened, what did you feel, and what do you want to remember?";
@@ -620,8 +657,18 @@ html[data-theme-preview] .daily-journal-book [class*="bg-[#eee4d2]"] {
 .paper-trade-badge {
   border: 0 !important;
   box-shadow: none !important;
-  color: #4338ca !important;
 }
+
+.trade-status-badge {
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.trade-status-paper { background: #eef0f8; color: #555f92; }
+.trade-status-live { background: #e9f2f5; color: #346878; }
+.trade-status-win { background: #e7f3ed; color: #287356; }
+.trade-status-loss { background: #f5e8ea; color: #9a4655; }
+.trade-status-breakeven { background: #ececea; color: #66645f; }
 
 .daily-recap-metric-positive {
   color: #065f46;
@@ -1134,9 +1181,28 @@ html[data-theme-preview] .trade-card-action:hover {
 }
 
 html[data-theme-preview] .paper-trade-badge {
-  background-color: color-mix(in srgb, #6366f1 20%, var(--preview-raised)) !important;
-  border: 0 !important;
-  color: #c7d2fe !important;
+  background-color: color-mix(in srgb, #7c83bd 14%, var(--preview-raised)) !important;
+  color: color-mix(in srgb, #aab0db 76%, var(--preview-text)) !important;
+}
+
+html[data-theme-preview] .trade-status-live {
+  background: color-mix(in srgb, #4f91a3 14%, var(--preview-raised)) !important;
+  color: color-mix(in srgb, #83b5c2 72%, var(--preview-text)) !important;
+}
+
+html[data-theme-preview] .trade-status-win {
+  background: color-mix(in srgb, #3c8d6b 14%, var(--preview-raised)) !important;
+  color: color-mix(in srgb, #72b99a 72%, var(--preview-text)) !important;
+}
+
+html[data-theme-preview] .trade-status-loss {
+  background: color-mix(in srgb, #a95765 14%, var(--preview-raised)) !important;
+  color: color-mix(in srgb, #d58b97 72%, var(--preview-text)) !important;
+}
+
+html[data-theme-preview] .trade-status-breakeven {
+  background: color-mix(in srgb, var(--preview-muted) 12%, var(--preview-raised)) !important;
+  color: var(--preview-muted) !important;
 }
 
 html[data-theme-preview] .daily-recap-metric-positive {

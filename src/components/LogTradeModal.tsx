@@ -22,6 +22,7 @@ import {
   CloudCheck,
   CloudOff,
   BookOpenCheck,
+  CopyPlus,
 } from "lucide-react";
 import TradeDateTimePicker from "./TradeDateTimePicker";
 import { GoalSettings, JournalRules, ResearchItem, Trade, TradeFill } from "../lib/types";
@@ -52,6 +53,8 @@ interface LogTradeModalProps {
   trades?: Trade[];
   rules?: JournalRules;
   goals?: GoalSettings;
+  onClonePreviousTrade?: () => void;
+  canClonePreviousTrade?: boolean;
 }
 
 function toLocalDateTimeInput(timestamp: number): string {
@@ -68,6 +71,8 @@ export default function LogTradeModal({
   trades = [],
   rules,
   goals,
+  onClonePreviousTrade,
+  canClonePreviousTrade = false,
 }: LogTradeModalProps) {
   const { showToast } = useToast();
   const { user } = useAuth();
@@ -154,6 +159,7 @@ export default function LogTradeModal({
   const [draftHydrated, setDraftHydrated] = useState(Boolean(initialData));
   const [draftStatus, setDraftStatus] = useState<"idle" | "restored" | "saving" | "saved" | "offline" | "error">("idle");
   const [draftSavedAt, setDraftSavedAt] = useState<number | null>(null);
+  const [discardArmed, setDiscardArmed] = useState(false);
   const [researchItems, setResearchItems] = useState<ResearchItem[]>([]);
   const [researchLoading, setResearchLoading] = useState(false);
   const [selectedPlaybookId, setSelectedPlaybookId] = useState(initialData?.playbookId || "");
@@ -167,6 +173,16 @@ export default function LogTradeModal({
     setDraftStatus("idle");
     setDraftSavedAt(null);
   }, [draftKey]);
+
+  const requestDiscard = useCallback(() => {
+    if (!discardArmed) {
+      setDiscardArmed(true);
+      return;
+    }
+    clearDraft();
+    setDiscardArmed(false);
+    onClose();
+  }, [clearDraft, discardArmed, onClose]);
 
   useEffect(() => {
     if (!isOpen || !user || initialData) return;
@@ -624,7 +640,7 @@ export default function LogTradeModal({
         className="bg-white border border-[#e9e9e7] rounded-2xl w-full max-w-xl shadow-xl relative text-[#37352f] flex flex-col max-h-[92vh] overflow-hidden"
       >
         {/* Sticky Header */}
-        <div className="flex items-center justify-between p-4 sm:p-6 pb-4 border-b border-[#f1f1ef] shrink-0 bg-white z-10 relative">
+        <div className="flex items-start justify-between gap-3 p-4 sm:p-6 pb-4 border-b border-[#f1f1ef] shrink-0 bg-white z-10 relative">
           <div className="flex items-center gap-2">
             <div>
               <h2 id="log-trade-title" className="text-base sm:text-lg font-semibold tracking-tight text-[#37352f]">
@@ -634,16 +650,31 @@ export default function LogTradeModal({
               {!initialData && <div role="status" aria-live="polite" className={`mt-1.5 flex items-center gap-1 text-[10px] ${draftStatus === "error" || draftStatus === "offline" ? "text-amber-700" : "text-[#787774]"}`}>
                 {draftStatus === "offline" ? <CloudOff size={11}/> : <CloudCheck size={11}/>}
                 <span>{draftStatus === "restored" ? "Recovered browser draft" : draftStatus === "saving" ? "Saving draft…" : draftStatus === "saved" ? `Draft saved in this browser${draftSavedAt ? ` · ${new Date(draftSavedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}` : draftStatus === "offline" ? "Offline · draft saved in this browser" : draftStatus === "error" ? "Draft could not be saved in this browser" : "Draft recovery ready"}</span>
-                {(draftStatus === "restored" || draftStatus === "saved" || draftStatus === "offline") && <button type="button" onClick={clearDraft} className="ml-1 font-semibold text-rose-600 hover:underline">Discard</button>}
+                {(draftStatus === "restored" || draftStatus === "saved" || draftStatus === "offline") && <button type="button" onClick={requestDiscard} className="ml-1 font-semibold text-rose-600 hover:text-rose-700 hover:underline">{discardArmed ? "Are you sure?" : "Discard"}</button>}
               </div>}
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="text-[#9b9a97] hover:text-[#37352f] transition-colors p-1.5 rounded-lg hover:bg-[#f1f1ef]"
-          >
-            <X size={18} />
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            {onClonePreviousTrade && (
+              <button
+                type="button"
+                onClick={onClonePreviousTrade}
+                disabled={!canClonePreviousTrade}
+                className="flex h-8 items-center gap-1.5 rounded-lg border border-[#e3e2de] bg-[#f7f6f3] px-2.5 text-[11px] font-semibold text-[#37352f] transition-colors hover:bg-[#eeece8] disabled:cursor-not-allowed disabled:opacity-45"
+                title={canClonePreviousTrade ? "Copy the most recent saved trade into this form" : "Log a trade before using this shortcut"}
+              >
+                <CopyPlus size={13} />
+                <span className="hidden sm:inline">Clone previous trade</span>
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              aria-label="Close trade entry"
+              className="text-[#9b9a97] hover:text-[#37352f] transition-colors p-1.5 rounded-lg hover:bg-[#f1f1ef]"
+            >
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
         {/* Scrollable Form Body */}

@@ -24,7 +24,12 @@ self.addEventListener("fetch", (event) => {
   const isStatic = url.pathname.startsWith("/_next/static/") || ["style", "script", "font", "image"].includes(request.destination);
   if (!isStatic) return;
   event.respondWith(caches.match(request).then((cached) => cached || fetch(request).then((response) => {
-    if (response.ok && response.type === "basic") caches.open(CACHE_NAME).then((cache) => cache.put(request, response.clone()));
+    // Clone synchronously, before the browser begins consuming the response.
+    // Delaying clone() until caches.open() resolved caused "body already used".
+    if (response.ok && response.type === "basic") {
+      const cacheCopy = response.clone();
+      void caches.open(CACHE_NAME).then((cache) => cache.put(request, cacheCopy));
+    }
     return response;
   })));
 });

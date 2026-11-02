@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { Mail, Key, Loader2, AlertCircle, ArrowRight } from "lucide-react";
+import { Mail, Key, Loader2, AlertCircle, ArrowRight, Eye, EyeOff } from "lucide-react";
 import SolanaLogo from "./SolanaLogo";
 
 function getAuthError(error: unknown) {
@@ -19,6 +19,7 @@ export default function AuthModal() {
   const [mode, setMode] = useState<"signin" | "signup">("signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [statusMsg, setStatusMsg] = useState("");
@@ -103,8 +104,8 @@ export default function AuthModal() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="w-full max-w-md bg-[#0d0d0d] border border-neutral-800 rounded-2xl shadow-2xl p-6 md:p-8 space-y-6 text-white">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[radial-gradient(circle_at_top,#153250_0%,#09111d_42%,#05070b_100%)] p-4 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="w-full max-w-md rounded-[28px] border border-sky-400/20 bg-[#0b111b]/95 p-6 text-white shadow-[0_30px_100px_rgba(0,0,0,.55)] md:p-8 space-y-6">
         {/* Header Branding */}
         <div className="text-center space-y-2">
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-black border border-neutral-700 mb-2 shadow-inner">
@@ -199,14 +200,17 @@ export default function AuthModal() {
             <div className="relative">
               <Key className="w-4 h-4 text-neutral-500 absolute left-3 top-2.5" />
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 autoComplete={mode === "signup" ? "new-password" : "current-password"}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"
-                className="w-full bg-neutral-900 border border-neutral-800 focus:border-[#2383e2] rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder:text-neutral-600 focus:outline-none transition-colors"
+                className="w-full bg-[#101824] border border-slate-700 focus:border-[#55a7f1] rounded-xl pl-9 pr-10 py-2.5 text-xs text-white placeholder:text-neutral-600 focus:outline-none transition-colors"
               />
+              <button type="button" onClick={() => setShowPassword((shown) => !shown)} aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 hover:bg-white/5 hover:text-white">
+                {showPassword ? <EyeOff size={16}/> : <Eye size={16}/>}
+              </button>
             </div>
           </div>
 

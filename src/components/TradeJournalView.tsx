@@ -392,12 +392,6 @@ export default function TradeJournalView({
               <span className="hidden sm:inline">Import</span>
             </button>
 
-            <button
-              onClick={onOpenNewTrade}
-              className="bg-[#1a73ca] hover:bg-[#155fa8] text-white px-3.5 py-1.5 rounded-md text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors"
-            >
-              <span>+ Log Trade</span>
-            </button>
           </div>
         </div>
       </div>

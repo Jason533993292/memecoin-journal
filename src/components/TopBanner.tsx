@@ -135,7 +135,7 @@ export default function TopBanner({
 
   return (
     <>
-      <aside className={`fixed inset-y-0 left-0 z-50 hidden flex-col border-r border-white/8 bg-[#0b0c0e] text-white transition-[width] duration-200 md:flex ${sidebarCollapsed ? "w-[4.5rem]" : "w-60"}`}>
+      <aside className={`app-sidebar fixed inset-y-0 left-0 z-50 hidden flex-col border-r transition-[width] duration-200 md:flex ${sidebarCollapsed ? "w-[4.5rem]" : "w-60"}`}>
         <div className={`flex h-16 items-center border-b border-white/8 ${sidebarCollapsed ? "justify-center px-2" : "gap-3 px-5"}`}>
           <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#2383e2] text-xs font-black tracking-tight text-white shadow-lg shadow-blue-950/30">MJ</div>
           <div className={`min-w-0 ${sidebarCollapsed ? "hidden" : "block"}`}>
@@ -324,11 +324,11 @@ export default function TopBanner({
 
       {securityHistoryOpen && user && <AccountSecurityHistoryModal user={user} onClose={() => setSecurityHistoryOpen(false)} />}
 
-      <header className={`fixed left-0 right-0 top-0 z-40 flex h-16 items-center justify-between border-b border-white/8 bg-[#0f1015]/95 px-4 backdrop-blur-xl transition-[left] duration-200 md:px-6 ${sidebarCollapsed ? "md:left-[4.5rem]" : "md:left-60"}`}>
+      <header className={`app-header fixed left-0 right-0 top-0 z-40 flex h-16 items-center justify-between border-b px-4 backdrop-blur-xl transition-[left] duration-200 md:px-6 ${sidebarCollapsed ? "md:left-[4.5rem]" : "md:left-60"}`}>
         <div className="flex min-w-0 items-center gap-3">
           <ActiveTabIcon size={17} className="shrink-0 text-[#2383e2]" />
           <div className="min-w-0">
-            <h1 className="truncate text-sm font-semibold text-neutral-100">{activeTab.title}</h1>
+            <h1 className="app-header-title truncate text-sm font-semibold">{activeTab.title}</h1>
             <p className="hidden text-[10px] text-neutral-500 sm:block">Private trading workspace</p>
           </div>
         </div>

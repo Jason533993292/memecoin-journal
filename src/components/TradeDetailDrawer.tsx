@@ -199,12 +199,12 @@ export default function TradeDetailDrawer({
             <div className="p-4 space-y-3.5">
               {/* Outcome Banner */}
               <div
-                className={`p-3 rounded-xl border flex items-center justify-between ${
+                className={`p-3 rounded-xl flex items-center justify-between ${
                   trade.result === "Win"
-                    ? "bg-emerald-50/80 border-emerald-200 text-emerald-900"
+                    ? "bg-emerald-50/80 text-emerald-900"
                     : trade.result === "Loss"
-                    ? "bg-rose-50/80 border-rose-200 text-rose-900"
-                    : "bg-neutral-100/80 border-neutral-200 text-neutral-800"
+                    ? "bg-rose-50/80 text-rose-900"
+                    : "bg-neutral-100/80 text-neutral-800"
                 }`}
               >
                 <div>
@@ -487,24 +487,30 @@ export default function TradeDetailDrawer({
           </div>
 
           {/* Footer Actions */}
-          <div className="p-3 px-5 border-t border-[#f1f1ef] bg-[#fcfbf9] flex items-center justify-between shrink-0">
+          <div className="shrink-0 border-t border-[#f1f1ef] bg-[#fcfbf9] p-4">
+            {readOnly && (
+              <p className="mb-2 text-center text-[10px] text-[#787774]">
+                Demo trades are read-only. Clone this setup to create your own editable trade.
+              </p>
+            )}
+            <div className={`grid grid-cols-2 gap-2 ${readOnly ? "sm:grid-cols-2" : "sm:grid-cols-4"}`}>
             {!readOnly && <button
               onClick={() => {
                 onClose();
                 onDelete(trade.id);
               }}
-              className="text-xs text-rose-600 hover:text-rose-700 font-medium px-2.5 py-1 rounded hover:bg-rose-50 transition-colors"
+              className="flex min-h-9 items-center justify-center rounded-lg border border-rose-200 bg-rose-50 px-3 text-xs font-semibold text-rose-700 transition-colors hover:bg-rose-100"
             >
               Delete Trade
             </button>}
-            <div className="flex items-center gap-2">
-              {onDuplicate && !readOnly && (
+            <div className="contents">
+              {onDuplicate && (
                 <button
                   onClick={() => {
                     onClose();
                     onDuplicate(trade);
                   }}
-                  className="bg-[#f7f6f3] hover:bg-[#eeece8] border border-[#e3e2de] text-[#37352f] px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-2xs"
+                  className="flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-[#e3e2de] bg-[#f7f6f3] px-3 text-xs font-semibold text-[#37352f] transition-colors hover:bg-[#eeece8]"
                   title="Clone setup and tags into a new trade"
                 >
                   <Copy size={13} />
@@ -517,7 +523,7 @@ export default function TradeDetailDrawer({
                     onClose();
                     onShare(trade);
                   }}
-                  className="bg-neutral-900 hover:bg-black text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs"
+                  className="flex min-h-9 items-center justify-center gap-1.5 rounded-lg bg-neutral-900 px-3 text-xs font-semibold text-white transition-colors hover:bg-black"
                 >
                   <Share2 size={13} />
                   <span>Share P&L Card</span>
@@ -528,10 +534,11 @@ export default function TradeDetailDrawer({
                   onClose();
                   onEdit(trade);
                 }}
-                className="bg-[#1a73ca] hover:bg-[#155fa8] text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-xs"
+                className="min-h-9 rounded-lg bg-[#1a73ca] px-3 text-xs font-semibold text-white transition-colors hover:bg-[#155fa8]"
               >
                 Edit Trade
               </button>}
+            </div>
             </div>
           </div>
         </div>

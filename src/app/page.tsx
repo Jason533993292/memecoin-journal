@@ -31,6 +31,7 @@ const GuideView = dynamic(() => import("../components/GuideView"), { loading: ()
 import { ToastProvider, useToast } from "../components/Toast";
 import { parseLocalStorageValue, readSessionStorageValue, useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
 import { AlertTriangle, Trash2 } from "lucide-react";
+import { getTradeTimestamp } from "../lib/utils";
 import {
   deleteSupabaseTrade,
   listSupabaseTrades,
@@ -592,6 +593,15 @@ function AuthenticatedApp({ user }: { user: User }) {
         trades={activeTrades}
         rules={rules}
         goals={goals}
+        onClonePreviousTrade={() => {
+          const previousTrade = [...trades].sort((a, b) => {
+            const aTime = a.tradedAt ?? getTradeTimestamp(a);
+            const bTime = b.tradedAt ?? getTradeTimestamp(b);
+            return bTime - aTime;
+          })[0];
+          if (previousTrade) setClonedTrade(previousTrade);
+        }}
+        canClonePreviousTrade={trades.length > 0}
       />}
 
       {/* Edit Trade Modal */}
