@@ -1155,6 +1155,11 @@ html[data-theme-preview] .public-auth-modal .google-auth-button {
   color: #171717 !important;
 }
 
+html[data-theme-preview] .public-auth-modal,
+html[data-theme-preview] .public-auth-modal * {
+  transition-property: none !important;
+}
+
 html[data-theme-preview] .public-auth-modal .google-auth-button:hover {
   background-color: #f5f5f5 !important;
 }
