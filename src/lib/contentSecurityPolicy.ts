@@ -20,16 +20,18 @@ export function buildContentSecurityPolicy(
   nonce: string,
   options: { development?: boolean; supabaseUrl?: string } = {}
 ) {
+  const development = options.development ?? process.env.NODE_ENV === "development";
   const scripts = [
     "'self'",
     `'nonce-${nonce}'`,
     "'strict-dynamic'",
-    ...(options.development ?? process.env.NODE_ENV === "development" ? ["'unsafe-eval'"] : []),
+    ...(development ? ["'unsafe-eval'"] : []),
     "https://www.google.com",
     "https://apis.google.com",
     "https://www.recaptcha.net",
     "https://www.gstatic.com",
   ].join(" ");
 
-  return `default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'; script-src ${scripts}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; frame-src 'self' https://www.google.com https://apis.google.com https://www.recaptcha.net https://memecoin-journal.firebaseapp.com; connect-src 'self' ${supabaseConnectOrigins(options.supabaseUrl)} https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com https://firebaseinstallations.googleapis.com https://api.dexscreener.com https://www.google.com https://apis.google.com https://www.recaptcha.net https://recaptchaenterprise.googleapis.com https://content-firebaseappcheck.googleapis.com`;
+  const developmentConnections = development ? " ws://localhost:* ws://127.0.0.1:*" : "";
+  return `default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'; script-src ${scripts}; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; frame-src 'self' https://www.google.com https://apis.google.com https://www.recaptcha.net https://memecoin-journal.firebaseapp.com; connect-src 'self'${developmentConnections} ${supabaseConnectOrigins(options.supabaseUrl)} https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com https://firebaseinstallations.googleapis.com https://api.dexscreener.com https://www.google.com https://apis.google.com https://www.recaptcha.net https://recaptchaenterprise.googleapis.com https://content-firebaseappcheck.googleapis.com`;
 }

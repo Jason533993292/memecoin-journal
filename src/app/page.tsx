@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { db, type User } from "../lib/firebase";
-import { collection, onSnapshot, query, orderBy, doc, deleteDoc, setDoc } from "firebase/firestore";
+import { collection, onSnapshot, query, orderBy, doc, deleteDoc, setDoc, Timestamp } from "firebase/firestore";
 import { Trade, JournalRules, AiCoachBrief, GoalSettings } from "../lib/types";
 import TopBanner from "../components/TopBanner";
 import LoadingState from "../components/LoadingState";
@@ -46,6 +46,10 @@ import AuthModal from "../components/AuthModal";
 import LegalModal from "../components/LegalModal";
 import { buildDemoTrades } from "../lib/demoTrades";
 import { isTradeSyncMessage, publishTradeSync, TRADE_SYNC_CHANNEL } from "../lib/tradeSync";
+import AccessChoiceModal from "../components/AccessChoiceModal";
+import GuestImportModal from "../components/GuestImportModal";
+import { clearGuestTrades, readGuestTrades, writeGuestTrades } from "../lib/guestSession";
+import { stripUndefinedFields } from "../lib/firestoreSanitize";
 
 const DEFAULT_RULES: JournalRules = {
   riskManagement: [
@@ -81,16 +85,22 @@ function SectionLoading() {
 }
 
 function MainApp() {
-  const { user, loading: authLoading, backendSetupError, retryBackendSetup, logout } = useAuth();
+  const { user, backendSetupError, retryBackendSetup, logout } = useAuth();
+  const [pendingGuestTrades, setPendingGuestTrades] = useState<Trade[]>(() => typeof window === "undefined" ? [] : readGuestTrades(window.sessionStorage));
+  const [importVersion, setImportVersion] = useState(0);
 
-  if (authLoading) {
-    return (
-      <main className="public-loading-state flex min-h-screen items-center justify-center bg-white text-sm text-[#6b6a67]">
-        Loading your private journal…
-      </main>
-    );
-  }
-  if (!user) return <AuthModal />;
+  useEffect(() => {
+    if (!user) return;
+    const refresh = window.setTimeout(() => setPendingGuestTrades(readGuestTrades(window.sessionStorage)), 0);
+    return () => window.clearTimeout(refresh);
+  }, [user]);
+
+  // The public workspace must never be held behind Firebase restoring a
+  // session. This also keeps the app usable when the auth service is slow or
+  // temporarily unreachable; an existing account replaces this view as soon
+  // as Firebase confirms it. Keeping this as one stable branch also preserves
+  // visitor choices while Firebase finishes its first auth check.
+  if (!user) return <PublicWorkspace />;
   if (backendSetupError) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-white px-6 text-[#37352f]">
@@ -105,7 +115,122 @@ function MainApp() {
       </main>
     );
   }
-  return <AuthenticatedApp key={user.uid} user={user} />;
+  const importGuestTrades = async () => {
+    for (const [index, guestTrade] of pendingGuestTrades.entries()) {
+      const { id, ...trade } = guestTrade;
+      const timestamp = getTradeTimestamp(guestTrade);
+      if (!Number.isFinite(timestamp) || timestamp <= 0) throw new Error(`Temporary trade ${index + 1} has an invalid date.`);
+      try {
+        if (usesSupabaseJournal()) await saveSupabaseTrade(user.uid, { ...trade, date: new Date(timestamp) }, id);
+        else {
+          const cleanTrade = stripUndefinedFields(trade);
+          await setDoc(doc(db, "users", user.uid, "trades", id), { ...cleanTrade, date: Timestamp.fromMillis(timestamp) });
+        }
+      } catch (reason) {
+        const detail = reason instanceof Error ? reason.message : "Unknown storage error";
+        throw new Error(`Trade ${index + 1} of ${pendingGuestTrades.length} failed: ${detail}`);
+      }
+    }
+    clearGuestTrades(window.sessionStorage);
+    setPendingGuestTrades([]);
+    setImportVersion((version) => version + 1);
+  };
+
+  const discardGuestTrades = () => {
+    clearGuestTrades(window.sessionStorage);
+    setPendingGuestTrades([]);
+  };
+
+  return <>
+    <AuthenticatedApp key={`${user.uid}:${importVersion}`} user={user} />
+    {pendingGuestTrades.length > 0 && <GuestImportModal count={pendingGuestTrades.length} onImport={importGuestTrades} onDiscard={discardGuestTrades} />}
+  </>;
+}
+
+function PublicWorkspace() {
+  const { showToast } = useToast();
+  const [currentTab, setCurrentTab] = useState("dashboard");
+  const [accessChoiceOpen, setAccessChoiceOpen] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [guestMode, setGuestMode] = useState(() => typeof window !== "undefined" && readGuestTrades(window.sessionStorage).length > 0);
+  const [demoVisible, setDemoVisible] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return window.sessionStorage.getItem("memecoin_journal_public_demo_visible") !== "false";
+  });
+  const [tradeModalOpen, setTradeModalOpen] = useState(false);
+  const [guestTrades, setGuestTrades] = useState<Trade[]>(() => typeof window === "undefined" ? [] : readGuestTrades(window.sessionStorage));
+  const [solPrice, setSolPrice] = useState(0);
+  const demoTrades = useMemo(() => buildDemoTrades(), []);
+  const activeTrades = guestMode ? guestTrades : demoVisible ? demoTrades : [];
+
+  useEffect(() => {
+    if (!guestMode) return;
+    const warnBeforeClose = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", warnBeforeClose);
+    return () => window.removeEventListener("beforeunload", warnBeforeClose);
+  }, [guestMode, guestTrades.length]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void fetchWithTimeout("/api/sol-price", { signal: controller.signal })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => { if (typeof data?.price === "number") setSolPrice(data.price); })
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, []);
+
+  const requestPersonalAction = () => {
+    if (guestMode) setTradeModalOpen(true);
+    else setAccessChoiceOpen(true);
+  };
+  const setPublicDemoVisible = (visible: boolean) => {
+    window.sessionStorage.setItem("memecoin_journal_public_demo_visible", String(visible));
+    setDemoVisible(visible);
+  };
+  const chooseGuest = () => {
+    setGuestMode(true);
+    setPublicDemoVisible(false);
+    setAccessChoiceOpen(false);
+    setTradeModalOpen(true);
+  };
+  const addGuestTrade = (trade: Trade) => {
+    const next = [trade, ...guestTrades];
+    if (!writeGuestTrades(next, window.sessionStorage)) {
+      showToast("Guest trade could not be stored", "error", "This tab may be out of temporary browser storage.");
+      return false;
+    }
+    setGuestTrades(next);
+    return true;
+  };
+  const deleteGuestData = () => {
+    clearGuestTrades(window.sessionStorage);
+    setGuestTrades([]);
+    setGuestMode(false);
+    showToast("Guest data deleted", "success", "No temporary trades remain in this tab.");
+  };
+  const navigate = (tab: string) => {
+    if (["dashboard", "journal", "statistics", "guide"].includes(tab)) setCurrentTab(tab);
+    else setAccessChoiceOpen(true);
+  };
+
+  return (
+    <div className="journal-app-shell min-h-screen bg-white text-[#37352f] font-sans">
+      <TopBanner currentTab={currentTab} setCurrentTab={navigate} onOpenNewTrade={requestPersonalAction} onOpenCommandPalette={() => setAccessChoiceOpen(true)} onOpenDailyRecap={() => setAccessChoiceOpen(true)} onOpenFeedback={() => setAccessChoiceOpen(true)} onOpenGuide={() => setCurrentTab("guide")} onOpenSignIn={() => setAuthOpen(true)} />
+      <main className="mx-auto min-h-screen w-full max-w-[1680px] px-5 pb-16 pt-20 md:pl-[calc(15rem+2rem)] lg:pl-[calc(15rem+2.5rem)] xl:pl-[calc(15rem+3rem)] md:pr-8 lg:pr-10 xl:pr-12">
+        <div className={`public-session-banner mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 text-xs ${guestMode ? "guest-session-banner border-amber-300 bg-amber-50 text-amber-950" : "border-blue-200 bg-blue-50 text-blue-950"}`}>
+          <div><strong>{guestMode ? "Temporary guest session" : "Explore before signing in"}</strong><span className="ml-2">{guestMode ? "Entries stay only in this tab and disappear when it closes." : "Demo information is fictional and is never saved."}</span></div>
+          <div className="flex gap-2">{guestMode && <button type="button" onClick={deleteGuestData} className="rounded-lg px-3 py-1.5 font-semibold text-rose-700 hover:bg-rose-100">Delete guest data</button>}<button type="button" onClick={() => setAuthOpen(true)} className="rounded-lg bg-[#1a73ca] px-3 py-1.5 font-semibold text-white hover:bg-[#155fa8]">{guestMode ? "Create account and keep my work" : "Sign in"}</button></div>
+        </div>
+        {currentTab === "dashboard" && <DashboardView trades={activeTrades} rules={DEFAULT_RULES} goals={DEFAULT_GOALS} onNavigateTab={navigate} onOpenNewTrade={requestPersonalAction} onOpenRuleEditor={() => setAccessChoiceOpen(true)} onOpenGoalEditor={() => setAccessChoiceOpen(true)} onOpenDailyRecap={() => setAccessChoiceOpen(true)} aiBrief={null} onRefreshAiBrief={() => setAccessChoiceOpen(true)} loadingAi={false} loading={false} solPrice={solPrice} preferencesStorageKey="memecoin_journal_public_dashboard_cards" onSelectTrade={() => undefined} demoMode={!guestMode && demoVisible} onDemoModeChange={setPublicDemoVisible} />}
+        {currentTab === "journal" && <TradeJournalView userId="guest-session" trades={activeTrades} solPrice={solPrice} onOpenNewTrade={requestPersonalAction} onTradeDeleted={() => undefined} onOpenEditTrade={() => setAccessChoiceOpen(true)} onSelectTrade={() => undefined} readOnly />}
+        {currentTab === "statistics" && <StatisticsView trades={activeTrades} solPrice={solPrice} onSelectTrade={() => undefined} />}
+        {currentTab === "guide" && <GuideView onStartTour={() => setAccessChoiceOpen(true)} />}
+      </main>
+      {accessChoiceOpen && <AccessChoiceModal onClose={() => setAccessChoiceOpen(false)} onGuest={chooseGuest} onAccount={() => { setAccessChoiceOpen(false); setAuthOpen(true); }} />}
+      {authOpen && <AuthModal onClose={() => setAuthOpen(false)} />}
+      {tradeModalOpen && <LogTradeModal isOpen onClose={() => setTradeModalOpen(false)} onTradeLogged={() => undefined} onGuestTradeLogged={addGuestTrade} guestMode initialData={null} solPrice={solPrice} trades={guestTrades} rules={DEFAULT_RULES} goals={DEFAULT_GOALS} />}
+    </div>
+  );
 }
 
 function AuthenticatedApp({ user }: { user: User }) {

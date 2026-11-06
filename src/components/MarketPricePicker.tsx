@@ -74,12 +74,14 @@ export default function MarketPricePicker() {
   const title = price.updatedAt
     ? `${price.status === "stale" ? "Stale cached" : price.status} ${asset} price in USD, updated ${new Date(price.updatedAt).toLocaleTimeString()}`
     : `${asset} price is temporarily unavailable`;
+  const visiblePrice = price.price > 0 ? `$${price.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—";
+  const visibleChange = price.change24h !== 0 ? ` ${price.change24h >= 0 ? "+" : ""}${price.change24h.toFixed(1)}%` : "";
 
   return <div ref={rootRef} className="relative">
-    <button type="button" onClick={() => setOpen((value) => !value)} aria-label={`Current ${MARKET_ASSETS[asset].name} price. Choose a different asset`} aria-haspopup="menu" aria-expanded={open} title={title} className="flex items-center gap-1.5 rounded-md border border-[#e3e2de] bg-white px-2 py-1 font-mono text-[11px] shadow-xs transition hover:bg-[#f7f6f3] sm:px-2.5">
+    <button type="button" onClick={() => setOpen((value) => !value)} aria-label={`${asset} ${visiblePrice}${visibleChange}. Choose a different asset`} aria-haspopup="menu" aria-expanded={open} title={title} className="flex items-center gap-1.5 rounded-md border border-[#e3e2de] bg-white px-2 py-1 font-mono text-[11px] shadow-xs transition hover:bg-[#f7f6f3] sm:px-2.5">
       <span className={`h-2 w-2 rounded-full ${price.status === "live" ? "animate-pulse bg-emerald-500" : price.status === "cached" ? "bg-amber-400" : price.status === "stale" ? "bg-rose-500" : "bg-neutral-300"}`} />
       <span className="font-sans text-[9px] font-bold text-[#787774]">{asset}</span>
-      <span className="font-semibold text-[#37352f]">{price.price > 0 ? `$${price.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—"}</span>
+      <span className="font-semibold text-[#37352f]">{visiblePrice}</span>
       {price.status === "stale" && <span className="font-sans text-[9px] text-rose-600">stale</span>}
       {price.change24h !== 0 && <span className={`hidden text-[10px] font-medium sm:inline ${price.change24h >= 0 ? "text-emerald-600" : "text-rose-600"}`}>{price.change24h >= 0 ? "+" : ""}{price.change24h.toFixed(1)}%</span>}
       <ChevronDown size={12} className={`text-[#787774] transition ${open ? "rotate-180" : ""}`} />

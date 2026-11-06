@@ -19,6 +19,7 @@ import TiltStreakHeatmap from "./TiltStreakHeatmap";
 import EquityCurveCard from "./EquityCurveCard";
 import GoalTracker from "./GoalTracker";
 import { parseLocalStorageValue, useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
+import DashboardReviewHub from "./DashboardReviewHub";
 
 interface DashboardViewProps {
   trades: Trade[];
@@ -177,9 +178,9 @@ export default function DashboardView({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:mt-1 sm:justify-end">
-          <Button type="button" size="sm" variant="ghost" onPress={() => onDemoModeChange(!demoMode)} className={`h-8 min-w-0 rounded-lg border px-3 text-xs ${demoMode ? "border-blue-300 bg-blue-50 text-blue-800" : "border-[#e3e2de] bg-white text-[#5a5957]"}`}>
+          <button type="button" onClick={() => onDemoModeChange(!demoMode)} className={`h-8 min-w-0 rounded-lg border px-3 text-xs font-medium transition-colors ${demoMode ? "border-blue-300 bg-blue-50 text-blue-800 hover:bg-blue-100" : "border-[#e3e2de] bg-white text-[#5a5957] hover:bg-[#f7f6f3]"}`}>
             {demoMode ? "Hide demo data" : "Preview demo data"}
-          </Button>
+          </button>
           <div ref={customizeRef} className="relative">
             <Button type="button" size="sm" variant="ghost" onPress={() => setCustomizeOpen((open) => !open)} className="h-8 min-w-0 rounded-lg border border-[#e3e2de] bg-white px-3 text-xs text-[#5a5957]">
               <SlidersHorizontal size={13} /> Customize
@@ -364,6 +365,13 @@ export default function DashboardView({
           )}
         </aside>
       </div>
+
+      <DashboardReviewHub
+        trades={trades}
+        storageKey={`${preferencesStorageKey}_trading_session`}
+        onSelectTrade={onSelectTrade}
+        onOpenJournal={() => onNavigateTab("journal")}
+      />
 
       {/* Feature 7: Visual Goal Tracker */}
       <GoalTracker

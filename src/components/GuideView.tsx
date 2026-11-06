@@ -3,7 +3,8 @@
 import { ArrowRight, BookOpenCheck, CheckCircle2, Clock3, Rocket, ShieldCheck } from "lucide-react";
 import FeedbackAdminPanel from "@/components/FeedbackAdminPanel";
 
-type RoadmapItem = { text: string; status: "Available" | "In progress" | "Planned" };
+type RoadmapStatus = "Available" | "Needs setup";
+type RoadmapItem = { text: string; status: RoadmapStatus };
 
 const ROADMAP: Array<{ title: string; description: string; items: RoadmapItem[] }> = [
   {
@@ -18,7 +19,7 @@ const ROADMAP: Array<{ title: string; description: string; items: RoadmapItem[] 
       { text: "Encrypted storage option for persistent AI provider keys", status: "Available" },
       { text: "Security history for sensitive account actions", status: "Available" },
       { text: "Regular credential-rotation checks", status: "Available" },
-      { text: "Verified backup restoration exercises", status: "Planned" },
+      { text: "Verified backup restoration exercises", status: "Needs setup" },
       { text: "Audited administration for feedback reports", status: "Available" },
     ],
   },
@@ -34,7 +35,7 @@ const ROADMAP: Array<{ title: string; description: string; items: RoadmapItem[] 
       { text: "Health checks for important external services", status: "Available" },
       { text: "Queued feedback email delivery with retries", status: "Available" },
       { text: "Automatic monitoring for market-price outages", status: "Available" },
-      { text: "Verified database backup checks", status: "In progress" },
+      { text: "Verified database backup checks", status: "Available" },
       { text: "Alerts for authentication and database outages", status: "Available" },
     ],
   },
@@ -63,7 +64,7 @@ const ROADMAP: Array<{ title: string; description: string; items: RoadmapItem[] 
       { text: "Consistent card borders and visual depth", status: "Available" },
       { text: "Compact and comfortable calendar density", status: "Available" },
       { text: "Consistent typography across analytics cards", status: "Available" },
-      { text: "Mobile-friendly full-width forms and panels", status: "In progress" },
+      { text: "Desktop-first full-width forms and panels", status: "Available" },
       { text: "Consistent chart legends, tooltips, and empty states", status: "Available" },
       { text: "Unified PAPER, LIVE, WIN, and LOSS badges", status: "Available" },
       { text: "Visible keyboard focus on every control", status: "Available" },
@@ -90,42 +91,58 @@ const ROADMAP: Array<{ title: string; description: string; items: RoadmapItem[] 
 
 const STATUS_STYLES = {
   Available: "bg-emerald-50 text-emerald-700",
-  "In progress": "bg-blue-50 text-blue-700",
-  Planned: "bg-[#f1f1ef] text-[#5a5957]",
+  "Needs setup": "bg-amber-50 text-amber-800",
 };
 
 const RECOMMENDED_NEXT: Array<{ title: string; detail: string; status: "Ready" | "In progress" | "Needs setup" }> = [
   { title: "Protected staging checks", detail: "Two-account privacy isolation and the complete trade lifecycle now run automatically on every main-branch update.", status: "Ready" },
-  { title: "Activate service alerts", detail: "Add health tokens so database, backup, and feedback-email failures open an incident.", status: "Needs setup" },
+  { title: "Service alerts", detail: "Authenticated readiness checks run on schedule and the incident job opens an alert when a service or backup check fails.", status: "Ready" },
   { title: "Complete a database restore drill", detail: "Restore a recent backup into an isolated project and verify it without touching production.", status: "Needs setup" },
-  { title: "Enable Firebase App Check", detail: "Observe valid traffic first, then enforce requests from the real web app.", status: "Needs setup" },
+  { title: "Enable Firebase App Check", detail: "The app integration is ready. Add a reCAPTCHA Enterprise site key, observe valid traffic, then enable enforcement.", status: "Needs setup" },
   { title: "Feedback administration", detail: "A private allowlisted inbox can assign, resolve, and audit feedback reports.", status: "Ready" },
   { title: "Shared financial formatting", detail: "SOL, USD, percentages, sizes, and realized P&L use the shared formatting helpers.", status: "Ready" },
-  { title: "Generated database types", detail: "Hosted definitions are committed; the GitHub Supabase token still needs sufficient project privileges before CI can reject stale generated types.", status: "Needs setup" },
+  { title: "Generated database types", detail: "Hosted definitions are committed and the database-contract workflow rejects stale generated types.", status: "Ready" },
   { title: "Safer AI response rendering", detail: "AI output now uses bounded React sections without HTML injection.", status: "Ready" },
-  { title: "Reconciled migration history", detail: "Local filenames match hosted versions; the GitHub Supabase token still needs project privileges before CI can verify every update.", status: "Needs setup" },
+  { title: "Reconciled migration history", detail: "Local migrations match the hosted schema and the database-contract workflow verifies every update.", status: "Ready" },
   { title: "Calendar filters", detail: "Filter monthly results by wallet, currency, strategy, and paper or live trading.", status: "Ready" },
 ];
 
+const ROADMAP_COUNTS = ROADMAP.flatMap((section) => section.items).reduce<Record<RoadmapStatus, number>>(
+  (counts, item) => ({ ...counts, [item.status]: counts[item.status] + 1 }),
+  { Available: 0, "Needs setup": 0 },
+);
+
 export default function GuideView({ onStartTour }: { onStartTour: () => void }) {
+  const showInternalRoadmap = process.env.NEXT_PUBLIC_SHOW_INTERNAL_ROADMAP === "true";
   return (
     <div className="journal-page space-y-8 pb-12 pt-6">
       <section className="overflow-hidden rounded-3xl border border-[#e3e2de] bg-[#0f1115] p-6 text-white shadow-sm sm:p-8">
         <div className="max-w-3xl">
           <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-500/15 text-[#55a7f1]"><BookOpenCheck size={24} /></div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#55a7f1]">Guide & improvements</p>
-          <h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">Learn the journal, then help shape what comes next.</h2>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-neutral-300">Take the guided tour whenever you need a refresher. The roadmap below shows available improvements separately from work that is still planned.</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#55a7f1]">Help & tutorial</p>
+          <h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">Learn the complete trading-review workflow.</h2>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-neutral-300">Follow the guided tour to plan, log, reflect on and review a trade. Development planning is kept out of the normal journal experience.</p>
           <button type="button" onClick={onStartTour} className="group mt-6 flex items-center gap-3 rounded-xl bg-[#1a73ca] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#2383e2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#55a7f1]">
             Start guided tour <ArrowRight size={17} className="tour-arrow" />
           </button>
         </div>
       </section>
 
-      <section aria-labelledby="recommended-next-title" className="recommended-next-section rounded-2xl border border-blue-200 bg-blue-50/60 p-5 sm:p-6">
+      <section aria-labelledby="help-workflow-title" className="grid gap-4 md:grid-cols-3">
+        <article className="rounded-2xl border border-[#e3e2de] bg-white p-5"><h2 id="help-workflow-title" className="text-sm font-bold text-[#37352f]">1. Plan and record</h2><p className="mt-2 text-xs leading-5 text-[#787774]">Create a thesis, set a session limit, then log only the required trade values. Advanced execution fields stay optional.</p></article>
+        <article className="rounded-2xl border border-[#e3e2de] bg-white p-5"><h2 className="text-sm font-bold text-[#37352f]">2. Reflect</h2><p className="mt-2 text-xs leading-5 text-[#787774]">Add a process grade, rationale, chart and discipline tags. The review queue shows what is still missing.</p></article>
+        <article className="rounded-2xl border border-[#e3e2de] bg-white p-5"><h2 className="text-sm font-bold text-[#37352f]">3. Improve</h2><p className="mt-2 text-xs leading-5 text-[#787774]">Use weekly reports, calendars, related trade groups and journal prompts to choose one concrete adjustment.</p></article>
+      </section>
+
+      <section aria-labelledby="privacy-summary-title" className="rounded-2xl border border-[#e3e2de] bg-[#fbfbfa] p-5">
+        <h2 id="privacy-summary-title" className="text-sm font-bold text-[#37352f]">Where your information lives</h2>
+        <div className="mt-3 grid gap-3 text-xs leading-5 text-[#5a5957] md:grid-cols-3"><p><strong className="block text-[#37352f]">Guest session</strong>Temporary trades stay in the current tab and are removed when that tab closes.</p><p><strong className="block text-[#37352f]">Private account</strong>Saved journal information is isolated by account and can be exported or erased from Account & privacy.</p><p><strong className="block text-[#37352f]">AI Coach</strong>Your selected provider receives only the bounded review information described in the privacy notice when you explicitly request analysis.</p></div>
+      </section>
+
+      {showInternalRoadmap && <><section aria-labelledby="recommended-next-title" className="recommended-next-section rounded-2xl border border-blue-200 bg-blue-50/60 p-5 sm:p-6">
         <div className="flex items-start gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#2383e2] text-white"><Rocket size={19}/></span>
-          <div><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#176bbd]">Recommended next</p><h2 id="recommended-next-title" className="mt-1 text-lg font-bold text-[#173f73]">The next ten improvements to prioritize</h2><p className="mt-1 text-xs leading-5 text-[#4f6f93]">Ordered by user-data safety, reliability, and the amount of day-to-day friction they remove.</p></div>
+          <div><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#176bbd]">Release readiness</p><h2 id="recommended-next-title" className="mt-1 text-lg font-bold text-[#173f73]">Ten release priorities and their current status</h2><p className="mt-1 text-xs leading-5 text-[#4f6f93]">Completed work is marked ready. The remaining items require an external provider setup or an isolated restore target.</p></div>
         </div>
         <ol className="mt-5 grid gap-3 lg:grid-cols-2">
           {RECOMMENDED_NEXT.map((item, index) => (
@@ -138,20 +155,19 @@ export default function GuideView({ onStartTour }: { onStartTour: () => void }) 
             </li>
           ))}
         </ol>
-      </section>
+      </section></>}
 
-      <FeedbackAdminPanel />
+      {showInternalRoadmap && <><FeedbackAdminPanel />
 
       <section aria-labelledby="roadmap-title">
         <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 id="roadmap-title" className="text-xl font-bold text-[#37352f]">Product improvement roadmap</h2>
-            <p className="mt-1 text-xs text-[#787774]">Fifty improvements across five areas. Statuses describe the current local build.</p>
+            <p className="mt-1 text-xs text-[#787774]">Fifty improvements across five areas: {ROADMAP_COUNTS.Available} available and {ROADMAP_COUNTS["Needs setup"]} requiring external setup.</p>
           </div>
           <div className="flex flex-wrap gap-2 text-[10px] font-semibold">
             <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">Available</span>
-            <span className="rounded-full bg-blue-50 px-2.5 py-1 text-blue-700">In progress</span>
-            <span className="rounded-full bg-[#f1f1ef] px-2.5 py-1 text-[#5a5957]">Planned</span>
+            <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-800">Needs setup</span>
           </div>
         </div>
 
@@ -174,7 +190,7 @@ export default function GuideView({ onStartTour }: { onStartTour: () => void }) 
             </article>
           ))}
         </div>
-      </section>
+      </section></>}
     </div>
   );
 }

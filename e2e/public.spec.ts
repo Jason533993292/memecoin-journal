@@ -23,6 +23,30 @@ test("public health endpoint is minimal, uncached, and traceable", async ({ requ
   expect(response.headers()["x-request-id"]).toBe("playwright-health-check");
 });
 
+test("visitors can explore first and choose guest mode only when recording", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByText("Explore before signing in")).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Hide demo data" }).click();
+  await expect(page.getByRole("button", { name: "Preview demo data" })).toBeVisible();
+  await page.getByRole("button", { name: "Preview demo data" }).click();
+  await expect(page.getByRole("button", { name: "Hide demo data" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Memecoin Trade Journal" })).toBeVisible();
+  await page.getByRole("button", { name: "Close" }).click();
+
+  await page.getByRole("button", { name: /new trade/i }).first().click();
+  await expect(page.getByRole("heading", { name: "How would you like to continue?" })).toBeVisible();
+  await expect(page.getByText("Data stays only in this tab and is removed when the tab closes.")).toBeVisible();
+
+  await page.getByRole("button", { name: /try guest mode/i }).click();
+  await expect(page.getByRole("heading", { name: /log new trade/i })).toBeVisible();
+  await page.getByRole("button", { name: "Close" }).click();
+  await expect(page.getByText("Temporary guest session")).toBeVisible();
+});
+
 test("mobile public pages do not overflow horizontally", async ({ page }, testInfo) => {
   test.skip(!testInfo.project.name.includes("mobile"), "Mobile viewport check");
   for (const path of publicPages) {

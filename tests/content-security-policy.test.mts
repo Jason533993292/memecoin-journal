@@ -23,3 +23,12 @@ test("browser policy accepts only a configured HTTPS Supabase origin", () => {
   });
   assert.doesNotMatch(rejected, /attacker\.example/);
 });
+
+test("development policy permits only local Next hot-reload sockets", () => {
+  const development = buildContentSecurityPolicy("test-nonce", { development: true });
+  assert.match(development, /connect-src[^;]*ws:\/\/localhost:\*/);
+  assert.match(development, /connect-src[^;]*ws:\/\/127\.0\.0\.1:\*/);
+
+  const production = buildContentSecurityPolicy("test-nonce", { development: false });
+  assert.doesNotMatch(production, /ws:\/\//);
+});

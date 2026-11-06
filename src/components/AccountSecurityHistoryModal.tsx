@@ -33,12 +33,12 @@ export default function AccountSecurityHistoryModal({ user, onClose }: { user: U
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <section role="dialog" aria-modal="true" aria-labelledby="security-history-title" className="w-full max-w-lg rounded-2xl border border-[#e3e2de] bg-white p-5 text-[#37352f] shadow-2xl sm:p-6">
         <div className="flex items-start justify-between gap-4">
-          <div className="flex gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700"><ShieldCheck size={20}/></span><div><h2 id="security-history-title" className="text-lg font-bold">Account security history</h2><p className="mt-1 text-xs leading-5 text-[#787774]">Recent sensitive account actions. Tokens, IP addresses, and passwords are never shown or stored here.</p></div></div>
+          <div className="flex gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700"><ShieldCheck size={20}/></span><div><h2 id="security-history-title" className="text-lg font-bold">Account security history</h2><p className="mt-1 text-xs leading-5 text-[#787774]">A privacy-safe record of password-reset requests, verification emails, sign-outs, and data deletion. It helps you recognize account actions you did not initiate. Tokens, IP addresses, and passwords are never shown or stored here.</p></div></div>
           <button type="button" onClick={onClose} aria-label="Close security history" className="rounded-lg p-1.5 text-[#787774] hover:bg-[#f1f1ef]"><X size={18}/></button>
         </div>
         <div className="mt-5 space-y-2">
           {!events && !error && <p className="rounded-xl bg-[#f7f6f3] p-4 text-sm text-[#787774]">Loading security history…</p>}
-          {error && <p role="alert" className="rounded-xl bg-rose-50 p-4 text-sm text-rose-700">{error}</p>}
+          {error && <div role="alert" className="rounded-xl bg-rose-50 p-4 text-sm text-rose-700"><p className="font-semibold">Security history is temporarily unavailable.</p><p className="mt-1 text-xs leading-5">This does not mean your account is compromised. The audit service could not be reached. Close this panel and try again later.</p></div>}
           {events?.length === 0 && <p className="rounded-xl bg-[#f7f6f3] p-4 text-sm text-[#787774]">No recorded account actions yet.</p>}
           {events?.map((event, index) => (
             <article key={`${event.createdAt}-${event.eventType}-${index}`} className="flex items-center gap-3 rounded-xl border border-[#e9e9e7] p-3">

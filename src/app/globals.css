@@ -824,6 +824,7 @@ html[data-theme-preview] .journal-page {
 }
 
 html[data-theme-preview] .bg-white,
+html[data-theme-preview] [class*="bg-white/"],
 html[data-theme-preview] [class*="bg-[#ffffff]"],
 html[data-theme-preview] [class*="bg-[#fbfbfa]"] {
   background-color: var(--preview-surface) !important;
@@ -1025,6 +1026,7 @@ html[data-theme-preview] [class*="text-[#5a5957]"] {
 }
 
 html[data-theme-preview] [class*="text-[#787774]"],
+html[data-theme-preview] [class*="text-[#686762]"],
 html[data-theme-preview] [class*="text-[#9b9a97]"],
 html[data-theme-preview] [class*="text-[#908e89]"],
 html[data-theme-preview] [class*="text-[#4a4946]"] {
@@ -1145,6 +1147,26 @@ html[data-theme-preview] ::-webkit-scrollbar-thumb {
 
 html[data-theme-preview] [class*="bg-[#2383e2]"] {
   background-color: var(--preview-accent) !important;
+}
+
+html[data-theme-preview] .mobile-bottom-dock [aria-current="page"],
+html[data-theme-preview] .mobile-bottom-dock [aria-current="page"] svg {
+  color: color-mix(in srgb, var(--preview-accent) 70%, white) !important;
+}
+
+html[data-theme-preview] .public-session-banner {
+  background: var(--preview-raised) !important;
+  border-color: var(--preview-border) !important;
+  color: var(--preview-text) !important;
+}
+
+html[data-theme-preview] .guest-session-banner {
+  border-color: color-mix(in srgb, var(--preview-accent) 70%, white) !important;
+}
+
+html[data-theme-preview] .guest-session-banner strong,
+html[data-theme-preview] .guest-session-banner span {
+  color: var(--preview-text) !important;
 }
 
 /* Public authentication and legal pages inherit the selected theme, but they

@@ -42,6 +42,7 @@ interface TopBannerProps {
   onDeleteTradingData?: () => void;
   onOpenFeedback?: () => void;
   onOpenGuide?: () => void;
+  onOpenSignIn?: () => void;
   sidebarCollapsed?: boolean;
   onSidebarCollapsedChange?: (collapsed: boolean) => void;
 }
@@ -56,6 +57,7 @@ export default function TopBanner({
   onDeleteTradingData,
   onOpenFeedback,
   onOpenGuide,
+  onOpenSignIn,
   sidebarCollapsed = false,
   onSidebarCollapsedChange,
 }: TopBannerProps) {
@@ -129,7 +131,7 @@ export default function TopBanner({
   ];
 
   const activeTab = currentTab === "guide"
-    ? { id: "guide", label: "Guide", title: "Guide & Improvements", icon: BookOpenCheck }
+    ? { id: "guide", label: "Guide", title: "Help & Tutorial", icon: BookOpenCheck }
     : tabs.find((tab) => tab.id === currentTab) ?? tabs[0];
   const ActiveTabIcon = activeTab.icon;
 
@@ -137,7 +139,7 @@ export default function TopBanner({
     <>
       <aside className={`app-sidebar fixed inset-y-0 left-0 z-50 hidden flex-col border-r transition-[width] duration-200 md:flex ${sidebarCollapsed ? "w-[4.5rem]" : "w-60"}`}>
         <div className={`flex h-16 items-center border-b border-white/8 ${sidebarCollapsed ? "justify-center px-2" : "gap-3 px-5"}`}>
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#2383e2] text-xs font-black tracking-tight text-white shadow-lg shadow-blue-950/30">MJ</div>
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#2383e2] text-xs font-black tracking-tight text-black shadow-lg shadow-blue-950/30">MJ</div>
           <div className={`min-w-0 ${sidebarCollapsed ? "hidden" : "block"}`}>
             <p className="truncate text-sm font-semibold tracking-tight">Memecoin Journal</p>
             <p className="text-[10px] text-neutral-500">Trading workspace</p>
@@ -218,12 +220,12 @@ export default function TopBanner({
             <button
               type="button"
               onClick={onOpenGuide}
-              title="Guide and improvements"
-              aria-label="Guide and improvements"
+              title="Help and tutorial"
+              aria-label="Help and tutorial"
               className={`flex w-full items-center rounded-xl px-3 py-2.5 text-xs text-neutral-400 transition-colors hover:bg-white/[0.06] hover:text-white ${sidebarCollapsed ? "justify-center" : "gap-3"}`}
             >
               <BookOpenCheck size={16} />
-              {!sidebarCollapsed && <span>Guide & improvements</span>}
+              {!sidebarCollapsed && <span>Help & tutorial</span>}
             </button>
           )}
           <div ref={accountMenuRef} className="relative">
@@ -336,9 +338,9 @@ export default function TopBanner({
         <div className="flex shrink-0 items-center gap-2">
           <InstallAppButton />
           <CursorPicker />
-          <div role="status" aria-live="polite" title={connectionState === "online" ? "Connected" : connectionState === "reconnecting" ? "Connection restored; checking services" : "Offline; browser drafts remain available"} className={`hidden items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-semibold sm:flex ${connectionState === "online" ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : connectionState === "reconnecting" ? "border-amber-500/30 bg-amber-500/10 text-amber-200" : "border-rose-500/30 bg-rose-500/10 text-rose-200"}`}>
-            {connectionState === "offline" ? <WifiOff size={12}/> : <Wifi size={12}/>}<span>{connectionState === "online" ? "Online" : connectionState === "reconnecting" ? "Reconnecting…" : "Offline"}</span>
-          </div>
+          {connectionState !== "online" && <div role="status" aria-live="polite" title={connectionState === "reconnecting" ? "Connection restored; checking services" : "Offline; browser drafts remain available"} className={`hidden items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-semibold sm:flex ${connectionState === "reconnecting" ? "border-amber-500/30 bg-amber-500/10 text-amber-200" : "border-rose-500/30 bg-rose-500/10 text-rose-200"}`}>
+            {connectionState === "offline" ? <WifiOff size={12}/> : <Wifi size={12}/>}<span>{connectionState === "reconnecting" ? "Reconnecting…" : "Offline"}</span>
+          </div>}
           <MarketPricePicker />
 
           {/* Daily Recap Button on Header */}
@@ -366,21 +368,26 @@ export default function TopBanner({
           {/* New Trade Primary Action */}
           <Button
             type="button"
+            aria-label="New Trade"
             data-tour="new-trade"
             size="sm"
             onPress={onOpenNewTrade}
             className="h-7 min-w-0 rounded-md bg-[#1a73ca] px-2.5 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-[#155fa8] sm:px-3"
           >
             <Plus size={14} className="sm:hidden" />
+            <span className="sr-only">New Trade</span>
             <span className="hidden sm:inline">+ New Trade</span>
           </Button>
 
           {!user && (
             <button
-              onClick={loginWithGoogle}
+              type="button"
+              aria-label="Sign In"
+              onClick={() => onOpenSignIn ? onOpenSignIn() : void loginWithGoogle()}
               className="flex items-center gap-1 px-2.5 py-1.5 bg-white border border-[#e3e2de] hover:bg-[#f1f1ef] text-[#37352f] rounded-md text-xs font-medium shadow-xs transition-colors"
             >
               <LogIn size={13} className="text-[#2383e2]" />
+              <span className="sr-only">Sign In</span>
               <span className="hidden sm:inline">Sign In</span>
             </button>
           )}

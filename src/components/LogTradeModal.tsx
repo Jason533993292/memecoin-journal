@@ -40,6 +40,7 @@ import { useAuth } from "../context/AuthContext";
 import { parseLocalStorageValue, useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
 import { lookupTokenMetadata } from "../lib/tokenLookupClient";
 import { listSupabaseResearch, saveSupabaseTrade, usesSupabaseJournal } from "../lib/journalBackend";
+import { stripUndefinedFields } from "../lib/firestoreSanitize";
 import { hasMeaningfulTradeDraft, parseStoredTradeDraft, TRADE_DRAFT_VERSION, tradeDraftStorageKey, type TradeDraftData } from "../lib/tradeDraft";
 import TradeFillsEditor from "./TradeFillsEditor";
 
@@ -55,6 +56,8 @@ interface LogTradeModalProps {
   goals?: GoalSettings;
   onClonePreviousTrade?: () => void;
   canClonePreviousTrade?: boolean;
+  guestMode?: boolean;
+  onGuestTradeLogged?: (trade: Trade) => boolean;
 }
 
 function toLocalDateTimeInput(timestamp: number): string {
@@ -73,6 +76,8 @@ export default function LogTradeModal({
   goals,
   onClonePreviousTrade,
   canClonePreviousTrade = false,
+  guestMode = false,
+  onGuestTradeLogged,
 }: LogTradeModalProps) {
   const { showToast } = useToast();
   const { user } = useAuth();
@@ -140,7 +145,7 @@ export default function LogTradeModal({
   const [selectedMistakes, setSelectedMistakes] = useState<string[]>(initialData?.mistakes || []);
   const [customTagInput, setCustomTagInput] = useState("");
   const [customTagType, setCustomTagType] = useState<"good" | "mistake">("mistake");
-  const customTagStorageKey = user ? "memecoin_journal_" + user.uid + "_custom_tags" : "custom_tags";
+  const customTagStorageKey = user ? "memecoin_journal_" + user.uid + "_custom_tags" : "";
   const storedCustomTags = useLocalStorageValue(customTagStorageKey);
   const customTagPool = useMemo(() => {
     const parsed = parseLocalStorageValue<unknown>(storedCustomTags, []);
@@ -348,6 +353,10 @@ export default function LogTradeModal({
   const fetchTokenData = async (contractAddress = ca) => {
     const cleanCa = contractAddress.trim();
     if (!cleanCa) return;
+    if (guestMode && !user) {
+      setFetchError("Automatic token lookup requires an account. You can still save this as a custom guest trade.");
+      return;
+    }
     const lookupId = ++tokenLookupRef.current;
     setLoadingToken(true);
     setFetchError("");
@@ -499,7 +508,7 @@ export default function LogTradeModal({
       }
     }
 
-    if (!customTagPool.includes(clean)) {
+    if (!guestMode && !customTagPool.includes(clean)) {
       const updatedPool = [...customTagPool, clean];
       if (!user || !writeLocalStorageValue(customTagStorageKey, JSON.stringify(updatedPool))) {
         showToast("Tag could not be saved", "error", "Browser storage may be full or disabled.");
@@ -544,7 +553,7 @@ export default function LogTradeModal({
       const tradedAt = new Date(tradedAtInput).getTime();
       if (!Number.isFinite(tradedAt)) throw new RangeError("Choose a valid trade date and time.");
 
-      if (!user) throw new Error("Please sign in before saving a trade.");
+      if (!user && !guestMode) throw new Error("Please sign in before saving a trade.");
 
       const tradeDocument = {
         ca: ca.trim(),
@@ -601,19 +610,31 @@ export default function LogTradeModal({
       const validationError = getTradeCreateValidationError(tradeDocument);
       if (validationError) throw new RangeError(validationError);
 
-      if (usesSupabaseJournal()) {
+      if (guestMode) {
+        const stored = onGuestTradeLogged?.({
+          ...tradeDocument,
+          id: crypto.randomUUID(),
+          date: tradedAt,
+        } as Trade);
+        if (!stored) throw new Error("This tab could not store another guest trade. Remove a guest trade or create an account to keep your work.");
+      } else if (!user) {
+        throw new Error("Please sign in before saving a trade.");
+      } else if (usesSupabaseJournal()) {
         await saveSupabaseTrade(user.uid, tradeDocument);
       } else {
         const tradesCol = collection(db, "users", user.uid, "trades");
-        await addDoc(tradesCol, tradeDocument);
+        const firestoreDocument = stripUndefinedFields(tradeDocument);
+        await addDoc(tradesCol, firestoreDocument);
       }
 
       clearDraft();
 
       showToast(
-        "Trade saved to Cloud",
+        guestMode ? "Trade saved in this tab" : "Trade saved to Cloud",
         "success",
-        `${tokenData?.name || "Token"} logged (${quoteBase.pnlSol >= 0 ? "+" : ""}${formatSol(quoteBase.pnlSol)} SOL)`
+        guestMode
+          ? `${tokenData?.name || "Token"} is temporary and will be removed when this tab closes.`
+          : `${tokenData?.name || "Token"} logged (${quoteBase.pnlSol >= 0 ? "+" : ""}${formatSol(quoteBase.pnlSol)} SOL)`
       );
       onTradeLogged();
       onClose();
