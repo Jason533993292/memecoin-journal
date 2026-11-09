@@ -94,6 +94,11 @@ try {
   user = await createDisposableUser();
   browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+  await page.route("**/api/sol-price", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ price: 150 }),
+  }));
 
   await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 60_000 });
   const signInMode = page.locator(".public-session-banner").getByRole("button", { name: "Sign in", exact: true });
