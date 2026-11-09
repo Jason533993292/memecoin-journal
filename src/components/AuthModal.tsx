@@ -104,7 +104,7 @@ export default function AuthModal({ onClose }: { onClose?: () => void }) {
   };
 
   return (
-    <main className="public-auth-modal fixed inset-0 z-50 flex items-center justify-center bg-[radial-gradient(circle_at_top,#153250_0%,#09111d_42%,#05070b_100%)] p-4 backdrop-blur-md animate-in fade-in duration-200">
+    <div role="dialog" aria-modal="true" aria-labelledby="auth-modal-title" className="public-auth-modal fixed inset-0 z-50 flex items-center justify-center bg-[radial-gradient(circle_at_top,#153250_0%,#09111d_42%,#05070b_100%)] p-4 backdrop-blur-md animate-in fade-in duration-200">
       <div className="w-full max-w-md rounded-[28px] border border-sky-400/20 bg-[#0b111b]/95 p-6 text-white shadow-[0_30px_100px_rgba(0,0,0,.55)] md:p-8 space-y-6">
         {onClose && <button type="button" onClick={onClose} aria-label="Close sign-in" className="float-right rounded-lg p-2 text-slate-400 hover:bg-white/10 hover:text-white"><X size={18}/></button>}
         {/* Header Branding */}
@@ -112,7 +112,7 @@ export default function AuthModal({ onClose }: { onClose?: () => void }) {
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-black border border-neutral-700 mb-2 shadow-inner">
             <SolanaLogo size={22} />
           </div>
-          <h2 className="text-xl font-bold tracking-tight">Memecoin Trade Journal</h2>
+          <h2 id="auth-modal-title" className="text-xl font-bold tracking-tight">Memecoin Trade Journal</h2>
           <p className="text-xs text-neutral-400">
             {mode === "signup"
               ? "Create your account to start tracking trades securely."
@@ -273,6 +273,6 @@ export default function AuthModal({ onClose }: { onClose?: () => void }) {
           <a href="/privacy" className="text-neutral-300 underline underline-offset-2">Privacy notice</a>.
         </p>
       </div>
-    </main>
+    </div>
   );
 }

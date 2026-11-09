@@ -96,11 +96,11 @@ try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
 
   await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 60_000 });
-  const signInMode = page.getByRole("button", { name: "Sign in", exact: true });
+  const signInMode = page.locator(".public-session-banner").getByRole("button", { name: "Sign in", exact: true });
   await signInMode.click({ timeout: 30_000 });
   try {
     await page.getByRole("heading", { name: "Memecoin Trade Journal", exact: true }).waitFor({ timeout: 30_000 });
-    await page.getByRole("dialog").locator("form").waitFor({ timeout: 30_000 });
+    await page.locator(".public-auth-modal form").waitFor({ timeout: 30_000 });
   } catch (error) {
     const visibleText = (await page.locator("body").innerText()).replace(/\s+/g, " ").trim().slice(0, 1400);
     throw new Error(`The public-first sign-in panel did not open. Visible page: ${visibleText}`, { cause: error });
