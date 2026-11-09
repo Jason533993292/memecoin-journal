@@ -6,6 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: read
   issues: write
 
@@ -41,6 +42,7 @@ jobs:
       - name: Verify a recent Supabase backup exists
         run: npm run backup:verify
         env:
+          GITHUB_TOKEN: ${{ github.token }}
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_REF: tndqtaouizztihzggwnh
           SUPABASE_BACKUP_MAX_AGE_HOURS: "48"

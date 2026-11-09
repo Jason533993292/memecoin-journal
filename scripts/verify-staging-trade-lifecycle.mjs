@@ -98,7 +98,13 @@ try {
   await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 60_000 });
   const signInMode = page.getByRole("button", { name: "Sign In", exact: true });
   await signInMode.click({ timeout: 30_000 });
-  await page.getByRole("button", { name: "Sign In to Journal", exact: true }).waitFor({ timeout: 30_000 });
+  try {
+    await page.getByRole("heading", { name: "Memecoin Trade Journal", exact: true }).waitFor({ timeout: 30_000 });
+    await page.getByRole("button", { name: "Sign In to Journal", exact: true }).waitFor({ timeout: 30_000 });
+  } catch (error) {
+    const visibleText = (await page.locator("body").innerText()).replace(/\s+/g, " ").trim().slice(0, 1400);
+    throw new Error(`The public-first sign-in panel did not open. Visible page: ${visibleText}`, { cause: error });
+  }
   await page.getByPlaceholder("trader@solana.com").fill(email);
   await page.locator('input[type="password"]').fill(password);
   await page.locator('form button[type="submit"]').click();

@@ -1,6 +1,8 @@
 const accessToken = process.env.SUPABASE_ACCESS_TOKEN?.trim();
 const projectRef = process.env.SUPABASE_PROJECT_REF?.trim();
 const maxAgeHours = Number(process.env.SUPABASE_BACKUP_MAX_AGE_HOURS || "48");
+const githubToken = process.env.GITHUB_TOKEN?.trim();
+const githubRepository = process.env.GITHUB_REPOSITORY?.trim();
 
 if (!accessToken || !projectRef) {
   throw new Error("Set SUPABASE_ACCESS_TOKEN and SUPABASE_PROJECT_REF before checking backups.");
@@ -26,8 +28,35 @@ const timestamps = backups
   .filter(Number.isFinite)
   .sort((a, b) => b - a);
 
+async function getLatestLogicalBackupTimestamp() {
+  if (!githubToken || !githubRepository) return null;
+  const workflowResponse = await fetch(
+    `https://api.github.com/repos/${githubRepository}/actions/workflows/database-backup.yml/runs?status=success&per_page=1`,
+    {
+      cache: "no-store",
+      signal: AbortSignal.timeout(20_000),
+      headers: {
+        accept: "application/vnd.github+json",
+        authorization: `Bearer ${githubToken}`,
+        "x-github-api-version": "2022-11-28",
+      },
+    },
+  );
+  if (!workflowResponse.ok) {
+    throw new Error(`GitHub logical-backup inventory returned HTTP ${workflowResponse.status}.`);
+  }
+  const workflowPayload = await workflowResponse.json();
+  const completedAt = workflowPayload?.workflow_runs?.[0]?.updated_at;
+  const timestamp = Date.parse(completedAt);
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
 if (!timestamps.length) {
-  throw new Error("Supabase returned no completed backup timestamp. Configure daily backups or an off-site logical backup.");
+  const logicalBackupTimestamp = await getLatestLogicalBackupTimestamp();
+  if (!logicalBackupTimestamp) {
+    throw new Error("Supabase returned no hosted backup and no successful off-site logical backup was found.");
+  }
+  timestamps.push(logicalBackupTimestamp);
 }
 
 const ageHours = (Date.now() - timestamps[0]) / 3_600_000;
@@ -35,5 +64,5 @@ if (ageHours > maxAgeHours) {
   throw new Error(`Newest Supabase backup is ${ageHours.toFixed(1)} hours old; limit is ${maxAgeHours} hours.`);
 }
 
-console.log(`PASS newest Supabase backup is ${ageHours.toFixed(1)} hours old (${backups.length} backup records returned).`);
+console.log(`PASS newest database backup is ${ageHours.toFixed(1)} hours old (${backups.length ? "Supabase hosted backup" : "off-site logical backup"}).`);
 

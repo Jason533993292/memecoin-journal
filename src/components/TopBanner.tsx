@@ -221,11 +221,11 @@ export default function TopBanner({
               type="button"
               onClick={onOpenGuide}
               title="Help and tutorial"
-              aria-label="Help and tutorial"
+              aria-label="Help & tutorial"
               className={`flex w-full items-center rounded-xl px-3 py-2.5 text-xs text-neutral-400 transition-colors hover:bg-white/[0.06] hover:text-white ${sidebarCollapsed ? "justify-center" : "gap-3"}`}
             >
               <BookOpenCheck size={16} />
-              {!sidebarCollapsed && <span>Help & tutorial</span>}
+              {!sidebarCollapsed && <span>Help &amp; tutorial</span>}
             </button>
           )}
           <div ref={accountMenuRef} className="relative">

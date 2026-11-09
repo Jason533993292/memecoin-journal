@@ -12,6 +12,7 @@
     "lint": "eslint",
     "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test --experimental-strip-types tests/*.test.mts",
     "test:e2e": "playwright test",
+    "test:e2e:desktop": "playwright test --project=desktop-chromium",
     "smoke:release": "node scripts/verify-public-release.mjs",
     "monitor:services": "node scripts/verify-service-readiness.mjs",
     "test:staging:isolation": "node scripts/verify-staging-isolation.mjs",

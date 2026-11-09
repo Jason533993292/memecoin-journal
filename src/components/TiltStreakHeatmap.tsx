@@ -271,7 +271,7 @@ export default function TiltStreakHeatmap({ trades, solPrice = 150, onSelectTrad
                 <span className="truncate whitespace-nowrap text-[9px] font-mono font-bold tracking-tight sm:text-[11px]">
                   {formatDayPnl(day)}
                 </span>
-                <span className={`text-[8px] sm:text-[9px] ${hasTrades ? "opacity-70" : "invisible"}`}>
+                <span className={`text-[8px] font-medium sm:text-[9px] ${hasTrades ? "" : "invisible"}`}>
                   {day.tradeCount} {day.tradeCount === 1 ? "trade" : "trades"}
                 </span>
               </button>

@@ -1,0 +1,60 @@
+name: Database logical backup
+
+on:
+  schedule:
+    - cron: "12 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-database-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install maintained Supabase CLI v2
+        uses: supabase/setup-cli@v3
+        with:
+          version: v2.stable
+
+      - name: Export roles
+        env:
+          PRODUCTION_SUPABASE_DB_URL: ${{ secrets.PRODUCTION_SUPABASE_DB_URL }}
+        run: |
+          test -n "$PRODUCTION_SUPABASE_DB_URL" || { echo "PRODUCTION_SUPABASE_DB_URL is not configured."; exit 1; }
+          mkdir -p backup
+          supabase db dump --db-url "$PRODUCTION_SUPABASE_DB_URL" -f backup/roles.sql --role-only
+
+      - name: Export schema
+        env:
+          PRODUCTION_SUPABASE_DB_URL: ${{ secrets.PRODUCTION_SUPABASE_DB_URL }}
+        run: supabase db dump --db-url "$PRODUCTION_SUPABASE_DB_URL" -f backup/schema.sql
+
+      - name: Export data
+        env:
+          PRODUCTION_SUPABASE_DB_URL: ${{ secrets.PRODUCTION_SUPABASE_DB_URL }}
+        run: supabase db dump --db-url "$PRODUCTION_SUPABASE_DB_URL" -f backup/data.sql --use-copy --data-only -x "storage.buckets_vectors" -x "storage.vector_indexes"
+
+      - name: Validate backup files
+        run: |
+          test -s backup/roles.sql
+          test -s backup/schema.sql
+          test -s backup/data.sql
+          grep -Eq "CREATE TABLE|CREATE POLICY|CREATE FUNCTION" backup/schema.sql
+          grep -Eq "COPY |INSERT INTO" backup/data.sql
+          shasum -a 256 backup/roles.sql backup/schema.sql backup/data.sql > backup/SHA256SUMS
+
+      - name: Upload encrypted-at-rest workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-database-backup-${{ github.run_id }}
+          path: backup/
+          retention-days: 30
+          if-no-files-found: error
