@@ -105,10 +105,14 @@ try {
     const visibleText = (await page.locator("body").innerText()).replace(/\s+/g, " ").trim().slice(0, 1400);
     throw new Error(`The public-first sign-in panel did not open. Visible page: ${visibleText}`, { cause: error });
   }
-  await page.getByPlaceholder("trader@solana.com").fill(email);
-  await page.locator('input[type="password"]').fill(password);
-  await page.locator('form button[type="submit"]').click();
+  const authPanel = page.locator(".public-auth-modal");
+  await authPanel.getByRole("button", { name: "Sign In", exact: true }).click();
+  await authPanel.getByPlaceholder("trader@solana.com").fill(email);
+  await authPanel.locator('input[type="password"]').fill(password);
+  await authPanel.locator('form button[type="submit"]').click();
   try {
+    await page.locator(".public-session-banner").waitFor({ state: "detached", timeout: 45_000 });
+    await authPanel.waitFor({ state: "detached", timeout: 45_000 });
     await page.getByRole("button", { name: /New Trade/ }).waitFor({ timeout: 45_000 });
   } catch (error) {
     const visibleText = (await page.locator("body").innerText()).replace(/\s+/g, " ").trim().slice(0, 1200);
