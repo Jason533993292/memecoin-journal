@@ -55,7 +55,8 @@ const SPOTLIGHT_STEPS: SpotlightStep[] = [
   { id: "ai-analysis", chapter: "AI Coach", selector: '[data-tour="ai-analysis"]', title: "Generate a trading review", description: "Refresh AI Review sends relevant recent trade information and discipline tags to the provider you configured, then displays the resulting coaching analysis here.", instruction: "AI output can be wrong. Use it as a review aid, not financial advice or an automatic trading decision.", requireTargetClick: false, viewTab: "ai-coach" },
   { id: "ai-question", chapter: "AI Coach", selector: '[data-tour="ai-question"]', title: "Ask a focused follow-up", description: "Ask a specific question about patterns in the journal, such as repeated mistakes, sizing discipline, entry timing, or exit behavior.", instruction: "A narrow question usually produces a more useful answer than asking for general trading advice.", requireTargetClick: false, viewTab: "ai-coach" },
   { id: "feedback", chapter: "Help", selector: '[data-tour="feedback"]', title: "Feedback", description: "Report a bug or suggest an improvement. Optional diagnostics help reproduce what happened without including your financial totals.", instruction: "Click Feedback to open the form. The tour will stay active for one final step.", requireTargetClick: true },
-  { id: "feedback-close", chapter: "Help", selector: '[data-tour="feedback-close"]', title: "You are ready to explore", description: "Use this form whenever you find a bug or have an idea. You do not need to send a test report now.", instruction: "Click the X to close Feedback and finish the tutorial. The app will then open Dashboard once.", requireTargetClick: true },
+  { id: "feedback-close", chapter: "Help", selector: '[data-tour="feedback-close"]', title: "Close the feedback panel", description: "Use this form whenever you find a bug or have an idea. You do not need to send a test report now.", instruction: "Click the X to close Feedback. There is one short message left before you finish.", requireTargetClick: true },
+  { id: "tour-finish", chapter: "Complete", selector: '[data-tour="nav-dashboard"]', title: "Hope you have a good experience", description: "Have fun trenching—and use the journal to learn from every trade, not just the winning ones.", instruction: "Press Continue to finish the tutorial and open your Dashboard.", requireTargetClick: false },
 ];
 
 type TargetRect = { top: number; left: number; right: number; bottom: number; width: number; height: number };
@@ -82,24 +83,37 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
   const introButtonRef = useRef<HTMLButtonElement>(null);
   const step = SPOTLIGHT_STEPS[stepIndex];
 
+  const endTour = useCallback(() => {
+    delete document.documentElement.dataset.tourStep;
+    window.dispatchEvent(new CustomEvent("memecoin-journal-tour-end"));
+  }, []);
+  const closeTour = useCallback(() => {
+    endTour();
+    onClose();
+  }, [endTour, onClose]);
+  const completeTour = useCallback(() => {
+    endTour();
+    onComplete();
+  }, [endTour, onComplete]);
+
   const advance = useCallback(() => {
     if (stepIndex === SPOTLIGHT_STEPS.length - 1) {
       onNavigateTab("dashboard");
-      onComplete();
+      completeTour();
       return;
     }
     setStepIndex((index) => index + 1);
-  }, [onComplete, onNavigateTab, stepIndex]);
+  }, [completeTour, onNavigateTab, stepIndex]);
 
   const goBack = useCallback(() => setStepIndex((index) => Math.max(0, index - 1)), []);
 
   useEffect(() => {
     if (!isOpen) return;
     const timer = window.setTimeout(() => introButtonRef.current?.focus(), 0);
-    const handleKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
+    const handleKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") closeTour(); };
     window.addEventListener("keydown", handleKeyDown);
     return () => { window.clearTimeout(timer); window.removeEventListener("keydown", handleKeyDown); };
-  }, [isOpen, onClose]);
+  }, [closeTour, isOpen]);
 
   useEffect(() => {
     if (!isOpen || !started) return;
@@ -121,7 +135,7 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
       if (event.key === "Escape") {
         event.preventDefault();
         event.stopImmediatePropagation();
-        onClose();
+        closeTour();
         return;
       }
       if (!event.metaKey && !event.ctrlKey && !event.altKey && !event.repeat && event.key.toLowerCase() === "k") {
@@ -153,7 +167,7 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
       window.removeEventListener("touchmove", preventBackgroundScroll, true);
       window.removeEventListener("keydown", lockTutorialKeyboard, true);
     };
-  }, [advance, goBack, isOpen, onClose, started, step]);
+  }, [advance, closeTour, goBack, isOpen, started, step]);
 
   useEffect(() => {
     if (!isOpen || !started || !step) return;
@@ -165,28 +179,32 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
     let clickTarget: HTMLElement | null = null;
     let clickHandler: (() => void) | null = null;
     let hasAdvanced = false;
-    let hasRequestedScroll = false;
     const timers: number[] = [];
-    const updateTarget = () => {
+    let settleTimer: number | null = null;
+    const measureTarget = () => {
+      if (!target) return;
+      const rect = target.getBoundingClientRect();
+      const padding = 7;
+      const top = Math.max(7, rect.top - padding);
+      const left = Math.max(7, rect.left - padding);
+      const right = Math.min(window.innerWidth - 7, rect.right + padding);
+      const bottom = Math.min(window.innerHeight - 7, rect.bottom + padding);
+      setTargetRect({ top, left, right, bottom, width: Math.max(0, right - left), height: Math.max(0, bottom - top) });
+    };
+    const scheduleSettledMeasure = (delay = 140) => {
+      if (settleTimer !== null) window.clearTimeout(settleTimer);
+      settleTimer = window.setTimeout(measureTarget, delay);
+    };
+    const locateTarget = () => {
       target = findVisibleTarget(step.selector);
       if (!target) { setTargetRect(null); return; }
       const initialRect = target.getBoundingClientRect();
-      if (!hasRequestedScroll && (initialRect.top < 76 || initialRect.bottom > window.innerHeight - 28)) {
-        hasRequestedScroll = true;
+      if (initialRect.top < 76 || initialRect.bottom > window.innerHeight - 28) {
         target.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+        scheduleSettledMeasure(520);
+      } else {
+        scheduleSettledMeasure(40);
       }
-      const measure = () => {
-        if (!target) return;
-        const rect = target.getBoundingClientRect();
-        const padding = 7;
-        const top = Math.max(7, rect.top - padding);
-        const left = Math.max(7, rect.left - padding);
-        const right = Math.min(window.innerWidth - 7, rect.right + padding);
-        const bottom = Math.min(window.innerHeight - 7, rect.bottom + padding);
-        setTargetRect({ top, left, right, bottom, width: Math.max(0, right - left), height: Math.max(0, bottom - top) });
-      };
-      measure();
-      timers.push(window.setTimeout(measure, 420));
       if (step.requireTargetClick && clickTarget !== target) {
         if (clickTarget && clickHandler) clickTarget.removeEventListener("click", clickHandler);
         clickTarget = target;
@@ -200,14 +218,17 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
     };
     announceStep();
     timers.push(window.setTimeout(announceStep, 60));
-    timers.push(window.setTimeout(updateTarget, 100));
-    window.addEventListener("resize", updateTarget);
-    window.addEventListener("scroll", updateTarget, true);
+    timers.push(window.setTimeout(locateTarget, 100));
+    const settleAfterScroll = () => scheduleSettledMeasure(140);
+    const settleAfterResize = () => scheduleSettledMeasure(100);
+    window.addEventListener("resize", settleAfterResize);
+    window.addEventListener("scroll", settleAfterScroll, true);
     return () => {
       timers.forEach((timer) => window.clearTimeout(timer));
+      if (settleTimer !== null) window.clearTimeout(settleTimer);
       if (clickTarget && clickHandler) clickTarget.removeEventListener("click", clickHandler);
-      window.removeEventListener("resize", updateTarget);
-      window.removeEventListener("scroll", updateTarget, true);
+      window.removeEventListener("resize", settleAfterResize);
+      window.removeEventListener("scroll", settleAfterScroll, true);
       if (document.documentElement.dataset.tourStep === step.id) delete document.documentElement.dataset.tourStep;
     };
   }, [advance, isOpen, onNavigateTab, started, step]);
@@ -217,14 +238,14 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
     return (
       <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
         <section role="dialog" aria-modal="true" aria-labelledby="welcome-tour-title" className="relative w-full max-w-xl overflow-hidden rounded-3xl border border-white/10 bg-[#111318] p-6 text-white shadow-2xl sm:p-8">
-          <button type="button" onClick={onClose} aria-label="Close welcome tour" className="absolute right-4 top-4 rounded-lg p-2 text-neutral-400 transition hover:bg-white/8 hover:text-white"><X size={18} /></button>
+          <button type="button" onClick={closeTour} aria-label="Close welcome tour" className="absolute right-4 top-4 rounded-lg p-2 text-neutral-400 transition hover:bg-white/8 hover:text-white"><X size={18} /></button>
           <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-500/15 text-[#55a7f1]"><BookOpen size={24} /></div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#55a7f1]">Welcome</p>
           <h2 id="welcome-tour-title" className="pr-8 text-2xl font-bold tracking-tight">Welcome to Memecoin Journal</h2>
           <p className="mt-3 text-sm leading-6 text-neutral-300">Thanks for using this journal. Every user is welcome. The guided tutorial will darken the page, point to each real feature, and wait for you to click the highlighted controls.</p>
           <div className="mt-5 rounded-2xl bg-white/[0.055] p-4 text-xs leading-5 text-neutral-300">When the tutorial explains a feature lower on the page, it will automatically scroll to it and use the live interface as the visual example.</div>
           <div className="mt-7 flex flex-wrap items-center justify-end gap-3">
-            <button type="button" onClick={onComplete} className="h-11 rounded-xl px-4 text-xs font-semibold text-neutral-400 transition hover:bg-white/8 hover:text-white">Skip tutorial</button>
+            <button type="button" onClick={completeTour} className="h-11 rounded-xl px-4 text-xs font-semibold text-neutral-400 transition hover:bg-white/8 hover:text-white">Skip tutorial</button>
             <button ref={introButtonRef} type="button" onClick={() => setStarted(true)} className="group flex h-11 items-center gap-3 rounded-xl bg-[#1a73ca] px-5 text-sm font-semibold text-white transition hover:bg-[#2383e2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#55a7f1]">Continue tutorial <ArrowRight size={18} className="tour-arrow" /></button>
           </div>
         </section>
@@ -264,14 +285,14 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
         <div className="pointer-events-auto fixed left-0 bg-black/80" style={{ top: targetRect.top, width: targetRect.left, height: targetRect.height }} />
         <div className="pointer-events-auto fixed right-0 bg-black/80" style={{ top: targetRect.top, left: targetRect.right, height: targetRect.height }} />
         {!step.requireTargetClick && <div className="pointer-events-auto fixed bg-transparent" aria-hidden="true" style={{ top: targetRect.top, left: targetRect.left, width: targetRect.width, height: targetRect.height }} />}
-        <div className="pointer-events-none fixed rounded-xl border-2 border-[#55a7f1] shadow-[0_0_0_4px_rgba(35,131,226,0.25),0_0_28px_rgba(35,131,226,0.7)]" style={{ top: targetRect.top, left: targetRect.left, width: targetRect.width, height: targetRect.height }} />
+        <div className="pointer-events-none fixed rounded-xl transition-[top,left,width,height] duration-300 ease-out border-2 border-[#55a7f1] shadow-[0_0_0_4px_rgba(35,131,226,0.25),0_0_28px_rgba(35,131,226,0.7)]" style={{ top: targetRect.top, left: targetRect.left, width: targetRect.width, height: targetRect.height }} />
       </>}
-      <section data-tour-dialog role="dialog" aria-modal="true" aria-label={`Tutorial step ${stepIndex + 1}: ${step.title}`} className="tour-tooltip-scrollbar pointer-events-auto fixed z-[91] max-h-[calc(100vh-24px)] overflow-y-auto rounded-2xl border border-white/10 bg-[#111318] p-4 text-white shadow-2xl" style={tooltipStyle}>
+      <section key={step.id} data-tour-dialog role="dialog" aria-modal="true" aria-label={`Tutorial step ${stepIndex + 1}: ${step.title}`} className="tour-tooltip-scrollbar pointer-events-auto fixed animate-in fade-in slide-in-from-bottom-1 duration-200 z-[91] max-h-[calc(100vh-24px)] overflow-y-auto rounded-2xl border border-white/10 bg-[#111318] p-4 text-white shadow-2xl" style={tooltipStyle}>
         {targetRect && (sidePlacement === "right" ? <ArrowLeft className="tour-arrow-horizontal absolute -left-8 top-5 text-[#55a7f1]" size={24} /> : sidePlacement === "left" ? <ArrowRight className="tour-arrow-horizontal absolute -right-8 top-5 text-[#55a7f1]" size={24} /> : showBelow ? <ArrowUp className="tour-arrow-vertical absolute -top-8 left-6 text-[#55a7f1]" size={24} /> : <ArrowDown className="tour-arrow-vertical absolute -bottom-8 left-6 text-[#55a7f1]" size={24} />)}
-        <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#55a7f1]">{step.chapter} · Step {stepIndex + 1} of {SPOTLIGHT_STEPS.length}</p><h2 className="mt-1 text-base font-bold">{step.title}</h2></div><button type="button" onClick={onClose} aria-label="Close tutorial" className="rounded-md p-1 text-neutral-500 hover:bg-white/8 hover:text-white"><X size={16} /></button></div>
+        <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#55a7f1]">{step.chapter} · Step {stepIndex + 1} of {SPOTLIGHT_STEPS.length}</p><h2 className="mt-1 text-base font-bold">{step.title}</h2></div><button type="button" onClick={closeTour} aria-label="Close tutorial" className="rounded-md p-1 text-neutral-500 hover:bg-white/8 hover:text-white"><X size={16} /></button></div>
         <p className="mt-2 text-xs leading-5 text-neutral-300">{step.description}</p>
         <p className="mt-3 rounded-xl bg-white/[0.055] p-3 text-[11px] font-medium leading-4 text-neutral-200">{step.instruction}</p>
-        <div className="mt-3 flex items-center justify-between gap-3"><div className="flex items-center gap-2">{stepIndex > 0 && <button type="button" onClick={goBack} className="flex items-center gap-1 text-[10px] font-semibold text-neutral-400 hover:text-white"><ChevronLeft size={12} /> Back <kbd className="rounded bg-white/10 px-1 py-0.5 text-[9px]">K</kbd></button>}<button type="button" onClick={onComplete} className="text-[10px] font-semibold text-neutral-500 hover:text-white">Skip tutorial</button></div>{!step.requireTargetClick ? <button type="button" onClick={advance} className="flex items-center gap-2 rounded-lg bg-[#1a73ca] px-3 py-2 text-xs font-semibold text-white hover:bg-[#2383e2]">Continue <kbd className="rounded bg-white/15 px-1.5 py-0.5 text-[9px]">L</kbd><ArrowRight size={14} className="tour-arrow" /></button> : <span className="text-[10px] font-semibold text-neutral-500">Press <kbd className="rounded bg-white/10 px-1.5 py-0.5 text-[9px] text-neutral-300">L</kbd> to activate</span>}</div>
+        <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-2"><div className="justify-self-start">{stepIndex > 0 && <button type="button" onClick={goBack} className="flex items-center gap-1 justify-self-start text-[10px] font-semibold text-neutral-400 hover:text-white"><ChevronLeft size={12} /> Back <kbd className="grid h-4 min-w-4 place-items-center rounded bg-white/10 px-0.5 text-[8px]">K</kbd></button>}</div><button type="button" onClick={completeTour} className="justify-self-center whitespace-nowrap text-center text-[10px] font-semibold text-neutral-500 hover:text-white">Skip tutorial</button>{!step.requireTargetClick ? <button type="button" onClick={advance} className="col-start-3 flex items-center gap-1.5 justify-self-end rounded-lg bg-[#1a73ca] px-3 py-2 text-xs font-semibold text-white hover:bg-[#2383e2]">Continue <kbd className="grid h-4 min-w-4 place-items-center rounded bg-white/15 px-0.5 text-[8px]">L</kbd><ArrowRight size={14} className="tour-arrow" /></button> : <span className="col-start-3 justify-self-end whitespace-nowrap text-[10px] font-semibold text-neutral-500">Press <kbd className="grid inline-grid h-4 min-w-4 place-items-center rounded bg-white/10 px-0.5 text-[8px] text-neutral-300">L</kbd> to activate</span>}</div>
       </section>
     </div>
   );

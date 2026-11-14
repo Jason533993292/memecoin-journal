@@ -2,6 +2,7 @@ import type { Trade } from "./types";
 
 export const GUEST_TRADES_KEY = "memecoin_journal_guest_trades_v1";
 const MAX_GUEST_TRADES = 200;
+let transientGuestTrades: Trade[] = [];
 
 function isGuestTrade(value: unknown): value is Trade {
   if (!value || typeof value !== "object") return false;
@@ -39,4 +40,20 @@ export function writeGuestTrades(trades: Trade[], storage?: Storage | null): boo
 
 export function clearGuestTrades(storage?: Storage | null) {
   storage?.removeItem(GUEST_TRADES_KEY);
+}
+
+// Guest work intentionally lives only in the current JavaScript page. It can
+// be handed to a newly-created account without surviving a refresh, duplicated
+// tab, or restored browser session.
+export function readTransientGuestTrades(): Trade[] {
+  return transientGuestTrades.slice();
+}
+
+export function writeTransientGuestTrades(trades: Trade[]): boolean {
+  transientGuestTrades = trades.filter(isGuestTrade).slice(0, MAX_GUEST_TRADES);
+  return true;
+}
+
+export function clearTransientGuestTrades() {
+  transientGuestTrades = [];
 }

@@ -5,7 +5,6 @@ import ErrorBoundary from "../components/ErrorBoundary";
 import { connection } from "next/server";
 import ServiceWorkerRegistration from "../components/ServiceWorkerRegistration";
 import ThemeBootstrap from "../components/ThemeBootstrap";
-
 const publicDomain = process.env.RAILWAY_PUBLIC_DOMAIN?.trim();
 const metadataBase = new URL(
   publicDomain
@@ -39,7 +38,7 @@ export default async function RootLayout({
   // the response is rendered dynamically.
   await connection();
   return (
-    <html lang="en">
+    <html lang="en" data-theme-preview="modern-platform" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://identitytoolkit.googleapis.com" />
         <link rel="preconnect" href="https://firestore.googleapis.com" />

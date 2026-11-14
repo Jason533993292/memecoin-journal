@@ -337,7 +337,7 @@ export default function DashboardView({
                       </span>
                       <span className="mt-0.5 block text-[10px] text-[#787774]">
                         {getTradeTimestamp(trade) > 0
-                          ? new Date(getTradeTimestamp(trade)).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+                          ? new Date(getTradeTimestamp(trade)).toLocaleDateString("en-US", { month: "short", day: "numeric" })
                           : "Date unavailable"}
                       </span>
                     </span>

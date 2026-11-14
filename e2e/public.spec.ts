@@ -24,7 +24,17 @@ test("public health endpoint is minimal, uncached, and traceable", async ({ requ
 });
 
 test("visitors can explore first and choose guest mode only when recording", async ({ page }) => {
+  test.setTimeout(60_000);
   await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Choose how to continue" })).toBeVisible();
+  await page.locator('[data-access-choice-hydrated="true"]').waitFor({ state: "visible" });
+  await page.getByRole("button", { name: "Guest", exact: true }).focus();
+  await expect(page.getByText("Try the journal temporarily. Your entries disappear when this page is refreshed or closed.")).toBeVisible();
+  await page.getByRole("button", { name: "Sign up", exact: true }).focus();
+  await expect(page.getByText("Create a private account so your trades and journal entries stay saved and sync across devices.")).toBeVisible();
+  await page.getByRole("button", { name: "Sign up", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Create Free Account" })).toBeVisible();
+  await page.getByRole("button", { name: "Close sign-in" }).click();
   await expect(page.getByText("Explore before signing in")).toBeVisible();
   await expect(page.getByRole("dialog")).toHaveCount(0);
 
@@ -38,13 +48,25 @@ test("visitors can explore first and choose guest mode only when recording", asy
   await page.getByRole("button", { name: "Close" }).click();
 
   await page.getByRole("button", { name: /new trade/i }).first().click();
-  await expect(page.getByRole("heading", { name: "How would you like to continue?" })).toBeVisible();
-  await expect(page.getByText("Data stays only in this tab and is removed when the tab closes.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Choose how to continue" })).toBeVisible();
+  await page.getByRole("button", { name: "Guest", exact: true }).focus();
+  await expect(page.getByText("Try the journal temporarily. Your entries disappear when this page is refreshed or closed.")).toBeVisible();
 
-  await page.getByRole("button", { name: /try guest mode/i }).click();
+  await page.getByRole("button", { name: "Guest", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Welcome to Memecoin Journal" })).toBeVisible();
+  await page.getByRole("button", { name: /skip tutorial/i }).click();
   await expect(page.getByRole("heading", { name: /log new trade/i })).toBeVisible();
   await page.getByRole("button", { name: "Close" }).click();
   await expect(page.getByText("Temporary guest session")).toBeVisible();
+
+  await page.getByRole("button", { name: "Daily Journal", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Choose how to continue" })).toHaveCount(0);
+  await expect(page.getByText("Daily Journal", { exact: true }).first()).toBeVisible();
+
+  page.once("dialog", (dialog) => void dialog.accept());
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Choose how to continue" })).toBeVisible();
+  await expect(page.getByText("Temporary guest session")).toHaveCount(0);
 });
 
 test("mobile public pages do not overflow horizontally", async ({ page }, testInfo) => {

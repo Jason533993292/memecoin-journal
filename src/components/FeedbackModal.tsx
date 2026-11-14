@@ -9,8 +9,9 @@ import { useToast } from "./Toast";
 type FeedbackModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  user: User;
+  user: User | null;
   currentSection: string;
+  onRequestSignIn?: () => void;
 };
 
 const categories: Array<{ id: FeedbackCategory; label: string; description: string; icon: typeof Bug }> = [
@@ -47,7 +48,7 @@ function deviceName() {
   return "Unknown device";
 }
 
-export default function FeedbackModal({ isOpen, onClose, user, currentSection }: FeedbackModalProps) {
+export default function FeedbackModal({ isOpen, onClose, user, currentSection, onRequestSignIn }: FeedbackModalProps) {
   const { showToast } = useToast();
   const [category, setCategory] = useState<FeedbackCategory>("bug");
   const [message, setMessage] = useState("");
@@ -81,6 +82,7 @@ export default function FeedbackModal({ isOpen, onClose, user, currentSection }:
   if (!isOpen) return null;
 
   const loadHistory = async () => {
+    if (!user) return;
     const nextOpen = !historyOpen;
     setHistoryOpen(nextOpen);
     if (!nextOpen || reports || historyLoading) return;
@@ -113,6 +115,10 @@ export default function FeedbackModal({ isOpen, onClose, user, currentSection }:
   };
 
   const submit = async () => {
+    if (!user) {
+      onRequestSignIn?.();
+      return;
+    }
     const clean = message.trim();
     if (clean.length < 15) {
       showToast("Add a little more detail", "info", "Describe the issue or suggestion in at least 15 characters.");
@@ -160,10 +166,10 @@ export default function FeedbackModal({ isOpen, onClose, user, currentSection }:
           <button type="button" data-tour="feedback-close" onClick={close} aria-label="Close feedback form" className="rounded-lg p-1.5 text-[#787774] transition-colors hover:bg-[#f1f1ef] hover:text-[#37352f]"><X size={18} /></button>
         </div>
 
-        <button type="button" onClick={() => void loadHistory()} aria-expanded={historyOpen} className="mt-4 flex w-full items-center justify-between rounded-xl border border-[#e3e2de] bg-[#f7f6f3] px-3 py-2.5 text-left text-xs font-semibold text-[#4a4946] hover:bg-[#f1f1ef]">
+        {user && <button type="button" onClick={() => void loadHistory()} aria-expanded={historyOpen} className="mt-4 flex w-full items-center justify-between rounded-xl border border-[#e3e2de] bg-[#f7f6f3] px-3 py-2.5 text-left text-xs font-semibold text-[#4a4946] hover:bg-[#f1f1ef]">
           <span className="flex items-center gap-2"><History size={15} /> My reports and resolutions</span>
           <ChevronDown size={15} className={`transition-transform ${historyOpen ? "rotate-180" : ""}`} />
-        </button>
+        </button>}
         {historyOpen && (
           <div className="mt-2 max-h-52 space-y-2 overflow-y-auto rounded-xl border border-[#e3e2de] bg-white p-2" aria-live="polite">
             {historyLoading && <p className="p-3 text-xs text-[#787774]">Loading reports…</p>}
@@ -196,15 +202,15 @@ export default function FeedbackModal({ isOpen, onClose, user, currentSection }:
         <textarea id="feedback-message" value={message} onChange={(event) => setMessage(event.target.value.slice(0, 2000))} rows={6} maxLength={2000} autoFocus placeholder={category === "bug" ? "What happened, what did you expect, and what were you doing when it occurred?" : "Describe your idea and how it would improve your trading workflow."} className="feedback-input mt-2 w-full resize-y rounded-xl border border-[#d7d6d2] bg-white px-3 py-2.5 text-sm leading-6 outline-none transition focus:border-[#2383e2] focus:ring-2 focus:ring-blue-100" />
         <div className="mt-1 flex justify-between text-[10px] text-[#9b9a97]"><span>Current section and basic device details are attached automatically.</span><span>{message.length}/2000</span></div>
 
-        <label className="mt-4 flex cursor-pointer items-start gap-2.5 text-xs text-[#5f5e5b]">
+        {user ? <label className="mt-4 flex cursor-pointer items-start gap-2.5 text-xs text-[#5f5e5b]">
           <input type="checkbox" checked={allowReply} onChange={(event) => setAllowReply(event.target.checked)} className="mt-0.5 h-4 w-4 rounded border-[#c7c6c2] accent-[#2383e2]" />
           <span>Allow a reply to <strong className="break-all font-semibold text-[#37352f]">{user.email || "my account email"}</strong></span>
-        </label>
+        </label> : <p className="mt-4 rounded-xl bg-blue-50 p-3 text-xs leading-5 text-blue-900">You can write your report as a guest. Sign in only when you are ready to send it so feedback remains protected from spam.</p>}
         <input aria-hidden="true" tabIndex={-1} autoComplete="off" value={company} onChange={(event) => setCompany(event.target.value)} className="absolute -left-[10000px] h-px w-px opacity-0" />
 
         <div className="mt-6 flex justify-end gap-2 border-t border-[#f1f1ef] pt-4">
           <button type="button" onClick={close} disabled={sending} className="rounded-lg px-3.5 py-2 text-xs font-semibold text-[#787774] hover:bg-[#f1f1ef] disabled:opacity-50">Cancel</button>
-          <button type="button" onClick={() => void submit()} disabled={sending || message.trim().length < 15} className="flex items-center gap-2 rounded-lg bg-[#1a73ca] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#155fa8] disabled:cursor-not-allowed disabled:opacity-50"><Send size={14} />{sending ? "Sending…" : "Send feedback"}</button>
+          <button type="button" onClick={() => void submit()} disabled={sending || message.trim().length < 15} className="flex items-center gap-2 rounded-lg bg-[#1a73ca] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#155fa8] disabled:cursor-not-allowed disabled:opacity-50"><Send size={14} />{sending ? "Sending…" : user ? "Send feedback" : "Sign in to send"}</button>
         </div>
       </section>
     </div>

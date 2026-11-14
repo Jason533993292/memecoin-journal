@@ -175,7 +175,7 @@ export default function CommandPaletteModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 bg-black/40 backdrop-blur-xs p-4">
-      <div className="bg-white border border-[#e9e9e7] rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 text-[#37352f]">
+      <div className="command-palette-panel bg-white border border-[#e9e9e7] rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 text-[#37352f]">
         {/* Search Input Bar */}
         <div className="flex items-center px-4 py-3.5 border-b border-[#f1f1ef] gap-2.5">
           <Search size={17} className="text-[#9b9a97] shrink-0" />
@@ -196,10 +196,10 @@ export default function CommandPaletteModal({
         </div>
 
         {/* Results List */}
-        <div className="max-h-80 overflow-y-auto p-2 space-y-1 text-xs">
+        <div className="command-palette-results max-h-[26rem] overflow-y-auto p-3 text-xs">
           {/* Recent Trades matching query */}
           {filteredTrades.length > 0 && (
-            <div className="pb-2">
+            <div className="command-palette-section pb-2">
               <span className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#9b9a97] block">
                 Matching Trades
               </span>
@@ -210,7 +210,7 @@ export default function CommandPaletteModal({
                     onClose();
                     onSelectTrade(trade);
                   }}
-                  className="w-full flex items-center justify-between px-2.5 py-2 rounded-lg hover:bg-[#f7f6f3] transition-colors text-left group"
+                  className="command-palette-item w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-[#f7f6f3] transition-colors text-left group"
                 >
                   <div className="flex items-center gap-2">
                     <span className="w-5 h-5 rounded-full bg-neutral-100 border border-neutral-200 flex items-center justify-center text-[10px] font-bold">
@@ -234,7 +234,7 @@ export default function CommandPaletteModal({
           {filteredResearch.length > 0 && <div className="pb-2"><span className="block px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#9b9a97]">Coin research</span>{filteredResearch.map((item) => <button key={item.ca} onClick={() => { sessionStorage.setItem("memecoin_journal_open_research", item.ca); onClose(); onNavigateTab("research"); }} className="w-full rounded-lg px-2.5 py-2 text-left hover:bg-[#f7f6f3]"><div className="font-semibold text-[#37352f]">{item.name} <span className="font-normal text-[#787774]">${item.symbol}</span></div><div className="truncate text-[10px] text-[#787774]">{item.stage} · {item.thesis}</div></button>)}</div>}
 
           {/* Quick Actions & Navigation */}
-          <div>
+          <div className="command-palette-section">
             <span className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#9b9a97] block">
               Commands & Navigation
             </span>
@@ -244,7 +244,7 @@ export default function CommandPaletteModal({
                 <button
                   key={action.id}
                   onClick={action.run}
-                  className="w-full flex items-center justify-between px-2.5 py-2 rounded-lg hover:bg-[#f7f6f3] transition-colors text-left group"
+                  className="command-palette-item w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-[#f7f6f3] transition-colors text-left group"
                 >
                   <div className="flex items-center gap-2.5">
                     <span className="p-1.5 rounded-md bg-[#f1f1ef] text-[#787774] group-hover:bg-blue-50 group-hover:text-[#2383e2] transition-colors">

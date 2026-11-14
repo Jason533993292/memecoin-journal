@@ -1,6 +1,6 @@
 export default function SolanaLogo({ size = 28 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 397 311" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg className="block" width={size} height={size} viewBox="0 0 397 311" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <linearGradient id="solana-grad1" x1="360.879" y1="29.0715" x2="147.279" y2="303.111" gradientUnits="userSpaceOnUse">
           <stop stopColor="#00FFA3" />

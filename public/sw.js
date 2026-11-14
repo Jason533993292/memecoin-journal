@@ -1,16 +1,29 @@
-const CACHE_NAME = "memecoin-journal-static-v1";
+const CACHE_NAME = "memecoin-journal-static-v2";
 const OFFLINE_URL = "/offline.html";
 const PRECACHE = [OFFLINE_URL, "/manifest.json", "/app-icon.svg"];
+const IS_LOCAL_DEVELOPMENT = ["localhost", "127.0.0.1"].includes(self.location.hostname);
 
 self.addEventListener("install", (event) => {
+  if (IS_LOCAL_DEVELOPMENT) {
+    event.waitUntil(self.skipWaiting());
+    return;
+  }
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE)).then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", (event) => {
+  if (IS_LOCAL_DEVELOPMENT) {
+    event.waitUntil(Promise.all([
+      caches.keys().then((keys) => Promise.all(keys.filter((key) => key.startsWith("memecoin-journal-")).map((key) => caches.delete(key)))),
+      self.registration.unregister(),
+    ]));
+    return;
+  }
   event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))).then(() => self.clients.claim()));
 });
 
 self.addEventListener("fetch", (event) => {
+  if (IS_LOCAL_DEVELOPMENT) return;
   const request = event.request;
   if (request.method !== "GET") return;
   const url = new URL(request.url);

@@ -1466,3 +1466,20 @@ html[data-cursor="precision"], html[data-cursor="precision"] * { cursor: url("da
     padding-top: 2.5rem;
   }
 }
+.command-palette-results .command-palette-section + .command-palette-section {
+  margin-top: .45rem;
+  padding-top: .65rem;
+  border-top: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.command-palette-panel .command-palette-item {
+  min-height: 0 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+.command-palette-panel .command-palette-item:hover,
+.command-palette-panel .command-palette-item:focus-visible {
+  background: color-mix(in srgb, currentColor 7%, transparent) !important;
+}

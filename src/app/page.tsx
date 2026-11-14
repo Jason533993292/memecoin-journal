@@ -48,7 +48,7 @@ import { buildDemoTrades } from "../lib/demoTrades";
 import { isTradeSyncMessage, publishTradeSync, TRADE_SYNC_CHANNEL } from "../lib/tradeSync";
 import AccessChoiceModal from "../components/AccessChoiceModal";
 import GuestImportModal from "../components/GuestImportModal";
-import { clearGuestTrades, readGuestTrades, writeGuestTrades } from "../lib/guestSession";
+import { clearGuestTrades, clearTransientGuestTrades, readTransientGuestTrades, writeTransientGuestTrades } from "../lib/guestSession";
 import { stripUndefinedFields } from "../lib/firestoreSanitize";
 
 const DEFAULT_RULES: JournalRules = {
@@ -86,12 +86,12 @@ function SectionLoading() {
 
 function MainApp() {
   const { user, backendSetupError, retryBackendSetup, logout } = useAuth();
-  const [pendingGuestTrades, setPendingGuestTrades] = useState<Trade[]>(() => typeof window === "undefined" ? [] : readGuestTrades(window.sessionStorage));
+  const [pendingGuestTrades, setPendingGuestTrades] = useState<Trade[]>(() => readTransientGuestTrades());
   const [importVersion, setImportVersion] = useState(0);
 
   useEffect(() => {
     if (!user) return;
-    const refresh = window.setTimeout(() => setPendingGuestTrades(readGuestTrades(window.sessionStorage)), 0);
+    const refresh = window.setTimeout(() => setPendingGuestTrades(readTransientGuestTrades()), 0);
     return () => window.clearTimeout(refresh);
   }, [user]);
 
@@ -132,17 +132,19 @@ function MainApp() {
       }
     }
     clearGuestTrades(window.sessionStorage);
+    clearTransientGuestTrades();
     setPendingGuestTrades([]);
     setImportVersion((version) => version + 1);
   };
 
   const discardGuestTrades = () => {
     clearGuestTrades(window.sessionStorage);
+    clearTransientGuestTrades();
     setPendingGuestTrades([]);
   };
 
   return <>
-    <AuthenticatedApp key={`${user.uid}:${importVersion}`} user={user} />
+    <AuthenticatedApp key={`${user.uid}:${importVersion}`} user={user} suppressWelcomeTour={pendingGuestTrades.length > 0} />
     {pendingGuestTrades.length > 0 && <GuestImportModal count={pendingGuestTrades.length} onImport={importGuestTrades} onDiscard={discardGuestTrades} />}
   </>;
 }
@@ -150,18 +152,30 @@ function MainApp() {
 function PublicWorkspace() {
   const { showToast } = useToast();
   const [currentTab, setCurrentTab] = useState("dashboard");
-  const [accessChoiceOpen, setAccessChoiceOpen] = useState(false);
+  const [accessChoiceOpen, setAccessChoiceOpen] = useState(true);
+  const [accessChoicePurpose, setAccessChoicePurpose] = useState<"entry" | "trade" | "feature">("entry");
   const [authOpen, setAuthOpen] = useState(false);
-  const [guestMode, setGuestMode] = useState(() => typeof window !== "undefined" && readGuestTrades(window.sessionStorage).length > 0);
-  const [demoVisible, setDemoVisible] = useState(() => {
-    if (typeof window === "undefined") return true;
-    return window.sessionStorage.getItem("memecoin_journal_public_demo_visible") !== "false";
-  });
+  const [authMode, setAuthMode] = useState<"signin" | "signup">("signup");
+  const [guestMode, setGuestMode] = useState(false);
+  const [guestTutorialOpen, setGuestTutorialOpen] = useState(false);
+  const [guestFeedbackOpen, setGuestFeedbackOpen] = useState(false);
+  const [openTradeAfterGuestTutorial, setOpenTradeAfterGuestTutorial] = useState(false);
+  const [demoVisible, setDemoVisible] = useState(true);
   const [tradeModalOpen, setTradeModalOpen] = useState(false);
-  const [guestTrades, setGuestTrades] = useState<Trade[]>(() => typeof window === "undefined" ? [] : readGuestTrades(window.sessionStorage));
+  const [guestTrades, setGuestTrades] = useState<Trade[]>(() => readTransientGuestTrades());
   const [solPrice, setSolPrice] = useState(0);
   const demoTrades = useMemo(() => buildDemoTrades(), []);
   const activeTrades = guestMode ? guestTrades : demoVisible ? demoTrades : [];
+
+  useEffect(() => {
+    // Remove temporary data written by older builds. The current guest session
+    // deliberately starts clean after every refresh.
+    clearGuestTrades(window.sessionStorage);
+    const restoreDemoPreference = window.setTimeout(() => {
+      setDemoVisible(window.sessionStorage.getItem("memecoin_journal_public_demo_visible") !== "false");
+    }, 0);
+    return () => window.clearTimeout(restoreDemoPreference);
+  }, []);
 
   useEffect(() => {
     if (!guestMode) return;
@@ -181,7 +195,25 @@ function PublicWorkspace() {
 
   const requestPersonalAction = () => {
     if (guestMode) setTradeModalOpen(true);
-    else setAccessChoiceOpen(true);
+    else {
+      setAccessChoicePurpose("trade");
+      setAccessChoiceOpen(true);
+    }
+  };
+  const requestAccountFeature = () => {
+    if (guestMode) return;
+    setAccessChoicePurpose("feature");
+    setAccessChoiceOpen(true);
+  };
+  const startGuestTour = () => {
+    if (!guestMode) {
+      requestAccountFeature();
+      return;
+    }
+    setGuestFeedbackOpen(false);
+    setCurrentTab("dashboard");
+    setOpenTradeAfterGuestTutorial(false);
+    setGuestTutorialOpen(true);
   };
   const setPublicDemoVisible = (visible: boolean) => {
     window.sessionStorage.setItem("memecoin_journal_public_demo_visible", String(visible));
@@ -191,11 +223,20 @@ function PublicWorkspace() {
     setGuestMode(true);
     setPublicDemoVisible(false);
     setAccessChoiceOpen(false);
-    setTradeModalOpen(true);
+    setOpenTradeAfterGuestTutorial(accessChoicePurpose === "trade");
+    setGuestTutorialOpen(true);
+  };
+  const closeAccessChoice = () => {
+    setAccessChoiceOpen(false);
+  };
+  const openAuth = (mode: "signin" | "signup") => {
+    setAuthMode(mode);
+    setAccessChoiceOpen(false);
+    setAuthOpen(true);
   };
   const addGuestTrade = (trade: Trade) => {
     const next = [trade, ...guestTrades];
-    if (!writeGuestTrades(next, window.sessionStorage)) {
+    if (!writeTransientGuestTrades(next)) {
       showToast("Guest trade could not be stored", "error", "This tab may be out of temporary browser storage.");
       return false;
     }
@@ -204,36 +245,43 @@ function PublicWorkspace() {
   };
   const deleteGuestData = () => {
     clearGuestTrades(window.sessionStorage);
+    clearTransientGuestTrades();
     setGuestTrades([]);
     setGuestMode(false);
     showToast("Guest data deleted", "success", "No temporary trades remain in this tab.");
   };
   const navigate = (tab: string) => {
-    if (["dashboard", "journal", "statistics", "guide"].includes(tab)) setCurrentTab(tab);
-    else setAccessChoiceOpen(true);
+    if (guestMode || ["dashboard", "journal", "statistics", "guide"].includes(tab)) setCurrentTab(tab);
+    else requestAccountFeature();
   };
 
   return (
     <div className="journal-app-shell min-h-screen bg-white text-[#37352f] font-sans">
-      <TopBanner currentTab={currentTab} setCurrentTab={navigate} onOpenNewTrade={requestPersonalAction} onOpenCommandPalette={() => setAccessChoiceOpen(true)} onOpenDailyRecap={() => setAccessChoiceOpen(true)} onOpenFeedback={() => setAccessChoiceOpen(true)} onOpenGuide={() => setCurrentTab("guide")} onOpenSignIn={() => setAuthOpen(true)} />
+      <TopBanner currentTab={currentTab} setCurrentTab={navigate} onOpenNewTrade={requestPersonalAction} onOpenCommandPalette={requestAccountFeature} onOpenDailyRecap={requestAccountFeature} onOpenFeedback={() => guestMode ? setGuestFeedbackOpen(true) : requestAccountFeature()} onOpenGuide={() => setCurrentTab("guide")} onOpenSignIn={() => openAuth("signin")} />
       <main className="mx-auto min-h-screen w-full max-w-[1680px] px-5 pb-16 pt-20 md:pl-[calc(15rem+2rem)] lg:pl-[calc(15rem+2.5rem)] xl:pl-[calc(15rem+3rem)] md:pr-8 lg:pr-10 xl:pr-12">
         <div className={`public-session-banner mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 text-xs ${guestMode ? "guest-session-banner border-amber-300 bg-amber-50 text-amber-950" : "border-blue-200 bg-blue-50 text-blue-950"}`}>
-          <div><strong>{guestMode ? "Temporary guest session" : "Explore before signing in"}</strong><span className="ml-2">{guestMode ? "Entries stay only in this tab and disappear when it closes." : "Demo information is fictional and is never saved."}</span></div>
-          <div className="flex gap-2">{guestMode && <button type="button" onClick={deleteGuestData} className="rounded-lg px-3 py-1.5 font-semibold text-rose-700 hover:bg-rose-100">Delete guest data</button>}<button type="button" onClick={() => setAuthOpen(true)} className="rounded-lg bg-[#1a73ca] px-3 py-1.5 font-semibold text-white hover:bg-[#155fa8]">{guestMode ? "Create account and keep my work" : "Sign in"}</button></div>
+          <div><strong>{guestMode ? "Temporary guest session" : "Explore before signing in"}</strong><span className="ml-2">{guestMode ? "Entries disappear when this page is refreshed or closed." : "Demo information is fictional and is never saved."}</span></div>
+          <div className="flex gap-2">{guestMode && <button type="button" onClick={deleteGuestData} className="rounded-lg px-3 py-1.5 font-semibold text-rose-700 hover:bg-rose-100">Delete guest data</button>}<button type="button" onClick={() => openAuth(guestMode ? "signup" : "signin")} className="rounded-lg bg-[#1a73ca] px-3 py-1.5 font-semibold text-white hover:bg-[#155fa8]">{guestMode ? "Create account and keep my work" : "Sign in"}</button></div>
         </div>
-        {currentTab === "dashboard" && <DashboardView trades={activeTrades} rules={DEFAULT_RULES} goals={DEFAULT_GOALS} onNavigateTab={navigate} onOpenNewTrade={requestPersonalAction} onOpenRuleEditor={() => setAccessChoiceOpen(true)} onOpenGoalEditor={() => setAccessChoiceOpen(true)} onOpenDailyRecap={() => setAccessChoiceOpen(true)} aiBrief={null} onRefreshAiBrief={() => setAccessChoiceOpen(true)} loadingAi={false} loading={false} solPrice={solPrice} preferencesStorageKey="memecoin_journal_public_dashboard_cards" onSelectTrade={() => undefined} demoMode={!guestMode && demoVisible} onDemoModeChange={setPublicDemoVisible} />}
-        {currentTab === "journal" && <TradeJournalView userId="guest-session" trades={activeTrades} solPrice={solPrice} onOpenNewTrade={requestPersonalAction} onTradeDeleted={() => undefined} onOpenEditTrade={() => setAccessChoiceOpen(true)} onSelectTrade={() => undefined} readOnly />}
+        {currentTab === "dashboard" && <DashboardView trades={activeTrades} rules={DEFAULT_RULES} goals={DEFAULT_GOALS} onNavigateTab={navigate} onOpenNewTrade={requestPersonalAction} onOpenRuleEditor={requestAccountFeature} onOpenGoalEditor={requestAccountFeature} onOpenDailyRecap={requestAccountFeature} aiBrief={null} onRefreshAiBrief={requestAccountFeature} loadingAi={false} loading={false} solPrice={solPrice} preferencesStorageKey="memecoin_journal_public_dashboard_cards" onSelectTrade={() => undefined} demoMode={!guestMode && demoVisible} onDemoModeChange={setPublicDemoVisible} />}
+        {currentTab === "journal" && <TradeJournalView userId="guest-session" trades={activeTrades} solPrice={solPrice} onOpenNewTrade={requestPersonalAction} onTradeDeleted={() => undefined} onOpenEditTrade={requestAccountFeature} onSelectTrade={() => undefined} readOnly />}
+        {currentTab === "daily-journal" && <DailyJournalView userId="guest-session" trades={activeTrades} tutorialMode />}
+        {currentTab === "wallets" && <WalletsView trades={activeTrades} solPrice={solPrice} />}
         {currentTab === "statistics" && <StatisticsView trades={activeTrades} solPrice={solPrice} onSelectTrade={() => undefined} />}
-        {currentTab === "guide" && <GuideView onStartTour={() => setAccessChoiceOpen(true)} />}
+        {currentTab === "research" && <ResearchView userId="guest-session" trades={activeTrades} />}
+        {currentTab === "ai-coach" && <AiCoachView trades={activeTrades} aiBrief={null} onRefreshAiBrief={requestAccountFeature} loadingAi={false} />}
+        {currentTab === "guide" && <GuideView onStartTour={startGuestTour} />}
       </main>
-      {accessChoiceOpen && <AccessChoiceModal onClose={() => setAccessChoiceOpen(false)} onGuest={chooseGuest} onAccount={() => { setAccessChoiceOpen(false); setAuthOpen(true); }} />}
-      {authOpen && <AuthModal onClose={() => setAuthOpen(false)} />}
+      {accessChoiceOpen && <AccessChoiceModal onClose={closeAccessChoice} onGuest={chooseGuest} onSignUp={() => openAuth("signup")} onSignIn={() => openAuth("signin")} />}
+      {authOpen && <AuthModal key={authMode} initialMode={authMode} onClose={() => setAuthOpen(false)} />}
       {tradeModalOpen && <LogTradeModal isOpen onClose={() => setTradeModalOpen(false)} onTradeLogged={() => undefined} onGuestTradeLogged={addGuestTrade} guestMode initialData={null} solPrice={solPrice} trades={guestTrades} rules={DEFAULT_RULES} goals={DEFAULT_GOALS} />}
+      {guestTutorialOpen && <WelcomeTourModal isOpen onClose={() => { setGuestTutorialOpen(false); setGuestFeedbackOpen(false); if (openTradeAfterGuestTutorial) setTradeModalOpen(true); }} onComplete={() => { setGuestTutorialOpen(false); setGuestFeedbackOpen(false); if (openTradeAfterGuestTutorial) setTradeModalOpen(true); }} onNavigateTab={navigate} />}
+      {guestFeedbackOpen && <FeedbackModal isOpen onClose={() => setGuestFeedbackOpen(false)} user={null} currentSection={currentTab} onRequestSignIn={() => { setGuestFeedbackOpen(false); openAuth("signin"); }} />}
     </div>
   );
 }
 
-function AuthenticatedApp({ user }: { user: User }) {
+function AuthenticatedApp({ user, suppressWelcomeTour = false }: { user: User; suppressWelcomeTour?: boolean }) {
   const { showToast } = useToast();
   const currentTabStorageKey = `memecoin_journal_${user.uid}_current_tab`;
   const [currentTab, setCurrentTab] = useState<string>(() => {
@@ -267,7 +315,6 @@ function AuthenticatedApp({ user }: { user: User }) {
   const welcomeStorageKey = `memecoin_journal_${user.uid}_welcome_complete`;
   const welcomeComplete = useLocalStorageValue(welcomeStorageKey) === "true";
   const [welcomeTourOverride, setWelcomeTourOverride] = useState<boolean | null>(null);
-  const isWelcomeTourOpen = welcomeTourOverride ?? !welcomeComplete;
 
   useEffect(() => {
     writeLocalStorageValue(currentTabStorageKey, currentTab);
@@ -312,6 +359,7 @@ function AuthenticatedApp({ user }: { user: User }) {
   }, []);
 
   const demoTrades = useMemo(() => buildDemoTrades(), []);
+  const isWelcomeTourOpen = !suppressWelcomeTour && (welcomeTourOverride ?? (!loading && !welcomeComplete && trades.length < 10));
   const tutorialDemoMode = isWelcomeTourOpen && !loading && trades.length === 0;
   const isExampleMode = demoMode || tutorialDemoMode;
   const activeTrades = isExampleMode ? demoTrades : trades;
