@@ -116,7 +116,6 @@ try {
     throw new Error(`The public-first sign-in panel did not open. Visible page: ${visibleText}`, { cause: error });
   }
   const authPanel = page.locator(".public-auth-modal");
-  await authPanel.getByRole("button", { name: "Sign In", exact: true }).click();
   await authPanel.getByPlaceholder("trader@solana.com").fill(email);
   await authPanel.locator('input[type="password"]').fill(password);
   await authPanel.locator('form button[type="submit"]').click();
