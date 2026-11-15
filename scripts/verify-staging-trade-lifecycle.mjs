@@ -67,7 +67,10 @@ async function deleteAccount() {
 
 async function dismissTour(page) {
   const skip = page.getByRole("button", { name: "Skip tutorial" });
-  if (await skip.isVisible().catch(() => false)) await skip.click();
+  if (await skip.waitFor({ state: "visible", timeout: 15_000 }).then(() => true).catch(() => false)) {
+    await skip.click();
+    await skip.waitFor({ state: "detached", timeout: 10_000 });
+  }
 }
 
 async function openTradeJournal(page) {
