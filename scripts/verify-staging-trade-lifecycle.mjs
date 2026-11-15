@@ -101,8 +101,8 @@ try {
   }));
 
   await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 60_000 });
-  const accessChoice = page.getByRole("dialog", { name: "Trade less blindly. Review every decision." });
-  if (await accessChoice.isVisible().catch(() => false)) {
+  const accessChoice = page.locator('[data-access-choice-hydrated="true"]');
+  if (await accessChoice.waitFor({ state: "visible", timeout: 10_000 }).then(() => true).catch(() => false)) {
     await accessChoice.getByRole("button", { name: "Close", exact: true }).click();
     await accessChoice.waitFor({ state: "detached", timeout: 10_000 });
   }
