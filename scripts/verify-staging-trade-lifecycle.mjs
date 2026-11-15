@@ -101,6 +101,11 @@ try {
   }));
 
   await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 60_000 });
+  const accessChoice = page.getByRole("dialog", { name: "Trade less blindly. Review every decision." });
+  if (await accessChoice.isVisible().catch(() => false)) {
+    await accessChoice.getByRole("button", { name: "Close", exact: true }).click();
+    await accessChoice.waitFor({ state: "detached", timeout: 10_000 });
+  }
   const signInMode = page.locator(".public-session-banner").getByRole("button", { name: "Sign in", exact: true });
   await signInMode.click({ timeout: 30_000 });
   try {
