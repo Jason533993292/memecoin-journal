@@ -267,7 +267,7 @@ export default function TiltStreakHeatmap({ trades, solPrice = 150, onSelectTrad
                         : "bg-neutral-100 border-neutral-300 text-neutral-800"
                 } ${selectedDayKey === day.dayKey ? "calendar-day-selected" : ""}`}
               >
-                <span className="text-[10px] font-mono opacity-75 sm:text-[11px]">{day.date.getDate()}{isToday ? <span className="ml-1 text-[8px] font-sans">Today</span> : null}</span>
+                <span className="text-[10px] font-mono sm:text-[11px]">{day.date.getDate()}{isToday ? <span className="ml-1 text-[8px] font-sans">Today</span> : null}</span>
                 <span className="truncate whitespace-nowrap text-[9px] font-mono font-bold tracking-tight sm:text-[11px]">
                   {formatDayPnl(day)}
                 </span>
