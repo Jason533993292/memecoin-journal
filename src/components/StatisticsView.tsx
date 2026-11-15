@@ -197,7 +197,7 @@ export default function StatisticsView({ trades, solPrice = 150, onSelectTrade }
         <div className="flex items-center gap-2 text-xs text-[#787774] mb-2">
           <span>Journal</span>
           <span>/</span>
-          <span className="text-[#37352f] font-medium">Statistics</span>
+          <span className="text-[#37352f] font-medium">Analytics</span>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -207,7 +207,7 @@ export default function StatisticsView({ trades, solPrice = 150, onSelectTrade }
           </span>
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#37352f]">
-              Statistics & Strategy Analytics
+              Trading Analytics
             </h1>
             <p className="text-xs text-[#787774] mt-0.5">
               Deep dive into setup win-rates, holding duration patterns, streaks, and mistake costs.
@@ -231,7 +231,7 @@ export default function StatisticsView({ trades, solPrice = 150, onSelectTrade }
         <div className="flex items-center gap-2 text-xs text-[#787774] mb-2">
           <span>Journal</span>
           <span>/</span>
-          <span className="text-[#37352f] font-medium">Statistics</span>
+          <span className="text-[#37352f] font-medium">Analytics</span>
         </div>
 
         <div className="flex items-center gap-3">
@@ -240,7 +240,7 @@ export default function StatisticsView({ trades, solPrice = 150, onSelectTrade }
           </span>
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#37352f]">
-              Statistics & Strategy Analytics
+              Trading Analytics
             </h1>
             <p className="text-xs text-[#787774] mt-0.5">
               Deep dive into setup win-rates, holding duration patterns, streaks, and mistake costs.

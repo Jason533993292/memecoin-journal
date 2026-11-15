@@ -31,13 +31,13 @@ const SPOTLIGHT_STEPS: SpotlightStep[] = [
   { id: "daily-journal-review-tools", chapter: "Daily Journal", selector: '[data-tour="daily-journal-review-tools"]', title: "Turn reflections into habits", description: "Review weekly or monthly lessons, next actions and personal rules. Compare emotions with linked trade outcomes, with sample counts shown.", instruction: "Quick thought adds a timestamped note. Reflection & trade context adds snapshots, thesis links and before/after observations.", requireTargetClick: false, viewTab: "daily-journal" },
   { id: "daily-journal-recovery-tools", chapter: "Daily Journal", selector: '[data-tour="daily-journal-recovery-tools"]', title: "Recover your writing", description: "Recover browser drafts, restore one of the last eight writing versions, or bring an entry back from Trash. Permanently erasing or clearing the journal also removes recovery copies.", instruction: "Browser drafts stay on this device. Saved writing versions and Trash sync privately with your account.", requireTargetClick: false, viewTab: "daily-journal" },
   { id: "daily-journal-save", chapter: "Daily Journal", selector: '[data-tour="daily-journal-save"]', title: "Automatic private saving", description: "After you pause typing, the journal automatically syncs the reflection to your private account. Save now lets you sync immediately; offline drafts remain in this browser for recovery.", instruction: "The tutorial will not save the fictional example.", requireTargetClick: false, viewTab: "daily-journal" },
-  { id: "wallets", chapter: "Wallets", selector: '[data-tour="nav-wallets"]', title: "Wallets & Paychecks", description: "Track real Solana wallets separately from simulated paper-trading capital.", instruction: "Click the highlighted Wallets button.", requireTargetClick: true },
+  { id: "wallets", chapter: "Wallets", selector: '[data-tour="nav-wallets"]', title: "Wallets", description: "Track real Solana wallets separately from simulated paper-trading capital.", instruction: "Click the highlighted Wallets button.", requireTargetClick: true },
   { id: "wallet-scan", chapter: "Wallets", selector: '[data-tour="wallet-scan"]', title: "Check a public Solana address", description: "Paste a public Phantom or Solflare address to read its current on-chain SOL balance. Private keys and seed phrases should never be entered here.", instruction: "Scanning is optional; the tutorial will not submit an address.", requireTargetClick: false, viewTab: "wallets" },
   { id: "paper-capital", chapter: "Wallets", selector: '[data-tour="paper-capital"]', title: "Paper Trading Capital", description: "Set a fictional starting balance for practice trades. Current simulated equity combines that starting amount with paper-trade P&L.", instruction: "Paper capital is not real SOL and cannot be withdrawn.", requireTargetClick: false, viewTab: "wallets" },
   { id: "new-wallet", chapter: "Wallets", selector: '[data-tour="new-wallet"]', title: "Add a trading wallet", description: "Create a named wallet with a balance and optional public address so trades and performance can be grouped correctly.", instruction: "This explanation does not open or submit the form.", requireTargetClick: false, viewTab: "wallets" },
   { id: "wallet-records", chapter: "Wallets", selector: '[data-tour="wallet-records"]', title: "Wallet performance and actions", description: "Review each wallet's balance, win rate, trades, P&L, address, deposits, withdrawals, and management actions in one place.", instruction: "If you have no real wallets yet, this area explains what will appear after you add one.", requireTargetClick: false, viewTab: "wallets" },
   { id: "wallet-history", chapter: "Wallets", selector: '[data-tour="wallet-history"], [data-tour="wallet-records"]', title: "Deposit & Paycheck History", description: "Deposits record capital moved into a wallet. Paychecks record profit removed from it without changing your historical trades.", instruction: "The history keeps those balance changes separate from trading P&L. The tab appears after the first wallet transaction exists.", requireTargetClick: false, viewTab: "wallets" },
-  { id: "analytics", chapter: "Analytics", selector: '[data-tour="nav-statistics"]', title: "Statistics & Analytics", description: "Compare win rate, setups, discipline, streaks, holding time, and performance across your saved history.", instruction: "Click the highlighted Analytics button.", requireTargetClick: true },
+  { id: "analytics", chapter: "Analytics", selector: '[data-tour="nav-statistics"]', title: "Analytics", description: "Compare win rate, setups, discipline, streaks, holding time, and performance across your saved history.", instruction: "Click the highlighted Analytics button.", requireTargetClick: true },
   { id: "analytics-calendar", chapter: "Analytics", selector: '[data-tour="monthly-calendar"]', title: "Review every trading day", description: "Move between months, switch SOL or USD, and select any profit or loss day to open the trade cards that produced that result.", instruction: "Use the calendar to connect a monthly total back to the individual decisions behind it.", requireTargetClick: false, viewTab: "statistics" },
   { id: "analytics-discipline", chapter: "Analytics", selector: '[data-tour="analytics-discipline"]', title: "Discipline & confidence", description: "Compare process grades and entry confidence with actual outcomes to find where execution matches—or conflicts with—your expectations.", instruction: "Small samples can mislead, so use these figures as descriptive evidence.", requireTargetClick: false, viewTab: "statistics" },
   { id: "analytics-duration", chapter: "Analytics", selector: '[data-tour="analytics-duration"]', title: "Holding-time patterns", description: "Compare how long winning and losing trades stay open. This can reveal whether you cut winners too early or let losing positions linger.", instruction: "Treat the insight as a pattern to investigate, not a rule based on only a few trades.", requireTargetClick: false, viewTab: "statistics" },
@@ -102,10 +102,14 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
       completeTour();
       return;
     }
+    setTargetRect(null);
     setStepIndex((index) => index + 1);
   }, [completeTour, onNavigateTab, stepIndex]);
 
-  const goBack = useCallback(() => setStepIndex((index) => Math.max(0, index - 1)), []);
+  const goBack = useCallback(() => {
+    setTargetRect(null);
+    setStepIndex((index) => Math.max(0, index - 1));
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -180,7 +184,7 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
     let clickHandler: (() => void) | null = null;
     let hasAdvanced = false;
     const timers: number[] = [];
-    let settleTimer: number | null = null;
+    let measureFrame: number | null = null;
     const measureTarget = () => {
       if (!target) return;
       const rect = target.getBoundingClientRect();
@@ -191,19 +195,21 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
       const bottom = Math.min(window.innerHeight - 7, rect.bottom + padding);
       setTargetRect({ top, left, right, bottom, width: Math.max(0, right - left), height: Math.max(0, bottom - top) });
     };
-    const scheduleSettledMeasure = (delay = 140) => {
-      if (settleTimer !== null) window.clearTimeout(settleTimer);
-      settleTimer = window.setTimeout(measureTarget, delay);
+    const scheduleSettledMeasure = () => {
+      if (measureFrame !== null) window.cancelAnimationFrame(measureFrame);
+      measureFrame = window.requestAnimationFrame(() => {
+        measureFrame = window.requestAnimationFrame(measureTarget);
+      });
     };
     const locateTarget = () => {
       target = findVisibleTarget(step.selector);
       if (!target) { setTargetRect(null); return; }
       const initialRect = target.getBoundingClientRect();
       if (initialRect.top < 76 || initialRect.bottom > window.innerHeight - 28) {
-        target.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
-        scheduleSettledMeasure(520);
+        target.scrollIntoView({ behavior: "auto", block: "center", inline: "nearest" });
+        scheduleSettledMeasure();
       } else {
-        scheduleSettledMeasure(40);
+        scheduleSettledMeasure();
       }
       if (step.requireTargetClick && clickTarget !== target) {
         if (clickTarget && clickHandler) clickTarget.removeEventListener("click", clickHandler);
@@ -218,14 +224,16 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
     };
     announceStep();
     timers.push(window.setTimeout(announceStep, 60));
-    timers.push(window.setTimeout(locateTarget, 100));
-    const settleAfterScroll = () => scheduleSettledMeasure(140);
-    const settleAfterResize = () => scheduleSettledMeasure(100);
+    timers.push(window.setTimeout(locateTarget, 0));
+    timers.push(window.setTimeout(locateTarget, 90));
+    timers.push(window.setTimeout(locateTarget, 220));
+    const settleAfterScroll = () => scheduleSettledMeasure();
+    const settleAfterResize = () => scheduleSettledMeasure();
     window.addEventListener("resize", settleAfterResize);
     window.addEventListener("scroll", settleAfterScroll, true);
     return () => {
       timers.forEach((timer) => window.clearTimeout(timer));
-      if (settleTimer !== null) window.clearTimeout(settleTimer);
+      if (measureFrame !== null) window.cancelAnimationFrame(measureFrame);
       if (clickTarget && clickHandler) clickTarget.removeEventListener("click", clickHandler);
       window.removeEventListener("resize", settleAfterResize);
       window.removeEventListener("scroll", settleAfterScroll, true);
@@ -285,9 +293,9 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
         <div className="pointer-events-auto fixed left-0 bg-black/80" style={{ top: targetRect.top, width: targetRect.left, height: targetRect.height }} />
         <div className="pointer-events-auto fixed right-0 bg-black/80" style={{ top: targetRect.top, left: targetRect.right, height: targetRect.height }} />
         {!step.requireTargetClick && <div className="pointer-events-auto fixed bg-transparent" aria-hidden="true" style={{ top: targetRect.top, left: targetRect.left, width: targetRect.width, height: targetRect.height }} />}
-        <div className="pointer-events-none fixed rounded-xl transition-[top,left,width,height] duration-300 ease-out border-2 border-[#55a7f1] shadow-[0_0_0_4px_rgba(35,131,226,0.25),0_0_28px_rgba(35,131,226,0.7)]" style={{ top: targetRect.top, left: targetRect.left, width: targetRect.width, height: targetRect.height }} />
+        <div className="pointer-events-none fixed rounded-xl transition-[top,left,width,height] duration-150 ease-out border-2 border-[#55a7f1] shadow-[0_0_0_4px_rgba(35,131,226,0.25),0_0_28px_rgba(35,131,226,0.7)]" style={{ top: targetRect.top, left: targetRect.left, width: targetRect.width, height: targetRect.height }} />
       </>}
-      <section key={step.id} data-tour-dialog role="dialog" aria-modal="true" aria-label={`Tutorial step ${stepIndex + 1}: ${step.title}`} className="tour-tooltip-scrollbar pointer-events-auto fixed animate-in fade-in slide-in-from-bottom-1 duration-200 z-[91] max-h-[calc(100vh-24px)] overflow-y-auto rounded-2xl border border-white/10 bg-[#111318] p-4 text-white shadow-2xl" style={tooltipStyle}>
+      <section data-tour-dialog role="dialog" aria-modal="true" aria-label={`Tutorial step ${stepIndex + 1}: ${step.title}`} className="tour-tooltip-scrollbar pointer-events-auto fixed z-[91] max-h-[calc(100vh-24px)] overflow-y-auto rounded-2xl border border-white/10 bg-[#111318] p-4 text-white shadow-2xl transition-[top,left,right,bottom] duration-150 ease-out" style={tooltipStyle}>
         {targetRect && (sidePlacement === "right" ? <ArrowLeft className="tour-arrow-horizontal absolute -left-8 top-5 text-[#55a7f1]" size={24} /> : sidePlacement === "left" ? <ArrowRight className="tour-arrow-horizontal absolute -right-8 top-5 text-[#55a7f1]" size={24} /> : showBelow ? <ArrowUp className="tour-arrow-vertical absolute -top-8 left-6 text-[#55a7f1]" size={24} /> : <ArrowDown className="tour-arrow-vertical absolute -bottom-8 left-6 text-[#55a7f1]" size={24} />)}
         <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#55a7f1]">{step.chapter} · Step {stepIndex + 1} of {SPOTLIGHT_STEPS.length}</p><h2 className="mt-1 text-base font-bold">{step.title}</h2></div><button type="button" onClick={closeTour} aria-label="Close tutorial" className="rounded-md p-1 text-neutral-500 hover:bg-white/8 hover:text-white"><X size={16} /></button></div>
         <p className="mt-2 text-xs leading-5 text-neutral-300">{step.description}</p>

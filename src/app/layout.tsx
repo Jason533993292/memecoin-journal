@@ -18,8 +18,13 @@ export const metadata: Metadata = {
   metadataBase,
   openGraph: {
     title: "Memecoin Journal",
-    description: "A private trading journal for Solana memecoin traders.",
+    description: "Trade less blindly. Review every decision. Track realized P&L, journal your reasoning, connect coin theses, and uncover the habits behind your results.",
     type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Memecoin Journal",
+    description: "Trade less blindly. Review every decision.",
   },
   manifest: "/manifest.json",
   appleWebApp: {

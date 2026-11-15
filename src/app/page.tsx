@@ -85,7 +85,7 @@ function SectionLoading() {
 }
 
 function MainApp() {
-  const { user, backendSetupError, retryBackendSetup, logout } = useAuth();
+  const { user, loading: authLoading, backendSetupError, retryBackendSetup, logout } = useAuth();
   const [pendingGuestTrades, setPendingGuestTrades] = useState<Trade[]>(() => readTransientGuestTrades());
   const [importVersion, setImportVersion] = useState(0);
 
@@ -100,6 +100,7 @@ function MainApp() {
   // temporarily unreachable; an existing account replaces this view as soon
   // as Firebase confirms it. Keeping this as one stable branch also preserves
   // visitor choices while Firebase finishes its first auth check.
+  if (authLoading) return <main className="min-h-screen bg-white p-8"><LoadingState label="Restoring your journal session" /></main>;
   if (!user) return <PublicWorkspace />;
   if (backendSetupError) {
     return (
@@ -733,7 +734,7 @@ function AuthenticatedApp({ user, suppressWelcomeTour = false }: { user: User; s
           />
         )}
 
-        {currentTab === "wallets" && <WalletsView key={user.uid} trades={activeTrades} solPrice={solPrice} />}
+        {currentTab === "wallets" && <WalletsView key={user.uid} trades={activeTrades} solPrice={solPrice} onImportWalletTrade={(draft) => { setClonedTrade(draft); setIsNewTradeModalOpen(true); }} />}
 
         {currentTab === "statistics" && <StatisticsView key={user.uid} trades={activeTrades} solPrice={solPrice} onSelectTrade={setInspectingTrade} />}
 

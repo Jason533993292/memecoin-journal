@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@heroui/react";
 import ThemePreviewControl from "./ThemePreviewControl";
-import CursorPicker from "./CursorPicker";
 import MarketPricePicker from "./MarketPricePicker";
 import {
   LayoutDashboard,
@@ -124,10 +123,10 @@ export default function TopBanner({
     { id: "dashboard", label: "Dashboard", title: "MemeCoins Dashboard", icon: LayoutDashboard },
     { id: "journal", label: "Trades", title: "Trades", icon: BookOpen },
     { id: "daily-journal", label: "Daily Journal", title: "Daily Journal", icon: BookHeart },
-    { id: "wallets", label: "Wallets", title: "Wallets & Paychecks", icon: Wallet },
-    { id: "statistics", label: "Analytics", title: "Statistics", icon: BarChart3 },
-    { id: "research", label: "Research", title: "Coin Research & Thesis", icon: Microscope },
-    { id: "ai-coach", label: "AI Coach", title: "AI Trader Coach", icon: Bot },
+    { id: "wallets", label: "Wallets", title: "Wallets", icon: Wallet },
+    { id: "statistics", label: "Analytics", title: "Analytics", icon: BarChart3 },
+    { id: "research", label: "Coin Research & Thesis", title: "Coin Research & Thesis", icon: Microscope },
+    { id: "ai-coach", label: "AI Trader Coach", title: "AI Trader Coach", icon: Bot },
   ];
 
   const activeTab = currentTab === "guide"
@@ -337,7 +336,6 @@ export default function TopBanner({
 
         <div className="flex shrink-0 items-center gap-2">
           <InstallAppButton />
-          <CursorPicker />
           {connectionState !== "online" && <div role="status" aria-live="polite" title={connectionState === "reconnecting" ? "Connection restored; checking services" : "Offline; browser drafts remain available"} className={`hidden items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-semibold sm:flex ${connectionState === "reconnecting" ? "border-amber-500/30 bg-amber-500/10 text-amber-200" : "border-rose-500/30 bg-rose-500/10 text-rose-200"}`}>
             {connectionState === "offline" ? <WifiOff size={12}/> : <Wifi size={12}/>}<span>{connectionState === "reconnecting" ? "Reconnecting…" : "Offline"}</span>
           </div>}

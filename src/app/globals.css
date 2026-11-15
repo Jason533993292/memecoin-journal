@@ -1454,11 +1454,6 @@ html[data-theme-preview] .theme-preview-control button.is-active {
   height: 0;
 }
 
-html[data-cursor="default"], html[data-cursor="default"] * { cursor: default !important; }
-html[data-cursor="crosshair"], html[data-cursor="crosshair"] * { cursor: crosshair !important; }
-html[data-cursor="x"], html[data-cursor="x"] * { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M6 6l12 12M18 6L6 18' stroke='%232383e2' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E") 12 12, crosshair !important; }
-html[data-cursor="dot"], html[data-cursor="dot"] * { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Ccircle cx='10' cy='10' r='4' fill='%232383e2' stroke='white' stroke-width='2'/%3E%3C/svg%3E") 10 10, crosshair !important; }
-html[data-cursor="precision"], html[data-cursor="precision"] * { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Ccircle cx='14' cy='14' r='6' fill='none' stroke='%232383e2' stroke-width='2'/%3E%3Cpath d='M14 2v7M14 19v7M2 14h7M19 14h7' stroke='%232383e2' stroke-width='2'/%3E%3C/svg%3E") 14 14, crosshair !important; }
 
 @media (min-width: 1280px) {
   .journal-page {

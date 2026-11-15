@@ -1005,15 +1005,10 @@ export default function LogTradeModal({
             <TradeFillsEditor fills={fills} quoteSymbol={quoteCurrency === "OTHER" ? otherQuoteSymbol || "OTHER" : quoteCurrency || "SOL"} onChange={updateFills} />
 
             {/* Advanced Metrics Accordion */}
-            <div className="border border-[#e9e9e7] rounded-xl p-3 bg-white">
-              <button
-                type="button"
-                onClick={() => setShowAdvanced(!showAdvanced)}
-                className="w-full flex items-center justify-between text-xs font-medium text-[#787774] hover:text-[#37352f]"
-              >
+            <details open={showAdvanced} onToggle={(event) => setShowAdvanced(event.currentTarget.open)} className="rounded-xl border border-[#e3e2de] bg-white p-3">
+              <summary className="cursor-pointer text-xs font-semibold text-[#37352f]">
                 <span>Expert / Advanced Fields</span>
-                <span>{showAdvanced ? "▲" : "▼"}</span>
-              </button>
+              </summary>
 
               {showAdvanced && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-3 mt-2 border-t border-[#f1f1ef]">
@@ -1078,7 +1073,7 @@ export default function LogTradeModal({
                   </div>
                 </div>
               )}
-            </div>
+            </details>
 
             {/* Pre-trade discipline check */}
             <section className="rounded-xl border border-[#e3e2de] bg-[#fbfbfa] p-3">

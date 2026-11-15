@@ -3,12 +3,20 @@ import test from "node:test";
 
 import {
   calculateTradeOutcome,
+  getRMultiple,
   getTradeBoughtUsd,
   getTradeSoldUsd,
   getUsdValueStatus,
   normalizeTrade,
   summarizeTrades,
 } from "../src/lib/tradeCalculations.ts";
+
+test("calculates realized R-multiple only when planned risk is valid", () => {
+  const base = normalizeTrade({ id: "risk", ca: "ca", name: "Risk", symbol: "RISK", wallet: "Main", result: "Win", boughtSol: 1, pnlSol: 0.6, mistakes: [] });
+  assert.ok(Math.abs((getRMultiple({ ...base, initialRiskSol: 0.2 }) || 0) - 3) < 0.000001);
+  assert.equal(getRMultiple({ ...base, initialRiskSol: 0 }), null);
+  assert.equal(getRMultiple(base), null);
+});
 
 test("normalizes a legacy createdAt timestamp without rewriting the trade", () => {
   const trade = normalizeTrade({

@@ -23,7 +23,7 @@ import {
 import { useState, useEffect } from "react";
 import { useToast } from "./Toast";
 import ImageLightboxModal from "./ImageLightboxModal";
-import { getTradeBoughtUsd, getTradeSoldUsd, getUsdValueStatus } from "../lib/tradeCalculations";
+import { getRMultiple, getTradeBoughtUsd, getTradeSoldUsd, getUsdValueStatus } from "../lib/tradeCalculations";
 import { auth, db } from "../lib/firebase";
 import { collection, getDocs } from "firebase/firestore";
 import { listSupabaseResearch, usesSupabaseJournal } from "../lib/journalBackend";
@@ -126,6 +126,7 @@ export default function TradeDetailDrawer({
       ? (((trade.pnlSol || 0) / trade.boughtSol) * 100).toFixed(1)
       : null;
   const similarTrades = findSimilarTrades(trade, allTrades);
+  const rMultiple = getRMultiple(trade);
 
   const formatDuration = (mins?: number) => {
     if (!mins) return null;
@@ -233,6 +234,13 @@ export default function TradeDetailDrawer({
                   </div>
                 </div>
               </div>
+
+              {rMultiple !== null && (
+                <div className="grid grid-cols-2 gap-2 rounded-xl border border-[#e9e9e7] bg-[#fbfbfa] p-3 text-xs">
+                  <div><span className="block text-[10px] text-[#787774]">Planned risk</span><strong>{formatSol(trade.initialRiskSol || 0)} SOL</strong></div>
+                  <div><span className="block text-[10px] text-[#787774]">Realized R-multiple</span><strong className={rMultiple < 0 ? "text-rose-700" : "text-emerald-700"}>{rMultiple >= 0 ? "+" : ""}{rMultiple.toFixed(2)}R</strong></div>
+                </div>
+              )}
 
               {/* Setup & Duration Badges */}
               {(trade.setupType || trade.durationMinutes) && (

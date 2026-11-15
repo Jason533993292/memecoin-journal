@@ -98,6 +98,13 @@ export function calculateTradeOutcome(trade: Trade, currentSolPrice: number): Tr
   };
 }
 
+/** Returns realized profit or loss divided by the amount the trader planned to risk. */
+export function getRMultiple(trade: Trade): number | null {
+  if (typeof trade.initialRiskSol !== "number" || !Number.isFinite(trade.initialRiskSol) || trade.initialRiskSol <= 0) return null;
+  if (!Number.isFinite(trade.pnlSol)) return null;
+  return trade.pnlSol / trade.initialRiskSol;
+}
+
 function median(values: number[]): number {
   if (values.length === 0) return 0;
   const sorted = [...values].sort((a, b) => a - b);

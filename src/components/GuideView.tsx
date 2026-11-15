@@ -136,7 +136,7 @@ export default function GuideView({ onStartTour }: { onStartTour: () => void }) 
 
       <section aria-labelledby="privacy-summary-title" className="rounded-2xl border border-[#e3e2de] bg-[#fbfbfa] p-5">
         <h2 id="privacy-summary-title" className="text-sm font-bold text-[#37352f]">Where your information lives</h2>
-        <div className="mt-3 grid gap-3 text-xs leading-5 text-[#5a5957] md:grid-cols-3"><p><strong className="block text-[#37352f]">Guest session</strong>Temporary trades stay in the current tab and are removed when that tab closes.</p><p><strong className="block text-[#37352f]">Private account</strong>Saved journal information is isolated by account and can be exported or erased from Account & privacy.</p><p><strong className="block text-[#37352f]">AI Coach</strong>Your selected provider receives only the bounded review information described in the privacy notice when you explicitly request analysis.</p></div>
+        <div className="mt-3 grid gap-3 text-xs leading-5 text-[#5a5957] md:grid-cols-3"><p><strong className="block text-[#37352f]">Guest session</strong>Temporary trades stay in the current tab and are removed when that tab closes.</p><p><strong className="block text-[#37352f]">Private account</strong>Saved journal information is isolated by account and can be exported or erased from Account & privacy.</p><p><strong className="block text-[#37352f]">AI Trader Coach</strong>Your selected provider receives only the bounded review information described in the privacy notice when you explicitly request analysis.</p></div>
       </section>
 
       {showInternalRoadmap && <><section aria-labelledby="recommended-next-title" className="recommended-next-section rounded-2xl border border-blue-200 bg-blue-50/60 p-5 sm:p-6">

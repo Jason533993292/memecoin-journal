@@ -303,14 +303,14 @@ export default function AiCoachView({
         <div className="flex items-center gap-2 text-xs text-[#787774] mb-2">
           <span>Journal</span>
           <span>/</span>
-          <span className="text-[#37352f] font-medium">Trade Review &amp; AI Coach</span>
+          <span className="text-[#37352f] font-medium">AI Trader Coach</span>
         </div>
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-3xl font-bold tracking-tight text-[#37352f]">AI Trade Review</h1>
+                <h1 className="text-3xl font-bold tracking-tight text-[#37352f]">AI Trader Coach</h1>
                 <BetaBadge />
               </div>
               <p className="text-xs text-[#787774] mt-0.5">

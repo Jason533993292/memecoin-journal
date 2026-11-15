@@ -133,7 +133,7 @@ export default function CommandPaletteModal({
     },
     {
       id: "nav-wallets",
-      title: "Go to Wallets & Balance Scanner",
+      title: "Go to Wallets",
       category: "Navigation",
       icon: Wallet,
       run: () => {
@@ -143,7 +143,7 @@ export default function CommandPaletteModal({
     },
     {
       id: "nav-stats",
-      title: "Go to Statistics & Equity Curve",
+      title: "Go to Analytics",
       category: "Navigation",
       icon: BarChart3,
       run: () => {
@@ -163,8 +163,8 @@ export default function CommandPaletteModal({
     },
     {
       id: "nav-ai",
-      title: "Open DeepSeek AI Coach Review",
-      category: "AI Coach",
+      title: "Open AI Trader Coach",
+      category: "AI Trader Coach",
       icon: Bot,
       run: () => {
         onClose();
