@@ -10,15 +10,34 @@ import { sendFeedbackNotificationWithRetry } from "@/lib/feedbackEmail";
 import { completeFeedbackDeliveryJob, createUserFeedback, enqueueFeedbackDelivery, listUserFeedback, recordFeedbackEmailStatus, rescheduleFeedbackDeliveryJob } from "@/lib/supabase-admin";
 import { feedbackReference, requestHeaders, requestIdFor } from "@/lib/requestId";
 
+function feedbackDeliveryErrorCode(error: unknown) {
+  if (error instanceof DOMException && error.name === "TimeoutError") return "provider_timeout";
+  if (error instanceof Error) {
+    const status = error.message.match(/HTTP\s+(\d{3})/i)?.[1];
+    if (status) return `provider_http_${status}`;
+    if (/timeout|abort/i.test(error.name) || /timeout|abort/i.test(error.message)) return "provider_timeout";
+    if (error instanceof TypeError) return "provider_network_error";
+  }
+  return "provider_unknown_error";
+}
+
 export async function GET(request: Request) {
   const requestId = requestIdFor(request);
   const reply = (body: object, status = 200) => NextResponse.json(body, {
     status,
     headers: requestHeaders(requestId),
   });
+  let user;
   try {
-    const user = await verifyFirebaseUser(request);
-    if (!user) return reply({ error: "Sign in to view feedback." }, 401);
+    user = await verifyFirebaseUser(request);
+  } catch (error) {
+    return reply(
+      { error: error instanceof FirebaseAdminConfigurationError ? "Feedback is temporarily unavailable." : "Sign in again and retry." },
+      error instanceof FirebaseAdminConfigurationError ? 503 : 401,
+    );
+  }
+  if (!user) return reply({ error: "Sign in to view feedback." }, 401);
+  try {
     const reports = await listUserFeedback(user.uid);
     return reply({
       reports: reports.map((report) => ({
@@ -104,21 +123,22 @@ export async function POST(request: Request) {
     } catch (emailError) {
       // The database remains the durable inbox. A provider outage should not
       // make the user resubmit and create a duplicate report.
+      const deliveryError = feedbackDeliveryErrorCode(emailError);
       console.error("Feedback email notification failed", {
         requestId,
         reference,
-        reason: emailError instanceof Error ? emailError.message : "unknown",
+        reason: deliveryError,
       });
       await recordFeedbackEmailStatus(feedbackId, {
         status: "failed",
         attempts: 3,
-        error: emailError instanceof Error ? emailError.message : "unknown",
+        error: deliveryError,
       }).catch((statusError) => console.error("Feedback delivery status update failed", {
         requestId,
         reference,
         reason: statusError instanceof Error ? statusError.name : "unknown",
       }));
-      await rescheduleFeedbackDeliveryJob(feedbackId, Math.max(1, receipt.created ? 1 : 2), emailError instanceof Error ? emailError.message : "unknown").catch((queueError) => console.error("Feedback delivery reschedule failed", {
+      await rescheduleFeedbackDeliveryJob(feedbackId, Math.max(1, receipt.created ? 1 : 2), deliveryError).catch((queueError) => console.error("Feedback delivery reschedule failed", {
         requestId,
         reference,
         reason: queueError instanceof Error ? queueError.name : "unknown",

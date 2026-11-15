@@ -381,14 +381,13 @@ export async function listSupabaseWallets(userId: string): Promise<Wallet[]> {
 }
 
 export async function saveSupabaseWallet(userId: string, wallet: Wallet) {
-  const { error } = await getSupabaseClient().from("wallets").upsert({
-    user_id: userId,
-    id: wallet.id,
-    name: wallet.name,
-    balance_sol: wallet.balanceSol,
-    address: wallet.address,
-    updated_at: new Date().toISOString(),
-  }, { onConflict: "user_id,id" });
+  const { error } = await getSupabaseClient().rpc("upsert_wallet", {
+    p_user_id: userId,
+    p_wallet_id: wallet.id,
+    p_name: wallet.name,
+    p_opening_balance_sol: wallet.balanceSol,
+    p_address: wallet.address,
+  });
   throwIfError(error);
 }
 

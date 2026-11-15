@@ -69,18 +69,19 @@ async function tokenPrices(mints: string[]) {
 }
 
 export async function POST(request: Request) {
-  const parsed = await readBoundedJson(request, 2_000);
-  const address = "data" in parsed && parsed.data && typeof parsed.data === "object" && !Array.isArray(parsed.data) && "address" in parsed.data && typeof parsed.data.address === "string"
-    ? parsed.data.address.trim()
-    : "";
-  if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)) return NextResponse.json({ error: "Enter a valid Solana wallet address." }, { status: 400 });
-
   let user;
   try { user = await verifyFirebaseUser(request); }
   catch (error) {
     return NextResponse.json({ error: error instanceof FirebaseAdminConfigurationError ? "Wallet import is temporarily unavailable." : "Sign in again to import wallet activity." }, { status: error instanceof FirebaseAdminConfigurationError ? 503 : 401 });
   }
   if (!user) return NextResponse.json({ error: "Sign in to import wallet activity." }, { status: 401 });
+
+  const parsed = await readBoundedJson(request, 2_000);
+  const address = "data" in parsed && parsed.data && typeof parsed.data === "object" && !Array.isArray(parsed.data) && "address" in parsed.data && typeof parsed.data.address === "string"
+    ? parsed.data.address.trim()
+    : "";
+  if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)) return NextResponse.json({ error: "Enter a valid Solana wallet address." }, { status: 400 });
+
   try {
     const allowed = await consumeUserRateLimits(user.uid, "wallet-activity", [{ key: "minute", limit: 5, durationMs: 60_000 }, { key: "day", limit: 50, durationMs: 86_400_000 }]);
     if (!allowed) return NextResponse.json({ error: "Too many wallet imports. Wait a minute and try again." }, { status: 429 });

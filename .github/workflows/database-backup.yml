@@ -17,10 +17,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Install maintained Supabase CLI v2
-        uses: supabase/setup-cli@v3
+        uses: supabase/setup-cli@689adcfb80d947100a1eab127289b97d1fb07b13 # v3
         with:
           version: v2.stable
 
@@ -52,7 +52,7 @@ jobs:
           shasum -a 256 backup/roles.sql backup/schema.sql backup/data.sql > backup/SHA256SUMS
 
       - name: Upload encrypted-at-rest workflow artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: production-database-backup-${{ github.run_id }}
           path: backup/

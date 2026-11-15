@@ -20,10 +20,10 @@ jobs:
     environment: staging
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: supabase/setup-cli@v1
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: supabase/setup-cli@689adcfb80d947100a1eab127289b97d1fb07b13 # v3
         with:
-          version: latest
+          version: v2.stable
       - name: Regenerate hosted database types
         run: supabase gen types typescript --project-id "$SUPABASE_PROJECT_REF" > /tmp/database.types.ts
         env:
@@ -37,10 +37,10 @@ jobs:
     environment: staging
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: supabase/setup-cli@v1
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: supabase/setup-cli@689adcfb80d947100a1eab127289b97d1fb07b13 # v3
         with:
-          version: latest
+          version: v2.stable
       - name: Link protected staging project
         run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
         env:

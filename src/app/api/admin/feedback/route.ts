@@ -10,6 +10,17 @@ async function authorize(request: Request) {
   return user;
 }
 
+async function authenticateAdmin(request: Request, reply: ReturnType<typeof responder>) {
+  try {
+    return { user: await authorize(request) };
+  } catch (error) {
+    if (error instanceof FirebaseAdminConfigurationError) {
+      return { response: reply({ error: "Administration is unavailable." }, 503) };
+    }
+    return { response: reply({ error: "Not found." }, 404) };
+  }
+}
+
 function responder(request: Request) {
   const requestId = requestIdFor(request);
   return (body: object, status = 200) => NextResponse.json(body, { status, headers: requestHeaders(requestId) });
@@ -17,12 +28,12 @@ function responder(request: Request) {
 
 export async function GET(request: Request) {
   const reply = responder(request);
+  const auth = await authenticateAdmin(request, reply);
+  if (auth.response) return auth.response;
+  if (!auth.user) return reply({ error: "Not found." }, 404);
   try {
-    const user = await authorize(request);
-    if (!user) return reply({ error: "Not found." }, 404);
     return reply({ reports: await listFeedbackForAdmin() });
   } catch (error) {
-    if (error instanceof FirebaseAdminConfigurationError) return reply({ error: "Administration is unavailable." }, 503);
     console.error("Feedback administration list failed", { reason: error instanceof Error ? error.name : "unknown" });
     return reply({ error: "Reports could not be loaded." }, 500);
   }
@@ -30,9 +41,11 @@ export async function GET(request: Request) {
 
 export async function PATCH(request: Request) {
   const reply = responder(request);
+  const auth = await authenticateAdmin(request, reply);
+  if (auth.response) return auth.response;
+  const user = auth.user;
+  if (!user || typeof user.email !== "string") return reply({ error: "Not found." }, 404);
   try {
-    const user = await authorize(request);
-    if (!user || typeof user.email !== "string") return reply({ error: "Not found." }, 404);
     const body = await readBoundedJson(request, 8_192);
     if ("error" in body) return reply({ error: "The update is not valid." }, 400);
     const update = parseFeedbackAdminUpdate(body.data);
@@ -40,7 +53,6 @@ export async function PATCH(request: Request) {
     await updateFeedbackForAdmin({ ...update, actorUid: user.uid, actorEmail: user.email });
     return reply({ updated: true });
   } catch (error) {
-    if (error instanceof FirebaseAdminConfigurationError) return reply({ error: "Administration is unavailable." }, 503);
     console.error("Feedback administration update failed", { reason: error instanceof Error ? error.name : "unknown" });
     return reply({ error: "The report could not be updated." }, 500);
   }

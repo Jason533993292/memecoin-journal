@@ -604,6 +604,16 @@ export type Database = {
         Args: { p_patch: Json; p_user_id: string }
         Returns: undefined
       }
+      upsert_wallet: {
+        Args: {
+          p_address: string
+          p_name: string
+          p_opening_balance_sol: number
+          p_user_id: string
+          p_wallet_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

@@ -1,37 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Memecoin Journal
 
-## Getting Started
+A private trading journal for reviewing Solana memecoin trades, daily decisions, wallet activity, research theses, discipline, and realized performance.
 
-First, run the development server:
+## What the app includes
+
+- Guest previews and Firebase Authentication for saved accounts
+- Supabase-backed trades, journals, wallets, research, feedback, and account history
+- Guided trade logging, partial entries and exits, screenshots, playbooks, and thesis links
+- Daily journal, monthly calendar, performance statistics, and currency-aware reporting
+- Optional AI reviews using a provider key stored in the user's browser
+- Wallet activity review through public Solana RPC data
+- Feedback delivery, status tracking, account export, and resumable deletion
+
+## Local development
+
+Requirements: Node.js 22 and npm.
 
 ```bash
+cp .env.example .env.local
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Do not commit `.env.local`, Firebase service-account JSON, Supabase service-role keys, AI provider keys, health tokens, or feedback-worker tokens.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Verification
 
-## Learn More
+```bash
+npm run lint
+npm test
+npm run build
+npm run test:rules
+npm run security:dependencies
+npm run smoke:release -- https://memecoin-journal.up.railway.app/
+```
 
-To learn more about Next.js, take a look at the following resources:
+The repository also contains Playwright release checks, CodeQL, secret scanning, a database-contract workflow, protected staging isolation, service monitoring, and Supabase backup verification.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Data and security model
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Firebase authenticates users.
+- Supabase stores journal data and uses row-level security tied to the Firebase user ID.
+- Firestore remains available for server-side rate limits and legacy compatibility.
+- Private API routes verify Firebase tokens and apply bounded request parsing and rate limits.
+- AI keys stay in browser storage and are forwarded only to the chosen provider when a review is requested.
+- Wallet balances may be initialized when a wallet is created; later changes must use recorded deposits or paychecks.
 
-## Deploy on Vercel
+Review `/privacy` and `/terms` in the running application for the user-facing policies.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Deployment
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
- 
+Production is deployed from `main` to Railway. Environment variables are managed in Railway and GitHub Actions; values must never be written to the repository.
+
+Before a public release, confirm:
+
+1. Release checks, CodeQL, database contract, and staging isolation pass.
+2. The production health check reports Firebase, Firestore, Supabase, and feedback delivery readiness.
+3. A recent Supabase backup has completed and its verification workflow passes.
+4. The live smoke test passes for the homepage, legal pages, and health endpoint.

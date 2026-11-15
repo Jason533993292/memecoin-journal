@@ -107,24 +107,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Sign in to request an AI analysis." }, { status: 401 });
   }
 
-  try {
-    const allowed = await consumeUserRateLimits(decodedToken.uid, "analyze", [
-      { key: "minute", limit: 8, durationMs: 60_000 },
-      { key: "day", limit: 50, durationMs: 86_400_000 },
-    ]);
-    if (!allowed) {
-      return NextResponse.json(
-        { error: "AI request limit reached. Please try again later." },
-        { status: 429 }
-      );
-    }
-  } catch {
-    return NextResponse.json(
-      { error: "AI analysis is temporarily unavailable. Please try again later." },
-      { status: 503 }
-    );
-  }
-
   const parsed = await readBoundedJson(request, MAX_BODY_BYTES);
   if ("error" in parsed) {
     const tooLarge = parsed.error === "too_large";
@@ -259,6 +241,25 @@ export async function POST(request: Request) {
           temperature: 0.6,
           max_tokens: 1500,
         };
+
+  // Invalid bodies and provider keys should not consume a user's request quota.
+  try {
+    const allowed = await consumeUserRateLimits(decodedToken.uid, "analyze", [
+      { key: "minute", limit: 8, durationMs: 60_000 },
+      { key: "day", limit: 50, durationMs: 86_400_000 },
+    ]);
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "AI request limit reached. Please try again later." },
+        { status: 429 }
+      );
+    }
+  } catch {
+    return NextResponse.json(
+      { error: "AI analysis is temporarily unavailable. Please try again later." },
+      { status: 503 }
+    );
+  }
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 25_000);

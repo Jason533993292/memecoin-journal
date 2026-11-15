@@ -385,7 +385,7 @@ export default function WalletsView({ trades, solPrice = 150, onImportWalletTrad
   const handleAddOrUpdateWallet = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newWalletName.trim()) return;
-    const balanceSol = Number(newWalletBalance || 0);
+    const balanceSol = editingWallet?.balanceSol ?? Number(newWalletBalance || 0);
     if (!isValidSolAmount(balanceSol)) {
       showToast("Enter a valid wallet balance", "error", "Use 0–100,000,000 SOL with up to 9 decimal places.");
       return;
@@ -744,7 +744,9 @@ export default function WalletsView({ trades, solPrice = 150, onImportWalletTrad
               placeholder="Balance (SOL)"
               value={newWalletBalance}
               onChange={(e) => setNewWalletBalance(e.target.value)}
-              className="bg-white border border-[#e3e2de] rounded-md px-3 py-1.5 text-xs"
+              disabled={Boolean(editingWallet)}
+              title={editingWallet ? "Use a deposit or paycheck entry to change this recorded balance." : "Opening wallet balance"}
+              className="bg-white border border-[#e3e2de] rounded-md px-3 py-1.5 text-xs disabled:cursor-not-allowed disabled:bg-[#f1f1ef] disabled:text-[#787774]"
             />
             <input
               type="text"
