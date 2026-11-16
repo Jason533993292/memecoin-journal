@@ -3,14 +3,17 @@ import { extname, join, relative } from "node:path";
 
 const root = process.cwd();
 const ignoredDirectories = new Set([".git", ".next", "node_modules", "coverage"]);
-const checkedExtensions = new Set([".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".json", ".md", ".yml", ".yaml", ".toml", ".rules"]);
+const checkedExtensions = new Set([".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts", ".json", ".md", ".yml", ".yaml", ".toml", ".rules"]);
 const ignoredFiles = new Set(["package-lock.json", "firebaseConfig.txt"]);
 const secretPatterns = [
   { name: "private key", pattern: /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/ },
   { name: "OpenAI-style secret", pattern: /\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}\b/ },
+  { name: "Anthropic API key", pattern: /\bsk-ant-[A-Za-z0-9_-]{20,}\b/ },
   { name: "Resend API key", pattern: /\bre_[A-Za-z0-9_]{20,}\b/ },
   { name: "GitHub token", pattern: /\bgh[oprsu]_[A-Za-z0-9]{30,}\b/ },
+  { name: "Supabase secret key", pattern: /\bsb_secret_[A-Za-z0-9_-]{20,}\b/ },
   { name: "Slack token", pattern: /\bxox[baprs]-[A-Za-z0-9-]{20,}\b/ },
+  { name: "database URL containing a password", pattern: /postgres(?:ql)?:\/\/[^\s:@]+:[^\s@]+@[^\s"']+/ },
 ];
 
 async function sourceFiles(directory) {
@@ -21,7 +24,10 @@ async function sourceFiles(directory) {
       if (!ignoredDirectories.has(entry.name)) files.push(...await sourceFiles(join(directory, entry.name)));
       continue;
     }
-    if (!ignoredFiles.has(entry.name) && checkedExtensions.has(extname(entry.name))) files.push(join(directory, entry.name));
+    const isEnvironmentExample = entry.name === ".env.example" || /^\.env\..+\.example$/.test(entry.name);
+    if (!ignoredFiles.has(entry.name) && (checkedExtensions.has(extname(entry.name)) || isEnvironmentExample)) {
+      files.push(join(directory, entry.name));
+    }
   }
   return files;
 }

@@ -1200,6 +1200,65 @@ html[data-theme-preview] .legal-page {
   color: var(--preview-text) !important;
 }
 
+html[data-theme-preview] .support-page {
+  background-color: var(--preview-page) !important;
+  color: var(--preview-text) !important;
+}
+
+html[data-theme-preview] .support-page h1,
+html[data-theme-preview] .support-page h2,
+html[data-theme-preview] .support-page [class*="text-[#37352f]"] {
+  color: var(--preview-text) !important;
+}
+
+html[data-theme-preview] .support-page p,
+html[data-theme-preview] .support-page [class*="text-[#5a5957]"],
+html[data-theme-preview] .support-page [class*="text-[#696864]"],
+html[data-theme-preview] .support-page [class*="text-[#9b9a97]"] {
+  color: var(--preview-muted) !important;
+}
+
+html[data-theme-preview] .support-page footer,
+html[data-theme-preview] .support-card,
+html[data-theme-preview] .support-address {
+  border-color: var(--preview-border) !important;
+}
+
+html[data-theme-preview] .support-card,
+html[data-theme-preview] .support-address {
+  background-color: var(--preview-surface) !important;
+}
+
+html[data-theme-preview] .support-page a:not(.support-secondary-action),
+html[data-theme-preview] .support-page [class*="text-[#0b63b6]"] {
+  color: color-mix(in srgb, var(--preview-accent) 45%, var(--preview-text)) !important;
+}
+
+html[data-theme-preview] .support-primary-action {
+  background-color: color-mix(in srgb, var(--preview-accent) 35%, #19335f) !important;
+  color: #ffffff !important;
+}
+
+html[data-theme-preview] .support-secondary-action {
+  border-color: var(--preview-border) !important;
+  color: var(--preview-text) !important;
+}
+
+html[data-theme-preview] .support-secondary-action:hover {
+  background-color: var(--preview-hover) !important;
+}
+
+html[data-theme-preview] .support-warning {
+  background-color: var(--preview-raised) !important;
+  border-color: color-mix(in srgb, #d97706 55%, var(--preview-border)) !important;
+  color: var(--preview-text) !important;
+}
+
+html[data-theme-preview] .support-qr-shell {
+  background-color: #ffffff !important;
+  border-color: var(--preview-border) !important;
+}
+
 html[data-theme-preview] .legal-document {
   background-color: var(--preview-surface) !important;
   border-color: var(--preview-border) !important;

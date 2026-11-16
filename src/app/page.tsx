@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { db, type User } from "../lib/firebase";
 import { collection, onSnapshot, query, orderBy, doc, deleteDoc, setDoc, Timestamp } from "firebase/firestore";
 import { Trade, JournalRules, AiCoachBrief, GoalSettings } from "../lib/types";
@@ -933,6 +934,8 @@ function AuthenticatedApp({ user, suppressWelcomeTour = false }: { user: User; s
         <button type="button" onClick={() => setLegalPanel("privacy")} className="hover:text-[#2383e2]">Privacy</button>
         <span className="mx-3" aria-hidden="true">·</span>
         <button type="button" onClick={() => setLegalPanel("terms")} className="hover:text-[#2383e2]">Terms</button>
+        <span className="mx-3" aria-hidden="true">·</span>
+        <Link href="/support" className="hover:text-[#2383e2]">Support the project</Link>
       </footer>
     </div>
   );

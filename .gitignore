@@ -60,3 +60,4 @@ cors.mjs.map
 # Local Codex/Firebase skill installations
 /.agents/
 /skills-lock.json
+/.mcp.json

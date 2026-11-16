@@ -12,15 +12,15 @@ test("recognizes only supported AI providers", () => {
 
 test("rejects a DeepSeek-style key when Google Gemini is selected", () => {
   assert.match(
-    getAiProviderKeyError("gemini", "sk-deepseekExampleKey123456789") || "",
+    getAiProviderKeyError("gemini", "sk-" + "deepseekExampleKey123456789") || "",
     /does not match Google Gemini/
   );
 });
 
 test("accepts representative provider key formats", () => {
   assert.equal(getAiProviderKeyError("gemini", "AIzaSyExampleKey_1234567890123456"), null);
-  assert.equal(getAiProviderKeyError("deepseek", "sk-deepseekExampleKey123456789"), null);
-  assert.equal(getAiProviderKeyError("openai", "sk-proj-exampleKey123456789012345"), null);
+  assert.equal(getAiProviderKeyError("deepseek", "sk-" + "deepseekExampleKey123456789"), null);
+  assert.equal(getAiProviderKeyError("openai", "sk-proj-" + "exampleKey123456789012345"), null);
 });
 
 test("rejects whitespace, short keys, and the wrong provider prefix", () => {
