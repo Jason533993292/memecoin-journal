@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@heroui/react";
+import Link from "next/link";
 import ThemePreviewControl from "./ThemePreviewControl";
 import MarketPricePicker from "./MarketPricePicker";
 import {
@@ -23,6 +24,7 @@ import {
   WifiOff,
   KeyRound,
   ShieldCheck,
+  HeartHandshake,
 } from "lucide-react";
 
 import { useAuth } from "../context/AuthContext";
@@ -136,16 +138,17 @@ export default function TopBanner({
 
   return (
     <>
-      <aside className={`app-sidebar fixed inset-y-0 left-0 z-50 hidden flex-col border-r transition-[width] duration-200 md:flex ${sidebarCollapsed ? "w-[4.5rem]" : "w-60"}`}>
-        <div className={`flex h-16 items-center border-b border-white/8 ${sidebarCollapsed ? "justify-center px-2" : "gap-3 px-5"}`}>
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#2383e2] text-xs font-black tracking-tight text-black shadow-lg shadow-blue-950/30">MJ</div>
-          <div className={`min-w-0 ${sidebarCollapsed ? "hidden" : "block"}`}>
+      <aside data-collapsed={sidebarCollapsed} className={`app-sidebar fixed inset-y-0 left-0 z-50 hidden flex-col border-r md:flex ${sidebarCollapsed ? "w-[4.5rem]" : "w-60"}`}>
+        <div className="sidebar-brand flex h-16 items-center border-b border-white/8 px-5">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#2383e2] text-xs font-black tracking-tight text-black shadow-lg shadow-blue-950/30">MJ</div>
+          <div className="sidebar-label min-w-0">
             <p className="truncate text-sm font-semibold tracking-tight">Memecoin Journal</p>
             <p className="text-[10px] text-neutral-500">Trading workspace</p>
           </div>
         </div>
 
-        {user && !sidebarCollapsed && (
+        {user && (
+          <div className="sidebar-user-section overflow-hidden">
           <div className="mx-3 mt-4 flex items-center gap-3 rounded-xl border border-white/8 bg-white/[0.035] px-3 py-3">
             {user.photoURL ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -160,10 +163,11 @@ export default function TopBanner({
               <p className="truncate text-[10px] text-neutral-500">{user.email}</p>
             </div>
           </div>
+          </div>
         )}
 
         <nav className="mt-5 flex flex-1 flex-col gap-1 px-3" aria-label="Journal sections">
-          {!sidebarCollapsed && <p className="mb-2 px-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-neutral-600">Workspace</p>}
+          <p aria-hidden={sidebarCollapsed} className="sidebar-section-label mb-2 overflow-hidden px-3 text-[9px] font-semibold uppercase tracking-[0.18em] text-neutral-600">Workspace</p>
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = currentTab === tab.id;
@@ -175,21 +179,21 @@ export default function TopBanner({
                 onClick={() => setCurrentTab(tab.id)}
                 title={tab.title}
                 aria-current={isActive ? "page" : undefined}
-                className={`flex w-full items-center rounded-xl py-2.5 text-left text-xs font-medium transition-colors ${sidebarCollapsed ? "justify-center px-2" : "gap-3 px-3"} ${
+                className={`sidebar-action flex w-full items-center rounded-xl px-3 py-2.5 text-left text-xs font-medium transition-colors ${
                   isActive
                     ? "bg-white/[0.11] text-white"
                     : "text-neutral-400 hover:bg-white/[0.06] hover:text-neutral-100"
                 }`}
               >
-                <Icon size={16} className={isActive ? "text-[#55a7f1]" : "text-neutral-500"} />
-                {!sidebarCollapsed && <span>{tab.title}</span>}
+                <Icon size={16} className={`shrink-0 ${isActive ? "text-[#55a7f1]" : "text-neutral-500"}`} />
+                <span aria-hidden={sidebarCollapsed} className="sidebar-label">{tab.title}</span>
               </button>
             );
           })}
         </nav>
 
         <div className="relative space-y-2 border-t border-white/8 p-3">
-          <div className={sidebarCollapsed ? "hidden" : "block"}>
+          <div className="sidebar-optional-section overflow-hidden" inert={sidebarCollapsed ? true : undefined}>
             <ThemePreviewControl />
           </div>
           <button
@@ -197,10 +201,13 @@ export default function TopBanner({
             onClick={toggleSidebar}
             title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            className={`flex w-full items-center rounded-xl px-3 py-2.5 text-xs text-neutral-400 transition-colors hover:bg-white/[0.06] hover:text-white ${sidebarCollapsed ? "justify-center" : "gap-3"}`}
+            className="sidebar-action flex w-full items-center rounded-xl px-3 py-2.5 text-xs text-neutral-400 transition-colors hover:bg-white/[0.06] hover:text-white"
           >
-            {sidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
-            {!sidebarCollapsed && <span>Collapse sidebar</span>}
+            <span className="relative h-4 w-4 shrink-0">
+              <PanelLeftOpen size={16} className={`absolute inset-0 transition-opacity duration-150 ${sidebarCollapsed ? "opacity-100" : "opacity-0"}`} />
+              <PanelLeftClose size={16} className={`absolute inset-0 transition-opacity duration-150 ${sidebarCollapsed ? "opacity-0" : "opacity-100"}`} />
+            </span>
+            <span aria-hidden={sidebarCollapsed} className="sidebar-label">Collapse sidebar</span>
           </button>
           {onOpenFeedback && (
             <button
@@ -209,10 +216,10 @@ export default function TopBanner({
               onClick={onOpenFeedback}
               title="Send feedback"
               aria-label="Send feedback"
-              className={`flex w-full items-center rounded-xl px-3 py-2.5 text-xs text-neutral-400 transition-colors hover:bg-white/[0.06] hover:text-white ${sidebarCollapsed ? "justify-center" : "gap-3"}`}
+              className="sidebar-action flex w-full items-center rounded-xl px-3 py-2.5 text-xs text-neutral-400 transition-colors hover:bg-white/[0.06] hover:text-white"
             >
-              <MessageSquarePlus size={16} />
-              {!sidebarCollapsed && <span>Feedback</span>}
+              <MessageSquarePlus size={16} className="shrink-0" />
+              <span aria-hidden={sidebarCollapsed} className="sidebar-label">Feedback</span>
             </button>
           )}
           {onOpenGuide && (
@@ -221,14 +228,24 @@ export default function TopBanner({
               onClick={onOpenGuide}
               title="Help and tutorial"
               aria-label="Help & tutorial"
-              className={`flex w-full items-center rounded-xl px-3 py-2.5 text-xs text-neutral-400 transition-colors hover:bg-white/[0.06] hover:text-white ${sidebarCollapsed ? "justify-center" : "gap-3"}`}
+              className="sidebar-action flex w-full items-center rounded-xl px-3 py-2.5 text-xs text-neutral-400 transition-colors hover:bg-white/[0.06] hover:text-white"
             >
-              <BookOpenCheck size={16} />
-              {!sidebarCollapsed && <span>Help &amp; tutorial</span>}
+              <BookOpenCheck size={16} className="shrink-0" />
+              <span aria-hidden={sidebarCollapsed} className="sidebar-label">Help &amp; tutorial</span>
             </button>
           )}
+          <Link
+            href="/support"
+            title="Support the project"
+            aria-label="Support the project"
+            className="sidebar-action flex w-full items-center rounded-xl px-3 py-2.5 text-xs text-neutral-400 transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2383e2]"
+          >
+            <HeartHandshake size={16} className="shrink-0" />
+            <span aria-hidden={sidebarCollapsed} className="sidebar-label">Support the project</span>
+          </Link>
           <div ref={accountMenuRef} className="relative">
-          {user && !sidebarCollapsed && (
+          {user && (
+            <div className="sidebar-account-section overflow-hidden" inert={sidebarCollapsed ? true : undefined}>
             <button
               type="button"
               onClick={() => setAccountMenuOpen((open) => !open)}
@@ -237,8 +254,9 @@ export default function TopBanner({
               className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-xs text-neutral-400 transition-colors hover:bg-white/[0.06] hover:text-white"
             >
               <UserIcon size={16} />
-              <span className="flex-1 text-left">Account & privacy</span>
+              <span className="flex-1 whitespace-nowrap text-left">Account & privacy</span>
             </button>
+            </div>
           )}
           {accountMenuOpen && user && (
             <div className="absolute bottom-full left-0 right-0 z-50 mb-2 rounded-xl border border-white/10 bg-[#17191d] p-2 shadow-2xl">
