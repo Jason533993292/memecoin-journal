@@ -48,19 +48,6 @@ export default function ThemePreviewControl() {
   );
 
   useEffect(() => {
-    if (!theme) {
-      delete document.documentElement.dataset.themePreview;
-      return;
-    }
-
-    document.documentElement.dataset.themePreview = theme;
-
-    return () => {
-      delete document.documentElement.dataset.themePreview;
-    };
-  }, [theme]);
-
-  useEffect(() => {
     const dismiss = (event: PointerEvent) => {
       const details = detailsRef.current;
       if (details?.open && !details.contains(event.target as Node)) details.removeAttribute("open");

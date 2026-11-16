@@ -34,7 +34,7 @@
     "firebase": "^12.19.0",
     "firebase-admin": "13.10.0",
     "lucide-react": "^1.47.0",
-    "next": "16.4.2",
+    "next": "^16.4.6",
     "qrcode": "^1.5.4",
     "react": "19.2.8",
     "react-aria": "3.52.1",
@@ -52,7 +52,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.4.0",
+    "eslint-config-next": "^16.4.6",
     "railway": "^3.12.0",
     "tailwindcss": "^4",
     "typescript": "^5"

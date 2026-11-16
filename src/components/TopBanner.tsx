@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@heroui/react";
-import Link from "next/link";
 import ThemePreviewControl from "./ThemePreviewControl";
 import MarketPricePicker from "./MarketPricePicker";
 import {
@@ -129,6 +128,7 @@ export default function TopBanner({
     { id: "statistics", label: "Analytics", title: "Analytics", icon: BarChart3 },
     { id: "research", label: "Coin Research & Thesis", title: "Coin Research & Thesis", icon: Microscope },
     { id: "ai-coach", label: "AI Trader Coach", title: "AI Trader Coach", icon: Bot },
+    { id: "support", label: "Support", title: "Support the Project", icon: HeartHandshake },
   ];
 
   const activeTab = currentTab === "guide"
@@ -193,7 +193,7 @@ export default function TopBanner({
         </nav>
 
         <div className="relative space-y-2 border-t border-white/8 p-3">
-          <div className="sidebar-optional-section overflow-hidden" inert={sidebarCollapsed ? true : undefined}>
+          <div className="sidebar-optional-section" inert={sidebarCollapsed ? true : undefined}>
             <ThemePreviewControl />
           </div>
           <button
@@ -234,15 +234,6 @@ export default function TopBanner({
               <span aria-hidden={sidebarCollapsed} className="sidebar-label">Help &amp; tutorial</span>
             </button>
           )}
-          <Link
-            href="/support"
-            title="Support the project"
-            aria-label="Support the project"
-            className="sidebar-action flex w-full items-center rounded-xl px-3 py-2.5 text-xs text-neutral-400 transition-colors hover:bg-white/[0.06] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2383e2]"
-          >
-            <HeartHandshake size={16} className="shrink-0" />
-            <span aria-hidden={sidebarCollapsed} className="sidebar-label">Support the project</span>
-          </Link>
           <div ref={accountMenuRef} className="relative">
           {user && (
             <div className="sidebar-account-section overflow-hidden" inert={sidebarCollapsed ? true : undefined}>

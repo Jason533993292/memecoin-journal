@@ -822,12 +822,6 @@ html[data-theme-preview] .daily-journal-book [class*="bg-[#eee4d2]"] {
   letter-spacing: 0.05em;
 }
 
-.theme-preview-value {
-  color: #37352f;
-  font-size: 10px;
-  font-weight: 700;
-}
-
 .theme-preview-options {
   background: #ffffff;
   border: 1px solid #e3e2de;
@@ -1562,10 +1556,6 @@ html[data-theme-preview] .theme-preview-control {
 
 html[data-theme-preview] .theme-preview-label {
   color: var(--preview-muted);
-}
-
-html[data-theme-preview] .theme-preview-value {
-  color: var(--preview-text);
 }
 
 html[data-theme-preview] .theme-preview-options {

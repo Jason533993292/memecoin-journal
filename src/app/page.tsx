@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
-import Link from "next/link";
 import { db, type User } from "../lib/firebase";
 import { collection, onSnapshot, query, orderBy, doc, deleteDoc, setDoc, Timestamp } from "firebase/firestore";
 import { Trade, JournalRules, AiCoachBrief, GoalSettings } from "../lib/types";
@@ -29,6 +28,7 @@ const TradingDataDeletionModal = dynamic(() => import("../components/TradingData
 const FeedbackModal = dynamic(() => import("../components/FeedbackModal"));
 const WelcomeTourModal = dynamic(() => import("../components/WelcomeTourModal"));
 const GuideView = dynamic(() => import("../components/GuideView"), { loading: () => <SectionLoading /> });
+const SupportView = dynamic(() => import("../components/SupportView"), { loading: () => <SectionLoading /> });
 import { ToastProvider, useToast } from "../components/Toast";
 import { parseLocalStorageValue, readSessionStorageValue, useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
 import { AlertTriangle, Trash2 } from "lucide-react";
@@ -253,7 +253,7 @@ function PublicWorkspace() {
     showToast("Guest data deleted", "success", "No temporary trades remain in this tab.");
   };
   const navigate = (tab: string) => {
-    if (guestMode || ["dashboard", "journal", "statistics", "guide"].includes(tab)) setCurrentTab(tab);
+    if (guestMode || ["dashboard", "journal", "statistics", "guide", "support"].includes(tab)) setCurrentTab(tab);
     else requestAccountFeature();
   };
 
@@ -273,6 +273,7 @@ function PublicWorkspace() {
         {currentTab === "research" && <ResearchView userId="guest-session" trades={activeTrades} />}
         {currentTab === "ai-coach" && <AiCoachView trades={activeTrades} aiBrief={null} onRefreshAiBrief={requestAccountFeature} loadingAi={false} />}
         {currentTab === "guide" && <GuideView onStartTour={startGuestTour} />}
+        {currentTab === "support" && <SupportView />}
       </main>
       {accessChoiceOpen && <AccessChoiceModal onClose={closeAccessChoice} onGuest={chooseGuest} onSignUp={() => openAuth("signup")} onSignIn={() => openAuth("signin")} />}
       {authOpen && <AuthModal key={authMode} initialMode={authMode} onClose={() => setAuthOpen(false)} />}
@@ -287,7 +288,7 @@ function AuthenticatedApp({ user, suppressWelcomeTour = false }: { user: User; s
   const { showToast } = useToast();
   const currentTabStorageKey = `memecoin_journal_${user.uid}_current_tab`;
   const [currentTab, setCurrentTab] = useState<string>(() => {
-    const allowed = new Set(["dashboard", "journal", "daily-journal", "wallets", "statistics", "research", "ai-coach", "guide"]);
+    const allowed = new Set(["dashboard", "journal", "daily-journal", "wallets", "statistics", "research", "ai-coach", "guide", "support"]);
     const saved = typeof window === "undefined" ? null : localStorage.getItem(currentTabStorageKey);
     return saved && allowed.has(saved) ? saved : "dashboard";
   });
@@ -752,6 +753,7 @@ function AuthenticatedApp({ user, suppressWelcomeTour = false }: { user: User; s
         )}
 
         {currentTab === "guide" && <GuideView onStartTour={() => setWelcomeTourOverride(true)} />}
+        {currentTab === "support" && <SupportView />}
       </main>
 
       {/* Log New Trade Modal */}
@@ -935,7 +937,7 @@ function AuthenticatedApp({ user, suppressWelcomeTour = false }: { user: User; s
         <span className="mx-3" aria-hidden="true">·</span>
         <button type="button" onClick={() => setLegalPanel("terms")} className="hover:text-[#2383e2]">Terms</button>
         <span className="mx-3" aria-hidden="true">·</span>
-        <Link href="/support" className="hover:text-[#2383e2]">Support the project</Link>
+        <button type="button" onClick={() => setCurrentTab("support")} className="hover:text-[#2383e2]">Support the project</button>
       </footer>
     </div>
   );
