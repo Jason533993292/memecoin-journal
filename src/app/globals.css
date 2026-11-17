@@ -152,7 +152,14 @@
 .app-sidebar .sidebar-action {
   gap: 12px;
   justify-content: flex-start;
-  transition: gap 180ms ease, background-color 150ms ease, color 150ms ease;
+  transform: translateX(0);
+  transition: gap 180ms ease, background-color 150ms ease, color 150ms ease, transform 150ms ease;
+}
+.app-sidebar .sidebar-action:hover {
+  transform: translateX(2px);
+}
+.app-sidebar[data-collapsed="true"] .sidebar-action:hover {
+  transform: scale(1.035);
 }
 .app-sidebar .sidebar-label {
   min-width: 0;

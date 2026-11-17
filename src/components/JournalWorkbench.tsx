@@ -53,7 +53,7 @@ const labelDate = (at: number) => new Date(at).toLocaleString();
 const htmlText = (s: string) => `<p>${escapeJournalText(s).replaceAll("\n", "<br>")}</p>`;
 
 // Printable files contain escaped plain text and allowlisted formatting only.
-export function exportJournalDocument(entries: DailyJournalEntry[]) {
+function exportJournalDocument(entries: DailyJournalEntry[]) {
   const sections = entries.map(e => {
     const d = cleanJournalDetails(e.details);
     return `<article><h1>${escapeJournalText(e.title)}</h1><p>${escapeJournalText(e.entryDate)}</p>${sanitizeJournalHtml(e.contentHtml)}

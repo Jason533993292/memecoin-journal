@@ -134,6 +134,7 @@ export default function ShareablePnlCardModal({
   );
   const [customImageSrc, setCustomImageSrc] = useState<string | null>(null);
   const [unit, setUnit] = useState<"SOL" | "USD">("SOL");
+  const [layout, setLayout] = useState<"poster" | "performance">("performance");
   const [loadedBackgroundSrc, setLoadedBackgroundSrc] = useState<string | null>(null);
   const [tokenLogo, setTokenLogo] = useState<{ tradeId: string; url: string } | null>(null);
   const tokenLogoUrl = trade && tokenLogo?.tradeId === trade.id ? tokenLogo.url : null;
@@ -208,6 +209,7 @@ export default function ShareablePnlCardModal({
 
   const soldSol = trade.soldSol || 0;
   const soldUsd = getTradeSoldUsd(trade, solPrice).value ?? 0;
+  const marketCapUsd = trade.exitMarketCapUsd ?? trade.entryMarketCapUsd ?? trade.mcap ?? 0;
 
   const formatValue = (sol: number, usd: number, showSign = false) => {
     if (unit === "SOL") {
@@ -219,6 +221,15 @@ export default function ShareablePnlCardModal({
   };
 
   const badgeText = formatValue(pnlSol, pnlUsd, true);
+  const profitHeadline = unit === "USD"
+    ? `${pnlUsd >= 0 ? "+" : "-"}$${Math.abs(pnlUsd).toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+    : `${pnlSol >= 0 ? "+" : "-"}${formatSol(Math.abs(pnlSol))} SOL`;
+  const spentHeadline = unit === "USD"
+    ? `$${boughtUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+    : `${formatSol(boughtSol)} SOL`;
+  const marketCapHeadline = marketCapUsd > 0
+    ? `$${marketCapUsd >= 1_000_000 ? `${(marketCapUsd / 1_000_000).toFixed(2)}M` : marketCapUsd >= 1_000 ? `${(marketCapUsd / 1_000).toFixed(2)}K` : marketCapUsd.toFixed(0)}`
+    : "—";
   const tokenName = (trade.name || trade.symbol || "MEMECOIN").toUpperCase();
   const tokenSymbol = (trade.symbol || "TOKEN").toUpperCase();
 
@@ -263,8 +274,8 @@ export default function ShareablePnlCardModal({
   // Draw HD Card onto Canvas for Download & Copy
   const generateCanvasImage = async (): Promise<HTMLCanvasElement | null> => {
     const canvas = document.createElement("canvas");
-    const width = 1200;
-    const height = 675;
+    const width = layout === "performance" ? 1080 : 1200;
+    const height = layout === "performance" ? 1080 : 675;
 
     canvas.width = width;
     canvas.height = height;
@@ -296,38 +307,33 @@ export default function ShareablePnlCardModal({
       ctx.fillRect(0, 0, width, height);
     }
 
-    // 2. Apply Scrim Gradient
-    const scrimGrad = ctx.createLinearGradient(0, 0, width, 0);
-    scrimGrad.addColorStop(0, "rgba(5, 10, 18, 0.96)");
-    scrimGrad.addColorStop(0.4, "rgba(5, 10, 18, 0.88)");
-    scrimGrad.addColorStop(0.7, "rgba(5, 10, 18, 0.4)");
-    scrimGrad.addColorStop(1, "rgba(5, 10, 18, 0.15)");
+    // Darken the full image while preserving enough detail for a dramatic,
+    // full-bleed social card.
+    const scrimGrad = ctx.createLinearGradient(0, 0, 0, height);
+    scrimGrad.addColorStop(0, "rgba(0, 0, 0, 0.5)");
+    scrimGrad.addColorStop(0.48, "rgba(0, 0, 0, 0.34)");
+    scrimGrad.addColorStop(1, "rgba(0, 0, 0, 0.88)");
     ctx.fillStyle = scrimGrad;
     ctx.fillRect(0, 0, width, height);
 
-    // 3. Removed Digital Constellation Nodes
-
-    // 4. Brand Watermark & Trader Tag (Top Right)
+    const accent = isWin ? activeAccentColor : "#fb7185";
     ctx.textAlign = "right";
-
-    ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
-    ctx.font = "bold 15px monospace";
+    ctx.fillStyle = "rgba(255, 255, 255, 0.72)";
+    ctx.font = `700 ${layout === "performance" ? 24 : 18}px sans-serif`;
     const watermarkText = traderHandle.trim()
       ? `BY ${traderHandle.toUpperCase()} • MEMECOIN JOURNAL`
       : "MEMECOIN JOURNAL";
-    ctx.fillText(watermarkText, width - 60, 90);
+    ctx.fillText(watermarkText, width - 58, 62);
 
-    // 5. Token Logo + Name (Top Left)
-    let textStartX = 60;
-    const headerY = 100;
+    let textStartX = 58;
+    const headerY = layout === "performance" ? 170 : 122;
+    const logoSize = layout === "performance" ? 104 : 70;
 
-    // Draw circular token logo if available
     if (tokenLogoUrl) {
       try {
         const logoImg = await loadImage(tokenLogoUrl);
-        const logoSize = 64;
-        const logoX = 60;
-        const logoY = headerY - 50;
+        const logoX = 58;
+        const logoY = headerY - logoSize + 8;
 
         ctx.save();
         ctx.beginPath();
@@ -337,13 +343,13 @@ export default function ShareablePnlCardModal({
         ctx.restore();
 
         // Border ring around logo
-        ctx.strokeStyle = activeAccentColor;
-        ctx.lineWidth = 3;
+        ctx.strokeStyle = accent;
+        ctx.lineWidth = 4;
         ctx.beginPath();
         ctx.arc(logoX + logoSize / 2, logoY + logoSize / 2, logoSize / 2, 0, Math.PI * 2);
         ctx.stroke();
 
-        textStartX = 140;
+        textStartX = logoX + logoSize + 26;
       } catch {
         // Ignore logo load failure
       }
@@ -351,67 +357,106 @@ export default function ShareablePnlCardModal({
 
     ctx.textAlign = "left";
     ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 52px sans-serif";
+    ctx.font = `800 ${layout === "performance" ? 52 : 48}px sans-serif`;
     ctx.fillText(tokenName, textStartX, headerY);
+    ctx.fillStyle = "rgba(255,255,255,.72)";
+    ctx.font = `700 ${layout === "performance" ? 27 : 22}px monospace`;
+    ctx.fillText(`$${tokenSymbol}`, textStartX, headerY + 36);
 
-    // 6. Pill Badge (≡ +X.XX SOL)
-    ctx.font = "bold 24px sans-serif";
-    const textWidth = ctx.measureText(badgeText).width;
-    const badgeW = textWidth + 30;
-    const badgeH = 44;
-    const badgeX = textStartX;
-    const badgeY = headerY + 22;
+    if (layout === "performance") {
+      ctx.fillStyle = "rgba(255,255,255,.72)";
+      ctx.font = "500 25px sans-serif";
+      ctx.fillText("PROFIT", 58, 284);
+      ctx.fillStyle = accent;
+      ctx.font = "900 84px sans-serif";
+      ctx.fillText(profitHeadline, 58, 372);
 
-    ctx.fillStyle = activeAccentColor;
-    ctx.beginPath();
-    ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 6);
-    ctx.fill();
-
-    ctx.fillStyle = "#000000";
-    ctx.fillText(badgeText, badgeX + 15, badgeY + 31);
-
-    // Multiple badge if available (e.g. 2.4x)
-    if (multiplierVal) {
-      const multText = `${multiplierVal}x`;
-      const multWidth = ctx.measureText(multText).width + 24;
-      const multX = badgeX + badgeW + 12;
-
-      ctx.fillStyle = "rgba(255, 255, 255, 0.15)";
+      ctx.font = "800 38px sans-serif";
+      const roiWidth = ctx.measureText(roiFormatted).width + 52;
+      ctx.fillStyle = isWin ? "rgba(16,185,129,.18)" : "rgba(244,63,94,.18)";
+      ctx.strokeStyle = isWin ? "rgba(16,185,129,.6)" : "rgba(244,63,94,.6)";
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.roundRect(multX, badgeY, multWidth, badgeH, 6);
+      ctx.roundRect(58, 395, roiWidth, 70, 18);
       ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = accent;
+      ctx.fillText(`${isWin ? "▲" : "▼"} ${roiFormatted}`, 82, 443);
 
+      // A restrained execution curve gives the card the same visual rhythm as
+      // the references without pretending to be historical price data.
+      const curve = new Path2D();
+      curve.moveTo(58, 690);
+      curve.bezierCurveTo(175, 690, 180, 545, 310, 595);
+      curve.bezierCurveTo(430, 640, 470, 515, 590, 610);
+      curve.bezierCurveTo(700, 695, 760, 505, 842, 550);
+      curve.bezierCurveTo(915, 590, 950, isWin ? 430 : 675, 1022, isWin ? 470 : 650);
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = 8;
+      ctx.shadowColor = accent;
+      ctx.shadowBlur = 18;
+      ctx.stroke(curve);
+      ctx.shadowBlur = 0;
+
+      ctx.strokeStyle = "rgba(255,255,255,.18)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(58, 795);
+      ctx.lineTo(1022, 795);
+      ctx.stroke();
+
+      const metrics = [
+        ["SPENT", spentHeadline],
+        ["AVERAGE ENTRY", trade.entryMarketCapUsd ? `$${trade.entryMarketCapUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"],
+        ["MARKET CAP", marketCapHeadline],
+      ];
+      metrics.forEach(([label, value], index) => {
+        const x = 58 + index * 320;
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "800 34px sans-serif";
+        ctx.fillText(value, x, 858);
+        ctx.fillStyle = "rgba(255,255,255,.72)";
+        ctx.font = "500 22px sans-serif";
+        ctx.fillText(label, x, 891);
+      });
+
+      ctx.fillStyle = "rgba(0,0,0,.48)";
+      ctx.beginPath();
+      ctx.roundRect(58, 936, 964, 92, 18);
+      ctx.fill();
       ctx.fillStyle = "#ffffff";
-      ctx.fillText(multText, multX + 12, badgeY + 31);
+      ctx.font = "700 27px monospace";
+      const walletLabel = trade.wallet ? `${trade.wallet.slice(0, 7)}…${trade.wallet.slice(-5)}` : "PRIVATE WALLET";
+      ctx.fillText(walletLabel, 86, 992);
+      ctx.textAlign = "right";
+      ctx.fillStyle = "rgba(255,255,255,.78)";
+      ctx.fillText(trade.venue || "SOLANA", 994, 992);
+    } else {
+      ctx.fillStyle = "rgba(255,255,255,.72)";
+      ctx.font = "600 23px sans-serif";
+      ctx.fillText("REALIZED P&L", 58, 244);
+      ctx.fillStyle = accent;
+      ctx.font = "900 96px sans-serif";
+      ctx.fillText(profitHeadline, 58, 338);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "800 54px sans-serif";
+      ctx.fillText(roiFormatted, 62, 405);
+
+      const metrics = [
+        ["INVESTED", formatValue(boughtSol, boughtUsd)],
+        ["POSITION", formatValue(soldSol, soldUsd)],
+        ["ROI", roiFormatted],
+      ];
+      metrics.forEach(([label, value], index) => {
+        const x = 58 + index * 330;
+        ctx.fillStyle = "rgba(255,255,255,.75)";
+        ctx.font = "700 20px sans-serif";
+        ctx.fillText(label, x, 552);
+        ctx.fillStyle = index === 2 ? accent : "#ffffff";
+        ctx.font = "800 34px sans-serif";
+        ctx.fillText(value, x, 596);
+      });
     }
-
-    // 7. Giant ROI Percentage (+80.91%)
-    const roiY = 300;
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 105px sans-serif";
-    ctx.fillText(roiFormatted, 60, roiY);
-
-    // 8. Financial Execution Table (BOUGHT / SOLD / PROFIT)
-    const startY = 420;
-    const rowGap = 65;
-    const valueColX = 290;
-
-    // Labels
-    ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
-    ctx.font = "bold 32px sans-serif";
-    ctx.fillText("BOUGHT", 60, startY);
-    ctx.fillText("SOLD", 60, startY + rowGap);
-    ctx.fillText("PROFIT", 60, startY + rowGap * 2);
-
-    // Values
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 34px sans-serif";
-    ctx.fillText(formatValue(boughtSol, boughtUsd), valueColX, startY);
-    ctx.fillText(formatValue(soldSol, soldUsd), valueColX, startY + rowGap);
-
-    // Profit Value (Glowing Highlight)
-    ctx.fillStyle = isWin ? activeAccentColor : "#f87171";
-    ctx.fillText(formatValue(pnlSol, pnlUsd, true), valueColX, startY + rowGap * 2);
 
     return canvas;
   };
@@ -556,19 +601,33 @@ ${traderHandle.trim() ? `Traded by ${traderHandle.trim()}\n` : ""}#Solana #MemeC
             </div>
           </div>
 
-          {/* Currency Unit Toggle */}
-          <div className="flex items-center gap-0.5 bg-black/60 p-0.5 rounded-lg border border-neutral-800 text-[11px] font-mono">
-            {(["SOL", "USD"] as const).map((curr) => (
-              <button
-                key={curr}
-                onClick={() => setUnit(curr)}
-                className={`px-2 py-0.5 rounded-md font-bold transition-all cursor-pointer ${
-                  unit === curr ? "bg-white text-black" : "text-neutral-400 hover:text-white"
-                }`}
-              >
-                {curr}
-              </button>
-            ))}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-0.5 bg-black/60 p-0.5 rounded-lg border border-neutral-800 text-[11px]">
+              {(["poster", "performance"] as const).map((cardLayout) => (
+                <button
+                  key={cardLayout}
+                  onClick={() => setLayout(cardLayout)}
+                  className={`px-2 py-0.5 rounded-md font-bold capitalize transition-all cursor-pointer ${
+                    layout === cardLayout ? "bg-neutral-700 text-white" : "text-neutral-400 hover:text-white"
+                  }`}
+                >
+                  {cardLayout === "poster" ? "Wide" : "Square"}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-0.5 bg-black/60 p-0.5 rounded-lg border border-neutral-800 text-[11px] font-mono">
+              {(["SOL", "USD"] as const).map((curr) => (
+                <button
+                  key={curr}
+                  onClick={() => setUnit(curr)}
+                  className={`px-2 py-0.5 rounded-md font-bold transition-all cursor-pointer ${
+                    unit === curr ? "bg-white text-black" : "text-neutral-400 hover:text-white"
+                  }`}
+                >
+                  {curr}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -677,7 +736,9 @@ ${traderHandle.trim() ? `Traded by ${traderHandle.trim()}\n` : ""}#Solana #MemeC
         {/* Live Visual P&L Card Container */}
         <div className="flex items-center justify-center bg-black/40 p-1.5 rounded-xl border border-neutral-900">
           <div
-            className="relative aspect-[16/9] max-h-[340px] w-full overflow-hidden rounded-2xl border border-white/10 shadow-2xl select-none"
+            className={`relative w-full overflow-hidden rounded-2xl border border-white/10 shadow-2xl select-none ${
+              layout === "performance" ? "aspect-square max-h-[480px] max-w-[480px]" : "aspect-[16/9] max-h-[340px]"
+            }`}
           >
             {loadedBackgroundSrc !== activeImageSrc && (
               <div className="absolute inset-0 animate-pulse bg-neutral-900" aria-hidden="true" />
@@ -695,94 +756,93 @@ ${traderHandle.trim() ? `Traded by ${traderHandle.trim()}\n` : ""}#Solana #MemeC
               style={{ objectPosition: currentPreset.objectPosition || "center right" }}
             />
 
-            {/* Left-to-Right / Top-to-Bottom Contrast Gradient Scrim */}
-            <div className="absolute inset-0 bg-gradient-to-r from-[#060e18]/95 via-[#060e18]/85 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/30 to-black/90" />
 
             {/* Subtle Neon Cyber Scanline / Pulse FX (Toggleable) */}
             {cyberFx && (
               <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top_left,rgba(255,255,255,0.06),transparent_60%)]" />
             )}
 
-            {/* Card Content Overlay */}
-            <div className="relative z-10 p-4 sm:p-5 flex flex-col justify-between h-full space-y-2">
-              {/* Top Row: Token Name + Logo + Watermark */}
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-2">
-                  {/* Real Token Logo Avatar */}
+            <div className="relative z-10 flex h-full flex-col p-4 sm:p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-2.5">
                   {tokenLogoUrl ? (
                     <img
                       src={tokenLogoUrl}
                       alt={tokenSymbol}
-                      className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover border-2 shadow-lg shrink-0"
-                      style={{ borderColor: activeAccentColor }}
+                      className={`${layout === "performance" ? "h-12 w-12 sm:h-16 sm:w-16" : "h-10 w-10"} shrink-0 rounded-2xl border-2 object-cover shadow-lg`}
+                      style={{ borderColor: isWin ? activeAccentColor : "#fb7185" }}
                     />
                   ) : (
                     <div
-                      className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-black text-xs sm:text-sm text-black shadow-lg shrink-0"
-                      style={{ backgroundColor: activeAccentColor }}
+                      className={`${layout === "performance" ? "h-12 w-12 sm:h-16 sm:w-16" : "h-10 w-10"} flex shrink-0 items-center justify-center rounded-2xl text-sm font-black text-black shadow-lg`}
+                      style={{ backgroundColor: isWin ? activeAccentColor : "#fb7185" }}
                     >
                       {tokenSymbol.slice(0, 2)}
                     </div>
                   )}
-
-                  <div>
-                    <h3 className="text-lg sm:text-2xl font-black tracking-tight text-white drop-shadow-md leading-tight">
+                  <div className="min-w-0">
+                    <h3 className={`${layout === "performance" ? "text-xl sm:text-3xl" : "text-lg sm:text-2xl"} truncate font-black leading-tight tracking-tight text-white drop-shadow-md`}>
                       {tokenName}
                     </h3>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      {/* Accent Pill Badge */}
-                      <div
-                        className="inline-flex items-center px-2 py-0.5 rounded text-[11px] sm:text-xs font-black shadow-md"
-                        style={{ backgroundColor: activeAccentColor, color: "#000000" }}
-                      >
-                        <span>{badgeText}</span>
-                      </div>
-
-                      {/* Multiplier Badge (if available) */}
-                      {multiplierVal && (
-                        <div className="px-1.5 py-0.5 rounded bg-white/20 text-white font-mono text-[10px] sm:text-[11px] font-bold">
-                          {multiplierVal}x
-                        </div>
-                      )}
-                    </div>
+                    <p className="font-mono text-xs font-bold text-white/70 sm:text-sm">${tokenSymbol}</p>
                   </div>
                 </div>
-
-                {/* Watermark & Trader Handle */}
-                <div className="text-right">
-                  <div className="text-[10px] font-mono text-white/60 tracking-tight mt-0.5 uppercase">
-                    {traderHandle.trim() ? `BY ${traderHandle} • MEMECOIN JOURNAL` : "MEMECOIN JOURNAL"}
-                  </div>
+                <div className="shrink-0 text-right text-[8px] font-bold uppercase tracking-wide text-white/65 sm:text-[10px]">
+                  {traderHandle.trim() ? `BY ${traderHandle}` : "MEMECOIN JOURNAL"}
                 </div>
               </div>
 
-              {/* Giant Bold ROI Percentage */}
-              <div className="py-0.5">
-                <div className="text-3xl sm:text-5xl font-black tracking-tight font-sans text-white drop-shadow-lg">
-                  {roiFormatted}
-                </div>
-              </div>
-
-              {/* Financial Execution Breakdown */}
-              <div className="space-y-1 text-[11px] sm:text-xs font-semibold max-w-[260px] bg-black/40 p-2 sm:p-2.5 rounded-xl border border-white/5 backdrop-blur-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-white/70 uppercase tracking-wider text-[10px]">BOUGHT</span>
-                  <span className="font-mono text-white">{formatValue(boughtSol, boughtUsd)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-white/70 uppercase tracking-wider text-[10px]">SOLD</span>
-                  <span className="font-mono text-white">{formatValue(soldSol, soldUsd)}</span>
-                </div>
-                <div className="flex items-center justify-between pt-0.5 border-t border-white/10">
-                  <span className="text-white/70 uppercase tracking-wider text-[10px]">PROFIT</span>
-                  <span
-                    className="font-mono font-bold"
-                    style={{ color: isWin ? activeAccentColor : "#f87171" }}
+              <div className={layout === "performance" ? "mt-6 sm:mt-8" : "mt-auto"}>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/70 sm:text-xs">Realized profit</p>
+                <div className="mt-1 flex flex-wrap items-center gap-2 sm:gap-3">
+                  <strong
+                    className={`${layout === "performance" ? "text-3xl sm:text-5xl" : "text-3xl sm:text-5xl"} font-black tracking-tight drop-shadow-lg`}
+                    style={{ color: isWin ? activeAccentColor : "#fb7185" }}
                   >
-                    {formatValue(pnlSol, pnlUsd, true)}
+                    {profitHeadline}
+                  </strong>
+                  <span
+                    className="rounded-lg border px-2 py-1 text-sm font-black sm:text-lg"
+                    style={{ color: isWin ? activeAccentColor : "#fb7185", borderColor: isWin ? `${activeAccentColor}80` : "#fb718580", backgroundColor: isWin ? `${activeAccentColor}22` : "#fb718522" }}
+                  >
+                    {isWin ? "▲" : "▼"} {roiFormatted}
                   </span>
                 </div>
               </div>
+
+              {layout === "performance" && (
+                <svg className="mt-auto h-[23%] w-full overflow-visible" viewBox="0 0 600 150" role="img" aria-label={`${isWin ? "Upward" : "Downward"} decorative trade result curve`}>
+                  <defs>
+                    <linearGradient id="pnlArea" x1="0" x2="0" y1="0" y2="1">
+                      <stop offset="0" stopColor={isWin ? activeAccentColor : "#fb7185"} stopOpacity=".4" />
+                      <stop offset="1" stopColor={isWin ? activeAccentColor : "#fb7185"} stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <path d={isWin ? "M0 132 C70 132 75 58 150 88 S235 43 315 98 S420 48 475 74 S545 18 600 35 L600 150 L0 150Z" : "M0 45 C80 25 100 95 170 65 S270 115 340 82 S450 130 510 105 S570 138 600 125 L600 150 L0 150Z"} fill="url(#pnlArea)" />
+                  <path d={isWin ? "M0 132 C70 132 75 58 150 88 S235 43 315 98 S420 48 475 74 S545 18 600 35" : "M0 45 C80 25 100 95 170 65 S270 115 340 82 S450 130 510 105 S570 138 600 125"} fill="none" stroke={isWin ? activeAccentColor : "#fb7185"} strokeWidth="5" strokeLinecap="round" />
+                </svg>
+              )}
+
+              <div className={`${layout === "performance" ? "mt-3" : "mt-auto"} grid grid-cols-3 gap-2 border-t border-white/20 pt-3`}>
+                {[
+                  [layout === "performance" ? "Spent" : "Invested", spentHeadline],
+                  [layout === "performance" ? "Avg. entry" : "Position", layout === "performance" ? (trade.entryMarketCapUsd ? `$${trade.entryMarketCapUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—") : formatValue(soldSol, soldUsd)],
+                  [layout === "performance" ? "Market cap" : "ROI", layout === "performance" ? marketCapHeadline : roiFormatted],
+                ].map(([label, value]) => (
+                  <div key={label} className="min-w-0">
+                    <strong className="block truncate text-xs font-black text-white sm:text-base">{value}</strong>
+                    <span className="text-[8px] font-medium text-white/70 sm:text-[10px]">{label}</span>
+                  </div>
+                ))}
+              </div>
+
+              {layout === "performance" && (
+                <div className="mt-3 flex items-center justify-between rounded-lg bg-black/45 px-3 py-2 font-mono text-[9px] font-semibold text-white/80 sm:text-xs">
+                  <span>{trade.wallet ? `${trade.wallet.slice(0, 7)}…${trade.wallet.slice(-5)}` : "PRIVATE WALLET"}</span>
+                  <span>{trade.venue || "SOLANA"}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
