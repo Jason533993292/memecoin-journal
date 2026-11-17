@@ -136,8 +136,8 @@
 }
 .app-header-title { color: var(--ui-text); }
 .app-sidebar [class*="text-neutral-4"], .app-sidebar [class*="text-neutral-5"], .app-header [class*="text-neutral-5"] { color: var(--ui-muted); }
-.app-sidebar button:hover { background: var(--ui-raised); color: var(--ui-text); }
-.app-sidebar button[aria-current="page"] { background: var(--ui-raised); color: var(--ui-text); }
+.app-sidebar button:hover { background: color-mix(in srgb, var(--ui-accent) 16%, var(--ui-raised)); color: var(--ui-text); }
+.app-sidebar button[aria-current="page"] { background: color-mix(in srgb, var(--ui-accent) 22%, var(--ui-raised)); color: var(--ui-text); }
 
 /* Keep sidebar content mounted while its width changes. Removing and re-adding
    labels during the transition made long navigation names wrap briefly and
@@ -182,7 +182,7 @@
   transition: max-height 220ms cubic-bezier(.22, 1, .36, 1), opacity 120ms ease 80ms;
 }
 .app-sidebar .sidebar-optional-section {
-  max-height: 80px;
+  max-height: 128px;
   opacity: 1;
   transition: max-height 220ms cubic-bezier(.22, 1, .36, 1), opacity 120ms ease 80ms;
 }
@@ -856,7 +856,7 @@ html[data-theme-preview] .daily-journal-book [class*="bg-[#eee4d2]"] {
 
 .theme-preview-control button:hover,
 .theme-preview-control button.is-active {
-  background: #2383e2;
+  background: var(--ui-accent);
   color: #ffffff;
 }
 
@@ -885,6 +885,41 @@ html[data-theme-preview] .daily-journal-book [class*="bg-[#eee4d2]"] {
   right: 0;
   top: auto;
   width: 100%;
+}
+
+.pnl-share-modal {
+  background: #0f1115;
+  border-color: #33363d;
+  color: #ffffff;
+}
+
+.pnl-layout-editor {
+  background: #17191d;
+  border-color: #33363d;
+}
+
+.pnl-layout-editor input[type="range"] {
+  accent-color: var(--ui-accent);
+}
+
+.pnl-download-button {
+  background: var(--ui-accent) !important;
+  color: #ffffff !important;
+}
+
+.pnl-download-button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ui-accent) 82%, #000000) !important;
+}
+
+html[data-theme-preview] .pnl-share-modal {
+  background: var(--preview-surface);
+  border-color: var(--preview-border);
+  color: var(--preview-text);
+}
+
+html[data-theme-preview] .pnl-layout-editor {
+  background: var(--preview-raised);
+  border-color: var(--preview-border);
 }
 
 html[data-theme-preview] {

@@ -13,6 +13,7 @@ import {
   AtSign,
   TrendingUp,
   TrendingDown,
+  SlidersHorizontal,
 } from "lucide-react";
 import { useToast } from "./Toast";
 import { useAuth } from "../context/AuthContext";
@@ -34,10 +35,9 @@ interface MemePreset {
   name: string;
   category: "win" | "loss";
   imageSrc: string;
-  accentColor: string;
-  nodeColor: string;
-  objectPosition?: string;
-  scrimColor?: string;
+  focalX?: number;
+  focalY?: number;
+  zoom?: number;
 }
 
 const MEME_PRESETS: MemePreset[] = [
@@ -47,50 +47,45 @@ const MEME_PRESETS: MemePreset[] = [
     name: "Jean Phil",
     category: "win",
     imageSrc: "/memes/JeanPhil.jpeg",
-    accentColor: "#38bdf8",
-    nodeColor: "rgba(56, 189, 248, 0.45)",
-    objectPosition: "center right",
-    scrimColor: "rgba(8, 15, 22, 0.95)",
+    focalX: 72,
+    focalY: 45,
+    zoom: 105,
   },
   {
     id: "triple_t",
     name: "Triple T",
     category: "win",
     imageSrc: "/memes/Triple T.jpeg",
-    accentColor: "#00ff88",
-    nodeColor: "rgba(0, 255, 136, 0.45)",
-    objectPosition: "center right",
-    scrimColor: "rgba(5, 18, 10, 0.95)",
+    focalX: 70,
+    focalY: 45,
+    zoom: 105,
   },
   {
     id: "wolf",
     name: "Wolf of Wall St",
     category: "win",
     imageSrc: "/memes/wolf.jpg",
-    accentColor: "#00ffd5",
-    nodeColor: "rgba(0, 255, 213, 0.45)",
-    objectPosition: "center right",
-    scrimColor: "rgba(6, 14, 24, 0.95)",
+    focalX: 68,
+    focalY: 18,
+    zoom: 100,
   },
   {
     id: "huell",
     name: "Huell Cash Bed",
     category: "win",
     imageSrc: "/memes/huell.jpg",
-    accentColor: "#38bdf8",
-    nodeColor: "rgba(56, 189, 248, 0.45)",
-    objectPosition: "center right",
-    scrimColor: "rgba(8, 15, 22, 0.95)",
+    focalX: 70,
+    focalY: 45,
+    zoom: 105,
   },
   {
     id: "pepe",
     name: "Pepe Wall St",
     category: "win",
     imageSrc: "/memes/win_pepe.jpg",
-    accentColor: "#22c55e",
-    nodeColor: "rgba(34, 197, 94, 0.45)",
-    objectPosition: "center center",
-    scrimColor: "rgba(7, 20, 11, 0.95)",
+    focalX: 50,
+    focalY: 45,
+    zoom: 100,
   },
   // Loss / Down Bad Memes
   {
@@ -98,20 +93,18 @@ const MEME_PRESETS: MemePreset[] = [
     name: "McDonald's Wojak",
     category: "loss",
     imageSrc: "/memes/9-5.jpeg",
-    accentColor: "#ef4444",
-    nodeColor: "rgba(239, 68, 68, 0.45)",
-    objectPosition: "center left",
-    scrimColor: "rgba(12, 10, 15, 0.95)",
+    focalX: 42,
+    focalY: 48,
+    zoom: 100,
   },
   {
     id: "sadpepe",
     name: "Sad Pepe Rain",
     category: "loss",
     imageSrc: "/memes/sadpepe.jpg",
-    accentColor: "#f43f5e",
-    nodeColor: "rgba(244, 63, 94, 0.45)",
-    objectPosition: "center right",
-    scrimColor: "rgba(10, 8, 16, 0.95)",
+    focalX: 64,
+    focalY: 45,
+    zoom: 105,
   },
 ];
 
@@ -135,13 +128,19 @@ export default function ShareablePnlCardModal({
   const [customImageSrc, setCustomImageSrc] = useState<string | null>(null);
   const [unit, setUnit] = useState<"SOL" | "USD">("SOL");
   const [layout, setLayout] = useState<"poster" | "performance">("performance");
+  const [backgroundX, setBackgroundX] = useState(trade && (trade.pnlSol || 0) < 0 ? 42 : 68);
+  const [backgroundY, setBackgroundY] = useState(trade && (trade.pnlSol || 0) < 0 ? 48 : 18);
+  const [backgroundZoom, setBackgroundZoom] = useState(100);
+  const [layoutEditorOpen, setLayoutEditorOpen] = useState(false);
+  const [customTokenLogo, setCustomTokenLogo] = useState<string | null>(null);
   const [loadedBackgroundSrc, setLoadedBackgroundSrc] = useState<string | null>(null);
   const [tokenLogo, setTokenLogo] = useState<{ tradeId: string; url: string } | null>(null);
-  const tokenLogoUrl = trade && tokenLogo?.tradeId === trade.id ? tokenLogo.url : null;
+  const tokenLogoUrl = customTokenLogo || (trade && tokenLogo?.tradeId === trade.id ? tokenLogo.url : null);
   const [cyberFx] = useState(true);
   const traderHandleStorageKey = user ? "memecoin_journal_" + user.uid + "_trader_handle" : "trader_handle";
   const traderHandle = useLocalStorageValue(traderHandleStorageKey) || "";
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const tokenLogoInputRef = useRef<HTMLInputElement>(null);
 
   const handleHandleChange = (val: string) => {
     if (user) writeLocalStorageValue(traderHandleStorageKey, val);
@@ -168,11 +167,16 @@ export default function ShareablePnlCardModal({
     if (trade?.ca && user) {
       const cleanCa = trade.ca.trim();
       let active = true;
-      fetch(`https://api.dexscreener.com/latest/dex/tokens/${encodeURIComponent(cleanCa)}`)
+      user.getIdToken()
+        .then((token) => fetch(`/api/token/${encodeURIComponent(cleanCa)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        }))
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
-          const bestPair = selectSolanaTokenPair(data, cleanCa);
-          const imageUrl = bestPair?.info?.imageUrl;
+          const imageUrl = data && typeof data === "object" && typeof data.imageUrl === "string"
+            ? data.imageUrl
+            : selectSolanaTokenPair(data, cleanCa)?.info?.imageUrl;
           if (active && typeof imageUrl === "string") {
             setTokenLogo({ tradeId: trade.id, url: imageUrl });
           }
@@ -236,7 +240,7 @@ export default function ShareablePnlCardModal({
   const currentPreset =
     MEME_PRESETS.find((p) => p.id === selectedThemeId) || MEME_PRESETS[0];
   const activeImageSrc = customImageSrc || currentPreset.imageSrc;
-  const activeAccentColor = currentPreset.accentColor;
+  const resultAccentColor = isWin ? "#34d399" : "#fb7185";
 
   // Filter presets
   const filteredPresets = MEME_PRESETS.filter((p) => {
@@ -253,11 +257,27 @@ export default function ShareablePnlCardModal({
       reader.onload = (event) => {
         if (event.target?.result) {
           setCustomImageSrc(event.target.result as string);
+          setBackgroundX(50);
+          setBackgroundY(50);
+          setBackgroundZoom(100);
           showToast("Custom meme image applied!", "success");
         }
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleTokenLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (typeof event.target?.result === "string") {
+        setCustomTokenLogo(event.target.result);
+        showToast("Custom token logo applied", "success");
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   // Helper to load image for canvas
@@ -285,20 +305,12 @@ export default function ShareablePnlCardModal({
     // 1. Draw Clean Background Image
     try {
       const img = await loadImage(activeImageSrc);
-      const imgRatio = img.width / img.height;
-      const canvasRatio = width / height;
-      let renderW = width;
-      let renderH = height;
-      let renderX = 0;
-      let renderY = 0;
-
-      if (imgRatio > canvasRatio) {
-        renderW = height * imgRatio;
-        renderX = width - renderW;
-      } else {
-        renderH = width / imgRatio;
-        renderY = (height - renderH) / 2;
-      }
+      const coverScale = Math.max(width / img.width, height / img.height);
+      const scale = coverScale * (backgroundZoom / 100);
+      const renderW = img.width * scale;
+      const renderH = img.height * scale;
+      const renderX = (width - renderW) * (backgroundX / 100);
+      const renderY = (height - renderH) * (backgroundY / 100);
 
       ctx.drawImage(img, renderX, renderY, renderW, renderH);
     } catch (e) {
@@ -316,7 +328,7 @@ export default function ShareablePnlCardModal({
     ctx.fillStyle = scrimGrad;
     ctx.fillRect(0, 0, width, height);
 
-    const accent = isWin ? activeAccentColor : "#fb7185";
+    const accent = resultAccentColor;
     ctx.textAlign = "right";
     ctx.fillStyle = "rgba(255, 255, 255, 0.72)";
     ctx.font = `700 ${layout === "performance" ? 24 : 18}px sans-serif`;
@@ -329,6 +341,7 @@ export default function ShareablePnlCardModal({
     const headerY = layout === "performance" ? 170 : 122;
     const logoSize = layout === "performance" ? 104 : 70;
 
+    let logoDrawn = false;
     if (tokenLogoUrl) {
       try {
         const logoImg = await loadImage(tokenLogoUrl);
@@ -350,9 +363,27 @@ export default function ShareablePnlCardModal({
         ctx.stroke();
 
         textStartX = logoX + logoSize + 26;
+        logoDrawn = true;
       } catch {
         // Ignore logo load failure
       }
+    }
+
+    if (!logoDrawn) {
+      const logoX = 58;
+      const logoY = headerY - logoSize + 8;
+      ctx.fillStyle = accent;
+      ctx.beginPath();
+      ctx.roundRect(logoX, logoY, logoSize, logoSize, logoSize * 0.22);
+      ctx.fill();
+      ctx.fillStyle = "#07110e";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.font = `900 ${Math.round(logoSize * 0.34)}px sans-serif`;
+      ctx.fillText(tokenSymbol.slice(0, 2), logoX + logoSize / 2, logoY + logoSize / 2 + 1);
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
+      textStartX = logoX + logoSize + 26;
     }
 
     ctx.textAlign = "left";
@@ -426,7 +457,11 @@ export default function ShareablePnlCardModal({
       ctx.fill();
       ctx.fillStyle = "#ffffff";
       ctx.font = "700 27px monospace";
-      const walletLabel = trade.wallet ? `${trade.wallet.slice(0, 7)}…${trade.wallet.slice(-5)}` : "PRIVATE WALLET";
+      const walletLabel = trade.isPaper || trade.tradeMode === "paper" || trade.wallet.toLowerCase() === "paper"
+        ? "PAPER TRADE"
+        : trade.wallet.length >= 16
+          ? `${trade.wallet.slice(0, 7)}…${trade.wallet.slice(-5)}`
+          : trade.wallet || "PRIVATE WALLET";
       ctx.fillText(walletLabel, 86, 992);
       ctx.textAlign = "right";
       ctx.fillStyle = "rgba(255,255,255,.78)";
@@ -558,7 +593,7 @@ ${traderHandle.trim() ? `Traded by ${traderHandle.trim()}\n` : ""}#Solana #MemeC
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-[#0f1115] border border-neutral-800 rounded-2xl p-4 sm:p-5 w-full max-w-2xl shadow-2xl relative text-white space-y-3.5 my-auto animate-in zoom-in-95 duration-150"
+        className="pnl-share-modal border rounded-2xl p-4 sm:p-5 w-full max-w-2xl shadow-2xl relative space-y-3.5 my-auto animate-in zoom-in-95 duration-150"
       >
         {/* Close Button */}
         <button
@@ -690,6 +725,9 @@ ${traderHandle.trim() ? `Traded by ${traderHandle.trim()}\n` : ""}#Solana #MemeC
                 onClick={() => {
                   setSelectedThemeId(preset.id);
                   setCustomImageSrc(null);
+                  setBackgroundX(preset.focalX ?? 50);
+                  setBackgroundY(preset.focalY ?? 50);
+                  setBackgroundZoom(preset.zoom ?? 100);
                 }}
                 className={`relative rounded-lg overflow-hidden border-2 transition-all p-0.5 group flex items-center gap-1.5 pr-2 bg-neutral-900 cursor-pointer shrink-0 ${
                   isSelected
@@ -731,7 +769,43 @@ ${traderHandle.trim() ? `Traded by ${traderHandle.trim()}\n` : ""}#Solana #MemeC
             <Upload size={12} />
             <span>{customImageSrc ? "Custom Active" : "Upload Custom"}</span>
           </button>
+          <button
+            type="button"
+            onClick={() => setLayoutEditorOpen((open) => !open)}
+            aria-expanded={layoutEditorOpen}
+            className="shrink-0 rounded-lg border border-neutral-700 bg-neutral-900 px-2 py-1 text-[11px] font-semibold text-neutral-300 transition-colors hover:border-neutral-500 hover:text-white"
+          >
+            <span className="flex items-center gap-1"><SlidersHorizontal size={12} /> Edit layout</span>
+          </button>
         </div>
+
+        {layoutEditorOpen && (
+          <div className="pnl-layout-editor grid gap-3 rounded-xl border p-3 sm:grid-cols-2">
+            <label className="space-y-1 text-[11px] font-semibold">
+              <span className="flex justify-between"><span>Background zoom</span><span>{backgroundZoom}%</span></span>
+              <input aria-label="Background zoom" type="range" min="100" max="180" step="1" value={backgroundZoom} onChange={(event) => setBackgroundZoom(Number(event.target.value))} className="w-full" />
+            </label>
+            <label className="space-y-1 text-[11px] font-semibold">
+              <span className="flex justify-between"><span>Move left / right</span><span>{backgroundX}%</span></span>
+              <input aria-label="Background horizontal position" type="range" min="0" max="100" step="1" value={backgroundX} onChange={(event) => setBackgroundX(Number(event.target.value))} className="w-full" />
+            </label>
+            <label className="space-y-1 text-[11px] font-semibold">
+              <span className="flex justify-between"><span>Move up / down</span><span>{backgroundY}%</span></span>
+              <input aria-label="Background vertical position" type="range" min="0" max="100" step="1" value={backgroundY} onChange={(event) => setBackgroundY(Number(event.target.value))} className="w-full" />
+            </label>
+            <div className="flex items-end gap-2">
+              <input ref={tokenLogoInputRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={handleTokenLogoUpload} className="hidden" />
+              <button type="button" onClick={() => tokenLogoInputRef.current?.click()} className="rounded-lg border px-3 py-2 text-[11px] font-semibold">
+                {customTokenLogo ? "Replace coin logo" : "Upload coin logo"}
+              </button>
+              {(customTokenLogo || backgroundZoom !== (currentPreset.zoom ?? 100) || backgroundX !== (currentPreset.focalX ?? 50) || backgroundY !== (currentPreset.focalY ?? 50)) && (
+                <button type="button" onClick={() => { setCustomTokenLogo(null); setBackgroundZoom(currentPreset.zoom ?? 100); setBackgroundX(currentPreset.focalX ?? 50); setBackgroundY(currentPreset.focalY ?? 50); }} className="rounded-lg border px-3 py-2 text-[11px] font-semibold">
+                  Reset
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Live Visual P&L Card Container */}
         <div className="flex items-center justify-center bg-black/40 p-1.5 rounded-xl border border-neutral-900">
@@ -753,7 +827,7 @@ ${traderHandle.trim() ? `Traded by ${traderHandle.trim()}\n` : ""}#Solana #MemeC
               className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-200 ${
                 loadedBackgroundSrc === activeImageSrc ? "opacity-100" : "opacity-0"
               }`}
-              style={{ objectPosition: currentPreset.objectPosition || "center right" }}
+              style={{ objectPosition: `${backgroundX}% ${backgroundY}%`, transform: `scale(${backgroundZoom / 100})`, transformOrigin: `${backgroundX}% ${backgroundY}%` }}
             />
 
             <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/30 to-black/90" />
@@ -771,12 +845,12 @@ ${traderHandle.trim() ? `Traded by ${traderHandle.trim()}\n` : ""}#Solana #MemeC
                       src={tokenLogoUrl}
                       alt={tokenSymbol}
                       className={`${layout === "performance" ? "h-12 w-12 sm:h-16 sm:w-16" : "h-10 w-10"} shrink-0 rounded-2xl border-2 object-cover shadow-lg`}
-                      style={{ borderColor: isWin ? activeAccentColor : "#fb7185" }}
+                      style={{ borderColor: resultAccentColor }}
                     />
                   ) : (
                     <div
                       className={`${layout === "performance" ? "h-12 w-12 sm:h-16 sm:w-16" : "h-10 w-10"} flex shrink-0 items-center justify-center rounded-2xl text-sm font-black text-black shadow-lg`}
-                      style={{ backgroundColor: isWin ? activeAccentColor : "#fb7185" }}
+                      style={{ backgroundColor: resultAccentColor }}
                     >
                       {tokenSymbol.slice(0, 2)}
                     </div>
@@ -798,13 +872,13 @@ ${traderHandle.trim() ? `Traded by ${traderHandle.trim()}\n` : ""}#Solana #MemeC
                 <div className="mt-1 flex flex-wrap items-center gap-2 sm:gap-3">
                   <strong
                     className={`${layout === "performance" ? "text-3xl sm:text-5xl" : "text-3xl sm:text-5xl"} font-black tracking-tight drop-shadow-lg`}
-                    style={{ color: isWin ? activeAccentColor : "#fb7185" }}
+                    style={{ color: resultAccentColor }}
                   >
                     {profitHeadline}
                   </strong>
                   <span
                     className="rounded-lg border px-2 py-1 text-sm font-black sm:text-lg"
-                    style={{ color: isWin ? activeAccentColor : "#fb7185", borderColor: isWin ? `${activeAccentColor}80` : "#fb718580", backgroundColor: isWin ? `${activeAccentColor}22` : "#fb718522" }}
+                    style={{ color: resultAccentColor, borderColor: `${resultAccentColor}80`, backgroundColor: `${resultAccentColor}22` }}
                   >
                     {isWin ? "▲" : "▼"} {roiFormatted}
                   </span>
@@ -815,12 +889,12 @@ ${traderHandle.trim() ? `Traded by ${traderHandle.trim()}\n` : ""}#Solana #MemeC
                 <svg className="mt-auto h-[23%] w-full overflow-visible" viewBox="0 0 600 150" role="img" aria-label={`${isWin ? "Upward" : "Downward"} decorative trade result curve`}>
                   <defs>
                     <linearGradient id="pnlArea" x1="0" x2="0" y1="0" y2="1">
-                      <stop offset="0" stopColor={isWin ? activeAccentColor : "#fb7185"} stopOpacity=".4" />
-                      <stop offset="1" stopColor={isWin ? activeAccentColor : "#fb7185"} stopOpacity="0" />
+                      <stop offset="0" stopColor={resultAccentColor} stopOpacity=".4" />
+                      <stop offset="1" stopColor={resultAccentColor} stopOpacity="0" />
                     </linearGradient>
                   </defs>
                   <path d={isWin ? "M0 132 C70 132 75 58 150 88 S235 43 315 98 S420 48 475 74 S545 18 600 35 L600 150 L0 150Z" : "M0 45 C80 25 100 95 170 65 S270 115 340 82 S450 130 510 105 S570 138 600 125 L600 150 L0 150Z"} fill="url(#pnlArea)" />
-                  <path d={isWin ? "M0 132 C70 132 75 58 150 88 S235 43 315 98 S420 48 475 74 S545 18 600 35" : "M0 45 C80 25 100 95 170 65 S270 115 340 82 S450 130 510 105 S570 138 600 125"} fill="none" stroke={isWin ? activeAccentColor : "#fb7185"} strokeWidth="5" strokeLinecap="round" />
+                  <path d={isWin ? "M0 132 C70 132 75 58 150 88 S235 43 315 98 S420 48 475 74 S545 18 600 35" : "M0 45 C80 25 100 95 170 65 S270 115 340 82 S450 130 510 105 S570 138 600 125"} fill="none" stroke={resultAccentColor} strokeWidth="5" strokeLinecap="round" />
                 </svg>
               )}
 
@@ -839,7 +913,7 @@ ${traderHandle.trim() ? `Traded by ${traderHandle.trim()}\n` : ""}#Solana #MemeC
 
               {layout === "performance" && (
                 <div className="mt-3 flex items-center justify-between rounded-lg bg-black/45 px-3 py-2 font-mono text-[9px] font-semibold text-white/80 sm:text-xs">
-                  <span>{trade.wallet ? `${trade.wallet.slice(0, 7)}…${trade.wallet.slice(-5)}` : "PRIVATE WALLET"}</span>
+                  <span>{trade.isPaper || trade.tradeMode === "paper" || trade.wallet.toLowerCase() === "paper" ? "PAPER TRADE" : trade.wallet.length >= 16 ? `${trade.wallet.slice(0, 7)}…${trade.wallet.slice(-5)}` : trade.wallet || "PRIVATE WALLET"}</span>
                   <span>{trade.venue || "SOLANA"}</span>
                 </div>
               )}
@@ -865,7 +939,7 @@ ${traderHandle.trim() ? `Traded by ${traderHandle.trim()}\n` : ""}#Solana #MemeC
           <button
             onClick={handleDownloadImage}
             disabled={downloading}
-            className="bg-white hover:bg-neutral-200 text-black py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-98 cursor-pointer"
+            className="pnl-download-button py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-98 cursor-pointer disabled:cursor-wait disabled:opacity-60"
           >
             <Download size={14} />
             <span>{downloading ? "Rendering..." : "Download HD"}</span>
