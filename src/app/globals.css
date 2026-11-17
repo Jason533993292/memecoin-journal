@@ -182,7 +182,7 @@
   transition: max-height 220ms cubic-bezier(.22, 1, .36, 1), opacity 120ms ease 80ms;
 }
 .app-sidebar .sidebar-optional-section {
-  max-height: 128px;
+  max-height: 80px;
   opacity: 1;
   transition: max-height 220ms cubic-bezier(.22, 1, .36, 1), opacity 120ms ease 80ms;
 }
@@ -857,6 +857,36 @@ html[data-theme-preview] .daily-journal-book [class*="bg-[#eee4d2]"] {
 .theme-preview-control button:hover,
 .theme-preview-control button.is-active {
   background: var(--ui-accent);
+  color: #ffffff;
+}
+
+.theme-preview-control button[data-theme-option="terminal"]:is(:hover, .is-active) {
+  background: #38d39f;
+  color: #07110e;
+}
+
+.theme-preview-control button[data-theme-option="premium-journal"]:is(:hover, .is-active) {
+  background: #c5874e;
+  color: #17100a;
+}
+
+.theme-preview-control button[data-theme-option="modern-platform"]:is(:hover, .is-active) {
+  background: #6d7dff;
+  color: #ffffff;
+}
+
+.theme-preview-control button[data-theme-option="ocean"]:is(:hover, .is-active) {
+  background: #22b8cf;
+  color: #071419;
+}
+
+.theme-preview-control button[data-theme-option="graphite"]:is(:hover, .is-active) {
+  background: #a78bfa;
+  color: #120c1d;
+}
+
+.theme-preview-control button[data-theme-option="default"]:is(:hover, .is-active) {
+  background: #2383e2;
   color: #ffffff;
 }
 

@@ -127,7 +127,7 @@ export default function ShareablePnlCardModal({
   );
   const [customImageSrc, setCustomImageSrc] = useState<string | null>(null);
   const [unit, setUnit] = useState<"SOL" | "USD">("SOL");
-  const [layout, setLayout] = useState<"poster" | "performance">("performance");
+  const [layout, setLayout] = useState<"poster" | "performance">("poster");
   const [backgroundX, setBackgroundX] = useState(trade && (trade.pnlSol || 0) < 0 ? 42 : 68);
   const [backgroundY, setBackgroundY] = useState(trade && (trade.pnlSol || 0) < 0 ? 48 : 18);
   const [backgroundZoom, setBackgroundZoom] = useState(100);

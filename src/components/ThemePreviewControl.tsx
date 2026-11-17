@@ -84,6 +84,7 @@ export default function ThemePreviewControl() {
             }}
             aria-pressed={theme === option.id}
             className={theme === option.id ? "is-active" : undefined}
+            data-theme-option={option.id}
           >
             {option.label}
           </button>
@@ -101,6 +102,7 @@ export default function ThemePreviewControl() {
           }}
           aria-pressed={!theme}
           className={!theme ? "is-active" : undefined}
+          data-theme-option="default"
         >
           Default
         </button>

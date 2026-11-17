@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@heroui/react";
 import ThemePreviewControl from "./ThemePreviewControl";
-import PageZoomControl from "./PageZoomControl";
 import MarketPricePicker from "./MarketPricePicker";
 import {
   LayoutDashboard,
@@ -196,7 +195,6 @@ export default function TopBanner({
         <div className="relative space-y-2 border-t border-white/8 p-3">
           <div className="sidebar-optional-section" inert={sidebarCollapsed ? true : undefined}>
             <ThemePreviewControl />
-            <div className="mt-2"><PageZoomControl /></div>
           </div>
           <button
             type="button"
