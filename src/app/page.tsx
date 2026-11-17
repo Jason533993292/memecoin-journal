@@ -764,7 +764,20 @@ function AuthenticatedApp({ user, suppressWelcomeTour = false }: { user: User; s
           setIsNewTradeModalOpen(false);
           setClonedTrade(null);
         }}
-        onTradeLogged={fetchTrades}
+        onTradeLogged={() => {
+          fetchTrades();
+          const eventIds = clonedTrade?.walletEventIds;
+          if (eventIds?.length) {
+            void user.getIdToken().then((token) => fetch("/api/wallet-events", {
+              method: "PATCH",
+              headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+              body: JSON.stringify({ ids: eventIds, status: "imported" }),
+            })).then((response) => {
+              if (!response.ok) throw new Error("Wallet review status could not update.");
+              window.dispatchEvent(new Event("wallet-events-updated"));
+            }).catch(() => showToast("Trade saved, but the wallet inbox needs a refresh", "info", "Sync again to reconcile the review status."));
+          }
+        }}
         initialData={clonedTrade}
         solPrice={solPrice}
         trades={activeTrades}

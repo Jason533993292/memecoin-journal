@@ -62,7 +62,7 @@ export default function PrivacyPage() {
                 <dt className="font-semibold text-[#37352f]">Account data</dt><dd>Email address, Firebase user ID, sign-in provider, and the authentication information Firebase needs to run your account.</dd>
               </div>
               <div className="grid gap-1 border-b border-[#e9e9e7] px-4 py-3 sm:grid-cols-[11rem_1fr] sm:gap-5">
-                <dt className="font-semibold text-[#37352f]">Journal data</dt><dd>Trades, outcomes, P&amp;L, strategy and psychology tags, notes, screenshots, rules, goals, coin research and theses, tracked-wallet labels and public addresses, paper balances, wallet transactions, and dates you choose to save.</dd>
+                <dt className="font-semibold text-[#37352f]">Journal data</dt><dd>Trades, outcomes, P&amp;L, strategy and psychology tags, notes, screenshots, rules, goals, coin research and theses, tracked-wallet labels and public addresses, detected public on-chain activity and review status, optional ownership-verification timestamps, paper balances, wallet transactions, and dates you choose to save. Wallet ownership verification stores the result and a short-lived challenge, never a private key, seed phrase, or transaction approval.</dd>
               </div>
               <div className="grid gap-1 border-b border-[#e9e9e7] bg-[#fbfbfa] px-4 py-3 sm:grid-cols-[11rem_1fr] sm:gap-5">
                 <dt className="font-semibold text-[#37352f]">Browser-only settings</dt><dd>Your AI provider choice and API key, theme choice, and similar presentation preferences stored in your browser profile.</dd>
@@ -81,7 +81,7 @@ export default function PrivacyPage() {
             <ul className="list-disc space-y-1 pl-5 marker:text-[#0b63b6]">
               <li>To create and secure your account, display your journal, and calculate analytics you request.</li>
               <li>To store and synchronize saved trade records, rules, and goals.</li>
-              <li>To provide optional token, price, and public wallet-balance lookups.</li>
+              <li>To provide optional token, price, public wallet-balance lookups, incremental wallet synchronization, duplicate detection, and a private review inbox.</li>
               <li>To provide an optional AI review only after you choose a provider and make a request.</li>
               <li>To review bug reports and suggestions, and to reply when you ask us to contact you.</li>
               <li>To prevent abuse, troubleshoot reliability, and comply with applicable law.</li>

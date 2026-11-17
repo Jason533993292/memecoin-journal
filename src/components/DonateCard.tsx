@@ -122,7 +122,7 @@ export default function DonateCard() {
             ) : qrError ? (
               <p role="alert" className="px-4 text-center text-sm text-rose-700">The QR code could not be generated. Use the address shown beside it.</p>
             ) : (
-              <p className="text-sm text-[#696864]" aria-live="polite">Generating QR code…</p>
+              <p className="text-sm !text-[#4b4a47]" aria-live="polite">Generating QR code…</p>
             )}
           </div>
         </div>

@@ -139,7 +139,7 @@ function optionalNumber(value: unknown): number | null {
 
 function toTradeRow(userId: string, id: string, trade: Omit<Trade, "id">): JsonRecord {
   const currencyExtra = Object.fromEntries(
-    (["quoteCurrency", "quoteSymbol", "boughtQuote", "soldQuote", "pnlQuote", "quoteUsdRate", "venue", "processGrade", "confidenceAtEntry", "fills", "playbookId", "playbookName", "playbookChecks"] as const)
+    (["quoteCurrency", "quoteSymbol", "boughtQuote", "soldQuote", "pnlQuote", "quoteUsdRate", "venue", "processGrade", "confidenceAtEntry", "fills", "playbookId", "playbookName", "playbookChecks", "walletSource", "walletSourceSignatures", "walletEventIds"] as const)
       .filter((field) => trade[field] !== undefined)
       .map((field) => [field, trade[field]])
   );
@@ -217,6 +217,9 @@ function fromTradeRow(row: JsonRecord): Trade {
     tradeQualityScore: optionalNumber(row.trade_quality_score) ?? undefined,
     processGrade: ["A", "B", "C", "D"].includes(String(extra.processGrade)) ? extra.processGrade as Trade["processGrade"] : undefined,
     confidenceAtEntry: optionalNumber(extra.confidenceAtEntry) ?? undefined,
+    walletSource: extra.walletSource === "sync" || extra.walletSource === "webhook" ? extra.walletSource : undefined,
+    walletSourceSignatures: Array.isArray(extra.walletSourceSignatures) ? extra.walletSourceSignatures.filter((item): item is string => typeof item === "string") : undefined,
+    walletEventIds: Array.isArray(extra.walletEventIds) ? extra.walletEventIds.filter((item): item is string => typeof item === "string") : undefined,
     price: optionalNumber(row.price) ?? undefined,
     boughtSol: Number(row.bought_sol ?? 0),
     boughtUsd: optionalNumber(row.bought_usd) ?? undefined,

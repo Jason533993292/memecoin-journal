@@ -69,6 +69,9 @@ export interface Trade {
   playbookId?: string;
   playbookName?: string;
   playbookChecks?: string[];
+  walletSource?: "sync" | "webhook";
+  walletSourceSignatures?: string[];
+  walletEventIds?: string[];
   date?: TradeDate;
   createdAt?: number;
 }

@@ -28,6 +28,7 @@ import {
   Zap
 } from "lucide-react";
 import DepositPaycheckModal from "./DepositPaycheckModal";
+import WalletSyncPanel from "./WalletSyncPanel";
 import { useToast } from "./Toast";
 import { useAuth } from "../context/AuthContext";
 import { db } from "../lib/firebase";
@@ -539,6 +540,8 @@ export default function WalletsView({ trades, solPrice = 150, onImportWalletTrad
           Loading your private wallet data…
         </div>
       )}
+
+      <WalletSyncPanel onImportWalletTrade={onImportWalletTrade} />
 
       {/* Top 2 Action Banners: 1. Live On-Chain Address Scanner, 2. Paper Trading Sizer */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -599,6 +599,9 @@ export default function LogTradeModal({
         mistakes: selectedMistakes,
         notes: notes.trim(),
         fills,
+        ...(initialData?.walletSource ? { walletSource: initialData.walletSource } : {}),
+        ...(initialData?.walletSourceSignatures?.length ? { walletSourceSignatures: initialData.walletSourceSignatures } : {}),
+        ...(initialData?.walletEventIds?.length ? { walletEventIds: initialData.walletEventIds } : {}),
         ...(activePlaybook ? {
           playbookId: activePlaybook.id,
           playbookName: activePlaybook.name,

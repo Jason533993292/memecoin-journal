@@ -3,11 +3,11 @@ import type { Database } from "@/lib/database.types";
 import { getFeedbackDeliveryRetry } from "@/lib/feedbackDeliveryPolicy";
 import type { AccountSecurityEventType } from "@/lib/securityHistory";
 
-type JournalTable = "wallet_transactions" | "trades" | "coin_research" | "daily_journal_entries" | "wallets" | "user_settings" | "user_feedback" | "account_security_events";
+type JournalTable = "wallet_events" | "wallet_links" | "wallet_transactions" | "trades" | "coin_research" | "daily_journal_entries" | "wallets" | "user_settings" | "user_feedback" | "account_security_events";
 
 let adminClient: SupabaseClient<Database> | null = null;
 
-function getSupabaseAdminClient(): SupabaseClient<Database> {
+export function getSupabaseAdminClient(): SupabaseClient<Database> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   if (!url || !serviceRoleKey) {
@@ -31,7 +31,7 @@ export async function deleteSupabaseJournalData(userId: string) {
 
   // Child/history tables go first. Every operation is safe to repeat, allowing
   // a later request to resume after a temporary provider failure.
-  const tables: JournalTable[] = ["wallet_transactions", "trades", "coin_research", "daily_journal_entries", "wallets", "user_settings", "user_feedback", "account_security_events"];
+  const tables: JournalTable[] = ["wallet_events", "wallet_links", "wallet_transactions", "trades", "coin_research", "daily_journal_entries", "wallets", "user_settings", "user_feedback", "account_security_events"];
   for (const table of tables) {
     const { error } = await admin.from(table).delete().eq("user_id", userId);
     if (error) throw new Error(`${table}: ${error.message}`);

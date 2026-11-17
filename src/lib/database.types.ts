@@ -484,6 +484,113 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_events: {
+        Row: {
+          block_time: string
+          created_at: string
+          direction: string
+          event_index: number
+          fee_sol: number
+          id: string
+          mint: string
+          raw: Json
+          signature: string
+          sol_change: number
+          source: string
+          status: string
+          token_change: number
+          updated_at: string
+          user_id: string
+          wallet_link_id: string
+        }
+        Insert: {
+          block_time: string
+          created_at?: string
+          direction: string
+          event_index?: number
+          fee_sol?: number
+          id?: string
+          mint: string
+          raw?: Json
+          signature: string
+          sol_change?: number
+          source?: string
+          status?: string
+          token_change?: number
+          updated_at?: string
+          user_id: string
+          wallet_link_id: string
+        }
+        Update: {
+          block_time?: string
+          created_at?: string
+          direction?: string
+          event_index?: number
+          fee_sol?: number
+          id?: string
+          mint?: string
+          raw?: Json
+          signature?: string
+          sol_change?: number
+          source?: string
+          status?: string
+          token_change?: number
+          updated_at?: string
+          user_id?: string
+          wallet_link_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_events_wallet_link_id_fkey"
+            columns: ["wallet_link_id"]
+            isOneToOne: false
+            referencedRelation: "wallet_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wallet_links: {
+        Row: {
+          address: string
+          created_at: string
+          id: string
+          label: string
+          last_synced_at: string | null
+          last_synced_signature: string | null
+          updated_at: string
+          user_id: string
+          verification_expires_at: string | null
+          verification_nonce: string | null
+          verified_at: string | null
+        }
+        Insert: {
+          address: string
+          created_at?: string
+          id?: string
+          label?: string
+          last_synced_at?: string | null
+          last_synced_signature?: string | null
+          updated_at?: string
+          user_id: string
+          verification_expires_at?: string | null
+          verification_nonce?: string | null
+          verified_at?: string | null
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          id?: string
+          label?: string
+          last_synced_at?: string | null
+          last_synced_signature?: string | null
+          updated_at?: string
+          user_id?: string
+          verification_expires_at?: string | null
+          verification_nonce?: string | null
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
       wallet_transactions: {
         Row: {
           amount_sol: number
