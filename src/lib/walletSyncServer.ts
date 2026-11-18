@@ -6,10 +6,13 @@ import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 
 export const SOLANA_ADDRESS_PATTERN = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 const HELIUS_RPC_URL = process.env.HELIUS_API_KEY?.trim() ? `https://mainnet.helius-rpc.com/?api-key=${process.env.HELIUS_API_KEY.trim()}` : "";
-const RPC_URLS = [process.env.SOLANA_RPC_URL?.trim(), HELIUS_RPC_URL, "https://api.mainnet-beta.solana.com", "https://rpc.ankr.com/solana"].filter(Boolean) as string[];
+const PRIVATE_RPC_URLS = [process.env.SOLANA_RPC_URL?.trim(), HELIUS_RPC_URL].filter(Boolean) as string[];
+const RPC_URLS = PRIVATE_RPC_URLS.length ? PRIVATE_RPC_URLS : ["https://api.mainnet-beta.solana.com", "https://rpc.ankr.com/solana"];
 const WRAPPED_SOL_MINT = "So11111111111111111111111111111111111111112";
-const TRANSACTION_FETCH_CONCURRENCY = 1;
-const TRANSACTION_FETCH_DELAY_MS = 175;
+const TRANSACTION_BATCH_SIZE = 5;
+const TRANSACTION_BATCH_DELAY_MS = 650;
+const TRANSACTION_RETRY_DELAY_MS = 175;
+const TRANSACTION_FETCH_DEADLINE_MS = 22_000;
 
 type RpcTokenBalance = { mint?: string; owner?: string; uiTokenAmount?: { uiAmount?: number | null; uiAmountString?: string } };
 type WalletLinkRow = { id: string; user_id: string; address: string; label: string; last_synced_signature: string | null; last_synced_at: string | null; verified_at: string | null; created_at: string; updated_at: string };
@@ -29,16 +32,19 @@ function usableRpcPayload(payload: unknown) {
   return Boolean(payload && typeof payload === "object" && !("error" in payload));
 }
 
-async function rpc(body: unknown, isUsable: (payload: unknown) => boolean = usableRpcPayload) {
-  for (let attempt = 0; attempt < 3; attempt += 1) {
+async function rpc(body: unknown, isUsable: (payload: unknown) => boolean = usableRpcPayload, options: { attempts?: number; timeoutMs?: number; deadline?: number } = {}) {
+  const attempts = options.attempts ?? 3;
+  const timeoutMs = options.timeoutMs ?? 8_000;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
     for (const url of RPC_URLS) {
+      if (options.deadline && Date.now() >= options.deadline) throw new Error("The wallet scan reached its safe time limit.");
       try {
         const response = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
           cache: "no-store",
-          signal: AbortSignal.timeout(8_000),
+          signal: AbortSignal.timeout(timeoutMs),
         });
         if (!response.ok) continue;
         const payload = await response.json();
@@ -48,40 +54,49 @@ async function rpc(body: unknown, isUsable: (payload: unknown) => boolean = usab
         // Try the next configured provider, then retry with backoff.
       }
     }
-    if (attempt < 2) await wait(350 * (2 ** attempt));
+    if (attempt < attempts - 1) await wait(350 * (2 ** attempt));
   }
   throw new Error("Solana data providers are temporarily unavailable. Wait a moment or configure a private RPC provider.");
 }
 
 async function fetchTransactions(signatures: Array<{ signature: string }>) {
   const transactions = new Map<number, unknown>();
-  const missingIds: number[] = [];
+  const requests = signatures.map((item, index) => ({ jsonrpc: "2.0", id: index + 10, method: "getTransaction", params: [item.signature, { encoding: "jsonParsed", maxSupportedTransactionVersion: 0 }] }));
+  const deadline = Date.now() + TRANSACTION_FETCH_DEADLINE_MS;
 
-  // Fetch signatures individually. Some Solana providers return a successful JSON-RPC
-  // batch with null entries; validating each response lets those exact signatures fall
-  // through to the next provider and retry without discarding the whole wallet scan.
-  for (let offset = 0; offset < signatures.length; offset += TRANSACTION_FETCH_CONCURRENCY) {
-    const group = signatures.slice(offset, offset + TRANSACTION_FETCH_CONCURRENCY);
-    const results = await Promise.all(group.map(async (item, groupIndex) => {
-      const id = offset + groupIndex + 10;
-      try {
-        const payload = await rpc(
-          { jsonrpc: "2.0", id, method: "getTransaction", params: [item.signature, { encoding: "jsonParsed", maxSupportedTransactionVersion: 0 }] },
-          (candidate) => Boolean(candidate && typeof candidate === "object" && !Array.isArray(candidate) && "result" in candidate && candidate.result && typeof candidate.result === "object" && "meta" in candidate.result && candidate.result.meta),
-        ) as { result: unknown };
-        return { id, transaction: payload.result };
-      } catch {
-        return { id, transaction: null };
+  // Small paced batches stay below provider burst limits. Null batch entries are
+  // retried individually so a partial provider response never advances the cursor.
+  for (let offset = 0; offset < requests.length; offset += TRANSACTION_BATCH_SIZE) {
+    if (Date.now() >= deadline) break;
+    const batch = requests.slice(offset, offset + TRANSACTION_BATCH_SIZE);
+    try {
+      const results = await rpc(batch, Array.isArray, { attempts: 2, timeoutMs: 4_000, deadline }) as Array<{ id?: number; result?: unknown }>;
+      for (const result of results) {
+        if (typeof result.id === "number" && result.result && typeof result.result === "object" && "meta" in result.result && result.result.meta) transactions.set(result.id, result.result);
       }
-    }));
-
-    for (const result of results) {
-      if (result.transaction) transactions.set(result.id, result.transaction);
-      else missingIds.push(result.id);
+    } catch {
+      // The unresolved signatures below receive targeted retries.
     }
-    if (offset + TRANSACTION_FETCH_CONCURRENCY < signatures.length) await wait(TRANSACTION_FETCH_DELAY_MS);
+    if (offset + TRANSACTION_BATCH_SIZE < requests.length) await wait(TRANSACTION_BATCH_DELAY_MS);
   }
 
+  const unresolved = requests.filter((request) => !transactions.has(request.id));
+  for (const request of unresolved) {
+    if (Date.now() >= deadline) break;
+    try {
+      const payload = await rpc(
+        request,
+        (candidate) => Boolean(candidate && typeof candidate === "object" && !Array.isArray(candidate) && "result" in candidate && candidate.result && typeof candidate.result === "object" && "meta" in candidate.result && candidate.result.meta),
+        { attempts: 2, timeoutMs: 4_000, deadline },
+      ) as { result: unknown };
+      transactions.set(request.id, payload.result);
+    } catch {
+      // Report any still-unresolved signature without advancing the sync cursor.
+    }
+    await wait(TRANSACTION_RETRY_DELAY_MS);
+  }
+
+  const missingIds = requests.filter((request) => !transactions.has(request.id)).map((request) => request.id);
   return { transactions, missingIds };
 }
 
