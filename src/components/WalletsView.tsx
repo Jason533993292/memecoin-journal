@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Timestamp,
   collection,
@@ -24,8 +24,7 @@ import {
   Edit2,
   Calendar,
   Loader2,
-  Sparkles,
-  Zap
+  Sparkles
 } from "lucide-react";
 import DepositPaycheckModal from "./DepositPaycheckModal";
 import WalletSyncPanel from "./WalletSyncPanel";
@@ -53,10 +52,6 @@ interface WalletsViewProps {
   onImportWalletTrade?: (draft: Partial<Trade>) => void;
 }
 
-type WalletActivity = { signature: string; blockTime: number; feeSol: number; solChange: number; tokenChanges: Array<{ mint: string; change: number }> };
-type WalletHolding = { mint: string; amount: number; symbol: string; name: string; priceUsd: number | null; valueUsd: number | null };
-type WalletTradeCandidate = { mint: string; boughtSol: number; soldSol: number; feesSol: number; entryAt: number; exitAt?: number; fills: NonNullable<Trade["fills"]>; signatures: string[] };
-
 const DEFAULT_WALLETS: Wallet[] = [];
 
 function createLocalId(prefix: string) {
@@ -73,40 +68,6 @@ export default function WalletsView({ trades, solPrice = 150, onImportWalletTrad
   const [walletDataLoading, setWalletDataLoading] = useState(true);
   const migrationAttempted = useRef(false);
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
-
-  // Live On-Chain Address Checker
-  const [lookupAddress, setLookupAddress] = useState("");
-  const [loadingLookup, setLoadingLookup] = useState(false);
-  const [lookupResult, setLookupResult] = useState<{ address: string; balanceSol: number } | null>(null);
-  const [activityLoading, setActivityLoading] = useState(false);
-  const [walletActivities, setWalletActivities] = useState<WalletActivity[]>([]);
-  const [walletHoldings, setWalletHoldings] = useState<WalletHolding[]>([]);
-  const [scannedWallet, setScannedWallet] = useState<{ address: string; name: string } | null>(null);
-
-  const walletTradeCandidates = useMemo(() => {
-    const candidates = new Map<string, WalletTradeCandidate>();
-    for (const activity of [...walletActivities].sort((a, b) => a.blockTime - b.blockTime)) {
-      for (const change of activity.tokenChanges) {
-        if (Math.abs(activity.solChange) < 0.000000001) continue;
-        const current = candidates.get(change.mint) || { mint: change.mint, boughtSol: 0, soldSol: 0, feesSol: 0, entryAt: activity.blockTime, fills: [], signatures: [] };
-        if (change.change > 0 && activity.solChange < 0) {
-          const spent = Math.max(0, -activity.solChange - activity.feeSol);
-          current.boughtSol += spent;
-          current.entryAt = Math.min(current.entryAt, activity.blockTime);
-          current.fills.push({ id: `${activity.signature}-entry`, side: "entry", quoteAmount: spent, feeSol: activity.feeSol, executedAt: activity.blockTime });
-        } else if (change.change < 0 && activity.solChange > 0) {
-          const received = Math.max(0, activity.solChange + activity.feeSol);
-          current.soldSol += received;
-          current.exitAt = Math.max(current.exitAt || 0, activity.blockTime);
-          current.fills.push({ id: `${activity.signature}-exit`, side: "exit", quoteAmount: received, feeSol: activity.feeSol, executedAt: activity.blockTime });
-        } else continue;
-        current.feesSol += activity.feeSol;
-        if (!current.signatures.includes(activity.signature)) current.signatures.push(activity.signature);
-        candidates.set(change.mint, current);
-      }
-    }
-    return [...candidates.values()].filter((candidate) => candidate.boughtSol > 0 || candidate.soldSol > 0).sort((a, b) => (b.exitAt || b.entryAt) - (a.exitAt || a.entryAt));
-  }, [walletActivities]);
 
   // Paper Trading Balance
   const [isEditingPaperCapital, setIsEditingPaperCapital] = useState(false);
@@ -274,93 +235,6 @@ export default function WalletsView({ trades, solPrice = 150, onImportWalletTrad
     setTimeout(() => setCopiedAddress(null), 1500);
   };
 
-  // Fetch On-Chain Live Balance
-  const handleCheckOnChainBalance = async () => {
-    const clean = lookupAddress.trim();
-    if (!clean) return;
-    setLoadingLookup(true);
-    setLookupResult(null);
-
-    try {
-      const token = await user?.getIdToken();
-      const res = await fetch("/api/sol-balance", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: "Bearer " + token } : {}),
-        },
-        body: JSON.stringify({ address: clean }),
-        cache: "no-store",
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setLookupResult(data);
-        showToast("On-Chain Balance Verified", "success", `${data.balanceSol} SOL`);
-      } else {
-        showToast("Address lookup failed. Check address format.", "error");
-      }
-    } catch {
-      showToast("Network error checking Solana balance", "error");
-    }
-    setLoadingLookup(false);
-  };
-
-  const handleAddVerifiedWallet = async () => {
-    if (!lookupResult) return;
-    const newW: Wallet = {
-      id: createLocalId("w"),
-      name: "Solana Wallet",
-      balanceSol: lookupResult.balanceSol,
-      address: lookupResult.address,
-    };
-    try {
-      if (usesSupabaseJournal()) await saveSupabaseWallet(user!.uid, newW);
-      else await setDoc(doc(db, "users", user!.uid, "wallets", newW.id), newW);
-      showToast(`Added ${newW.name} with ${newW.balanceSol} SOL`, "success");
-      setLookupResult(null);
-      await handleImportWalletActivity(newW.address, newW.name);
-    } catch {
-      showToast("Could not add wallet", "error", "Check your connection and try again.");
-    }
-  };
-
-  const handleImportWalletActivity = async (address = lookupAddress.trim(), walletName?: string) => {
-    const clean = address.trim();
-    if (!clean || !user) return;
-    setActivityLoading(true);
-    try {
-      const token = await user.getIdToken();
-      const response = await fetch("/api/wallet-activity", { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ address: clean }), cache: "no-store" });
-      const data = await response.json();
-      if (!response.ok) throw new Error(typeof data?.error === "string" ? data.error : "Wallet activity could not be imported.");
-      setWalletActivities(Array.isArray(data.activities) ? data.activities : []);
-      setWalletHoldings(Array.isArray(data.holdings) ? data.holdings : []);
-      setScannedWallet({ address: clean, name: walletName || wallets.find((wallet) => wallet.address === clean)?.name || "Solana Wallet" });
-      showToast("Read-only wallet activity imported", "success", "Review a transaction before adding it to your journal.");
-    } catch (error) {
-      showToast("Wallet import failed", "error", error instanceof Error ? error.message : "Try again shortly.");
-    } finally { setActivityLoading(false); }
-  };
-
-  const reviewCandidateAsTrade = (candidate: WalletTradeCandidate) => {
-    if (!onImportWalletTrade) return;
-    const pnlSol = candidate.soldSol - candidate.boughtSol - candidate.feesSol;
-    onImportWalletTrade({
-      ca: candidate.mint,
-      wallet: scannedWallet?.name || "Imported wallet",
-      boughtSol: candidate.boughtSol,
-      soldSol: candidate.soldSol || undefined,
-      pnlSol,
-      result: candidate.soldSol > 0 ? (Math.abs(pnlSol) < 0.000000001 ? "BE" : pnlSol > 0 ? "Win" : "Loss") : undefined,
-      feesSol: candidate.feesSol,
-      tradedAt: candidate.exitAt || candidate.entryAt,
-      durationMinutes: candidate.exitAt ? Math.max(1, Math.round((candidate.exitAt - candidate.entryAt) / 60_000)) : undefined,
-      fills: candidate.fills,
-      notes: `Detected from read-only wallet activity. Review every value before saving. Transactions: ${candidate.signatures.join(", ")}`,
-      venue: "On-chain import",
-    });
-  };
-
   // Handle Paper Trading Capital Update
   const handleSavePaperCapital = async () => {
     const num = parseFloat(tempPaperCapital);
@@ -409,9 +283,9 @@ export default function WalletsView({ trades, solPrice = 150, onImportWalletTrad
     try {
       if (usesSupabaseJournal()) await saveSupabaseWallet(user!.uid, savedWallet);
       else await setDoc(doc(db, "users", user!.uid, "wallets", savedWallet.id), { ...savedWallet, updatedAt: Date.now() });
+      setWallets((current) => [savedWallet, ...current.filter((wallet) => wallet.id !== savedWallet.id)]);
       showToast(editingWallet ? "Wallet updated" : "Wallet added", "success", savedWallet.name);
       setEditingWallet(null);
-      if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(savedWallet.address)) await handleImportWalletActivity(savedWallet.address, savedWallet.name);
     } catch {
       showToast("Could not save wallet", "error", "Check your connection and try again.");
       return;
@@ -430,12 +304,15 @@ export default function WalletsView({ trades, solPrice = 150, onImportWalletTrad
   const confirmDeleteWallet = async () => {
     if (!walletToDelete) return;
     const { id, name } = walletToDelete;
+    const previousWallets = wallets;
+    setWallets((current) => current.filter((wallet) => wallet.id !== id));
+    setWalletToDelete(null);
     try {
       if (usesSupabaseJournal()) await deleteSupabaseWallet(user!.uid, id);
       else await deleteDoc(doc(db, "users", user!.uid, "wallets", id));
       showToast("Wallet deleted", "info", name);
-      setWalletToDelete(null);
     } catch {
+      setWallets(previousWallets);
       showToast("Could not delete wallet", "error", "Check your connection and try again.");
     }
   };
@@ -543,59 +420,7 @@ export default function WalletsView({ trades, solPrice = 150, onImportWalletTrad
 
       <WalletSyncPanel onImportWalletTrade={onImportWalletTrade} />
 
-      {/* Top 2 Action Banners: 1. Live On-Chain Address Scanner, 2. Paper Trading Sizer */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* On-Chain Solana Wallet Balance Scanner */}
-        <div data-tour="wallet-scan" className="bg-white border border-[#e9e9e7] rounded-xl p-4 shadow-xs space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600">
-                <Zap size={15} />
-              </span>
-              <div>
-                <h3 className="text-xs font-bold text-[#37352f]">Check Live On-Chain Solana Balance</h3>
-                <p className="text-[11px] text-[#787774]">Queries Solana blockchain RPC directly.</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={lookupAddress}
-              onChange={(e) => setLookupAddress(e.target.value)}
-              aria-label="Solana wallet address"
-              placeholder="Paste your Phantom/Solflare address..."
-              className="flex-1 bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-3 py-1.5 text-xs text-[#37352f] font-mono focus:outline-none focus:border-[#2383e2]"
-            />
-            <button
-              onClick={handleCheckOnChainBalance}
-              disabled={loadingLookup || !lookupAddress}
-              className="px-3 py-1.5 bg-[#1a73ca] hover:bg-[#155fa8] text-white rounded-lg text-xs font-medium flex items-center gap-1 disabled:opacity-50 transition-colors shrink-0"
-            >
-              {loadingLookup ? <Loader2 size={13} className="animate-spin" /> : <span>Scan RPC</span>}
-            </button>
-          </div>
-
-          {lookupResult && (
-            <div className="p-3 bg-emerald-50/60 border border-emerald-200 rounded-lg flex items-center justify-between animate-in fade-in duration-200">
-              <div>
-                <span className="text-[11px] text-emerald-800 font-medium block">Verified On-Chain Balance:</span>
-                <span className="text-sm font-bold font-mono text-emerald-950">
-                  {formatSol(lookupResult.balanceSol)} SOL <span className="text-xs font-normal text-emerald-700">(≈ ${(lookupResult.balanceSol * solPrice).toFixed(2)})</span>
-                </span>
-              </div>
-              <button
-                onClick={handleAddVerifiedWallet}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-md text-xs font-semibold shadow-xs transition-colors"
-              >
-                + Add to Wallets
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Paper Trading Capital Settings */}
+      <div>
         <div data-tour="paper-capital" className="bg-white border border-[#e9e9e7] rounded-xl p-4 shadow-xs space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -656,18 +481,6 @@ export default function WalletsView({ trades, solPrice = 150, onImportWalletTrad
           )}
         </div>
       </div>
-
-      {user && (lookupAddress.trim() || scannedWallet) && (
-        <section className="rounded-xl border border-[#e9e9e7] bg-white p-4 shadow-xs">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div><h2 className="text-sm font-semibold text-[#37352f]">Read-only wallet scanner{scannedWallet ? ` · ${scannedWallet.name}` : ""}</h2><p className="mt-1 text-[11px] text-[#787774]">Detects likely swaps, entries, exits, transfers, fees, and current token balances from a public address. It never requests a signature, private key, or seed phrase.</p></div>
-            <button type="button" onClick={() => void handleImportWalletActivity(scannedWallet?.address || lookupAddress.trim(), scannedWallet?.name)} disabled={activityLoading} className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 disabled:opacity-50">{activityLoading ? <Loader2 size={13} className="animate-spin"/> : <ArrowDownToLine size={13}/>}Scan recent activity</button>
-          </div>
-          {walletHoldings.length > 0 && <div className="mt-4"><h3 className="text-xs font-semibold">Open token balances</h3><div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{walletHoldings.slice(0, 9).map((holding) => { const related = trades.filter((trade) => trade.ca === holding.mint); const costSol = related.reduce((sum, trade) => sum + (trade.boughtSol || 0) - (trade.soldSol || 0), 0); const valueSol = holding.valueUsd !== null && solPrice > 0 ? holding.valueUsd / solPrice : null; const unrealized = valueSol !== null && costSol > 0 ? valueSol - costSol : null; return <article key={holding.mint} className="rounded-lg bg-[#fbfbfa] p-3 text-xs"><div className="flex justify-between gap-2"><strong className="truncate">{holding.name} · ${holding.symbol}</strong><span className="font-mono">{holding.amount.toLocaleString(undefined,{maximumFractionDigits:4})}</span></div><p className="mt-1 text-[10px] text-[#787774]">{holding.valueUsd === null ? "Market value unavailable" : `$${holding.valueUsd.toFixed(2)} current value`}</p>{unrealized !== null && <p className={`mt-1 font-mono text-[11px] font-semibold ${unrealized < 0 ? "text-rose-700" : "text-emerald-700"}`}>{unrealized >= 0 ? "+" : ""}{formatSol(unrealized)} SOL estimated unrealized P&amp;L</p>}</article>; })}</div><p className="mt-2 text-[10px] text-[#9b9a97]">Unrealized P&amp;L is an estimate from current public market prices and journaled net cost. Verify thin-liquidity tokens before acting.</p></div>}
-          {walletTradeCandidates.length > 0 && <div className="mt-4 border-t border-[#f1f1ef] pt-4"><h3 className="text-xs font-semibold">Detected trades to review</h3><p className="mt-1 text-[10px] text-[#787774]">The scanner groups matching on-chain entries and exits. Nothing is added to your journal until you review and save it.</p><div className="mt-2 space-y-2">{walletTradeCandidates.slice(0, 12).map((candidate) => { const pnl = candidate.soldSol - candidate.boughtSol - candidate.feesSol; return <article key={candidate.mint} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#e9e9e7] p-3 text-xs"><div className="min-w-0"><strong className="block truncate font-mono">{candidate.mint}</strong><p className="mt-1 text-[10px] text-[#787774]">Bought {formatSol(candidate.boughtSol)} SOL · Sold {formatSol(candidate.soldSol)} SOL · Fees {formatSol(candidate.feesSol)} SOL{candidate.soldSol > 0 ? ` · Estimated P&L ${pnl >= 0 ? "+" : ""}${formatSol(pnl)} SOL` : " · Open position"}</p></div>{onImportWalletTrade && <button type="button" onClick={() => reviewCandidateAsTrade(candidate)} className="rounded-lg bg-[#1a73ca] px-3 py-2 text-[11px] font-semibold text-white">Review as trade</button>}</article>; })}</div></div>}
-          {walletActivities.length > 0 && <details className="mt-4 border-t border-[#f1f1ef] pt-4"><summary className="cursor-pointer text-xs font-semibold text-[#5a5957]">Raw transfers and transactions · {walletActivities.length}</summary><div className="mt-2 space-y-2">{walletActivities.slice(0, 12).map((activity) => <article key={activity.signature} className="rounded-lg bg-[#fbfbfa] p-3 text-xs"><strong>{new Date(activity.blockTime).toLocaleString()}</strong><p className="mt-1 text-[10px] text-[#787774]">SOL {activity.solChange >= 0 ? "+" : ""}{formatSol(activity.solChange)} · {activity.tokenChanges.length} token change{activity.tokenChanges.length === 1 ? "" : "s"} · network fee {formatSol(activity.feeSol)} SOL</p></article>)}</div></details>}
-        </section>
-      )}
 
       {/* Real-wallet summary */}
       {(wallets.length > 0 || transactions.length > 0) && <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -906,14 +719,6 @@ export default function WalletsView({ trades, solPrice = 150, onImportWalletTrad
                       </td>
                       <td className="notion-table-td text-center">
                         <div className="flex items-center justify-center gap-1">
-                          {wallet.address && wallet.address !== "Address not set" && <button
-                            onClick={() => void handleImportWalletActivity(wallet.address, wallet.name)}
-                            disabled={activityLoading}
-                            className="flex items-center gap-1 rounded-md bg-blue-50 px-2 py-1 text-[10px] font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50"
-                            title="Scan public wallet activity"
-                          >
-                            {activityLoading && scannedWallet?.address === wallet.address ? <Loader2 size={11} className="animate-spin" /> : <Zap size={11} />} Scan
-                          </button>}
                           <button
                             onClick={() => {
                               setEditingWallet(wallet);

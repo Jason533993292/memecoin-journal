@@ -10,6 +10,7 @@ const RPC_URLS = [process.env.SOLANA_RPC_URL?.trim(), "https://api.mainnet-beta.
 type RpcTokenBalance = { mint?: string; owner?: string; uiTokenAmount?: { uiAmount?: number | null; uiAmountString?: string } };
 type WalletLinkRow = { id: string; user_id: string; address: string; label: string; last_synced_signature: string | null; last_synced_at: string | null; verified_at: string | null; created_at: string; updated_at: string };
 type ParsedEvent = { signature: string; event_index: number; block_time: string; mint: string; direction: "buy" | "sell" | "transfer" | "unknown"; sol_change: number; token_change: number; fee_sol: number; source: "rpc" | "webhook"; raw: Json };
+type TokenSnapshot = { name: string; symbol: string; marketCapUsd: number | null };
 
 function admin() {
   return getSupabaseAdminClient();
@@ -47,6 +48,38 @@ function ownedTokenMap(items: RpcTokenBalance[] | undefined, owner: string) {
   return map;
 }
 
+async function tokenSnapshots(mints: string[]) {
+  const unique = [...new Set(mints)].filter((mint) => SOLANA_ADDRESS_PATTERN.test(mint)).slice(0, 30);
+  const snapshots = new Map<string, TokenSnapshot>();
+  if (!unique.length) return snapshots;
+  try {
+    const response = await fetch(`https://api.dexscreener.com/tokens/v1/solana/${unique.join(",")}`, {
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+      signal: AbortSignal.timeout(5_000),
+    });
+    if (!response.ok) return snapshots;
+    const pairs = await response.json() as Array<{ baseToken?: { address?: string; name?: string; symbol?: string }; marketCap?: number; fdv?: number; liquidity?: { usd?: number } }>;
+    const liquidityByMint = new Map<string, number>();
+    for (const pair of Array.isArray(pairs) ? pairs : []) {
+      const mint = pair.baseToken?.address;
+      if (!mint || !unique.includes(mint)) continue;
+      const liquidity = Number(pair.liquidity?.usd) || 0;
+      if (snapshots.has(mint) && liquidity <= (liquidityByMint.get(mint) || 0)) continue;
+      const marketCap = Number(pair.marketCap ?? pair.fdv);
+      snapshots.set(mint, {
+        name: pair.baseToken?.name?.trim() || "Solana token",
+        symbol: pair.baseToken?.symbol?.trim() || mint.slice(0, 5),
+        marketCapUsd: Number.isFinite(marketCap) && marketCap >= 0 ? marketCap : null,
+      });
+      liquidityByMint.set(mint, liquidity);
+    }
+  } catch {
+    // Token metadata is optional; transaction detection must still succeed.
+  }
+  return snapshots;
+}
+
 export async function listWalletLinks(userId: string) {
   const { data, error } = await admin().from("wallet_links").select("id,address,label,last_synced_signature,last_synced_at,verified_at,created_at,updated_at").eq("user_id", userId).order("updated_at", { ascending: false });
   if (error) throw new Error(error.message);
@@ -68,7 +101,7 @@ export async function deleteWalletLink(userId: string, id: string) {
 }
 
 export async function listWalletEvents(userId: string, status = "needs_review") {
-  const query = admin().from("wallet_events").select("id,wallet_link_id,signature,event_index,block_time,mint,direction,sol_change,token_change,fee_sol,status,source,created_at,wallet_links(label,address)").eq("user_id", userId).order("block_time", { ascending: false }).limit(300);
+  const query = admin().from("wallet_events").select("id,wallet_link_id,signature,event_index,block_time,mint,direction,sol_change,token_change,fee_sol,status,source,raw,created_at,wallet_links(label,address)").eq("user_id", userId).order("block_time", { ascending: false }).limit(300);
   const { data, error } = status === "all" ? await query : await query.eq("status", status);
   if (error) throw new Error(error.message);
   return data || [];
@@ -115,6 +148,12 @@ export async function syncWalletLink(userId: string, linkId: string) {
       events.push({ signature: signature.signature, event_index: eventIndex, block_time: blockTime, mint: token.mint, direction, sol_change: solChange, token_change: token.change, fee_sol: feeSol, source: "rpc", raw: {} });
     });
   });
+
+  const snapshots = await tokenSnapshots(events.map((event) => event.mint));
+  for (const event of events) {
+    const token = snapshots.get(event.mint);
+    if (token) event.raw = { token, marketCapSnapshotAt: new Date().toISOString() };
+  }
 
   if (events.length) {
     const rows = events.map((event) => ({ ...event, user_id: userId, wallet_link_id: link.id }));

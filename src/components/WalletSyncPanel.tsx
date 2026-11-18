@@ -9,8 +9,9 @@ import { formatSol } from "@/lib/utils";
 import { useToast } from "@/components/Toast";
 
 type WalletLink = { id: string; address: string; label: string; last_synced_signature: string | null; last_synced_at: string | null; verified_at: string | null; created_at: string; updated_at: string };
-type WalletEvent = { id: string; wallet_link_id: string; signature: string; event_index: number; block_time: string; mint: string; direction: "buy" | "sell" | "transfer" | "unknown"; sol_change: number; token_change: number; fee_sol: number; status: string; source: "rpc" | "webhook"; wallet_links?: { label?: string; address?: string } | null };
-type ReviewCandidate = { key: string; walletLinkId: string; walletLabel: string; mint: string; eventIds: string[]; signatures: string[]; boughtSol: number; soldSol: number; feesSol: number; entryAt: number; exitAt?: number; source: "sync" | "webhook"; fills: NonNullable<Trade["fills"]> };
+type TokenSnapshot = { name?: string; symbol?: string; marketCapUsd?: number | null };
+type WalletEvent = { id: string; wallet_link_id: string; signature: string; event_index: number; block_time: string; mint: string; direction: "buy" | "sell" | "transfer" | "unknown"; sol_change: number; token_change: number; fee_sol: number; status: string; source: "rpc" | "webhook"; raw?: { token?: TokenSnapshot }; wallet_links?: { label?: string; address?: string } | null };
+type ReviewCandidate = { key: string; walletLinkId: string; walletLabel: string; mint: string; tokenName: string; tokenSymbol: string; currentMarketCapUsd: number | null; eventIds: string[]; signatures: string[]; boughtSol: number; soldSol: number; tokensBought: number; tokensSold: number; feesSol: number; entryAt: number; exitAt?: number; source: "sync" | "webhook"; fills: NonNullable<Trade["fills"]> };
 type SolanaProvider = { publicKey?: { toBase58(): string }; connect(): Promise<{ publicKey: { toBase58(): string } }>; signMessage(message: Uint8Array, encoding: "utf8"): Promise<{ signature: Uint8Array }> };
 
 async function authenticatedFetch(user: NonNullable<ReturnType<typeof useAuth>["user"]>, url: string, init?: RequestInit) {
@@ -64,14 +65,17 @@ export default function WalletSyncPanel({ onImportWalletTrade }: { onImportWalle
       if ((event.direction !== "buy" && event.direction !== "sell") || !event.mint) continue;
       const key = `${event.wallet_link_id}:${event.mint}`;
       const time = Date.parse(event.block_time);
-      const current = grouped.get(key) || { key, walletLinkId: event.wallet_link_id, walletLabel: event.wallet_links?.label || "Linked wallet", mint: event.mint, eventIds: [], signatures: [], boughtSol: 0, soldSol: 0, feesSol: 0, entryAt: time, source: event.source === "webhook" ? "webhook" : "sync", fills: [] };
+      const token = event.raw?.token;
+      const current = grouped.get(key) || { key, walletLinkId: event.wallet_link_id, walletLabel: event.wallet_links?.label || "Linked wallet", mint: event.mint, tokenName: token?.name || "Solana token", tokenSymbol: token?.symbol || event.mint.slice(0, 5), currentMarketCapUsd: typeof token?.marketCapUsd === "number" ? token.marketCapUsd : null, eventIds: [], signatures: [], boughtSol: 0, soldSol: 0, tokensBought: 0, tokensSold: 0, feesSol: 0, entryAt: time, source: event.source === "webhook" ? "webhook" : "sync", fills: [] };
       const quoteAmount = event.direction === "buy" ? Math.max(0, -Number(event.sol_change) - Number(event.fee_sol)) : Math.max(0, Number(event.sol_change) + Number(event.fee_sol));
       if (event.direction === "buy") {
         current.boughtSol += quoteAmount;
+        current.tokensBought += Math.max(0, Number(event.token_change));
         current.entryAt = Math.min(current.entryAt, time);
         current.fills.push({ id: `${event.signature}-${event.event_index}`, side: "entry", quoteAmount, feeSol: Number(event.fee_sol), executedAt: time });
       } else {
         current.soldSol += quoteAmount;
+        current.tokensSold += Math.max(0, -Number(event.token_change));
         current.exitAt = Math.max(current.exitAt || 0, time);
         current.fills.push({ id: `${event.signature}-${event.event_index}`, side: "exit", quoteAmount, feeSol: Number(event.fee_sol), executedAt: time });
       }
@@ -88,9 +92,9 @@ export default function WalletSyncPanel({ onImportWalletTrade }: { onImportWalle
     if (!user) return;
     setBusyId("link");
     try {
-      await authenticatedFetch(user, "/api/wallet-links", { method: "POST", body: JSON.stringify({ address, label }) });
+      const payload = await authenticatedFetch(user, "/api/wallet-links", { method: "POST", body: JSON.stringify({ address, label }) });
+      if (payload.link) setLinks((current) => [payload.link, ...current.filter((item) => item.id !== payload.link.id)]);
       setAddress(""); setLabel("");
-      await load();
       showToast("Read-only wallet linked", "success", "No private key or seed phrase is stored.");
     } catch (error) {
       showToast("Wallet could not be linked", "error", error instanceof Error ? error.message : "Check the address.");
@@ -103,7 +107,7 @@ export default function WalletSyncPanel({ onImportWalletTrade }: { onImportWalle
     try {
       const payload = await authenticatedFetch(user, "/api/wallet-sync", { method: "POST", body: JSON.stringify({ linkId: link.id }) });
       setEvents(Array.isArray(payload.events) ? payload.events : []);
-      await load();
+      setLinks((current) => current.map((item) => item.id === link.id ? { ...item, last_synced_at: new Date().toISOString(), last_synced_signature: payload.result?.cursor || item.last_synced_signature } : item));
       const result = payload.result || {};
       showToast(result.incremental ? "Wallet updated" : "First wallet sync complete", "success", `${result.fetchedTransactions || 0} new transaction${result.fetchedTransactions === 1 ? "" : "s"} checked · ${result.detectedEvents || 0} event${result.detectedEvents === 1 ? "" : "s"} detected.`);
     } catch (error) {
@@ -113,12 +117,15 @@ export default function WalletSyncPanel({ onImportWalletTrade }: { onImportWalle
 
   const unlink = async (link: WalletLink) => {
     if (!user || !window.confirm(`Unlink ${link.label}? Its pending review events will also be removed.`)) return;
+    const previousLinks = links;
+    const previousEvents = events;
     setBusyId(link.id);
+    setLinks((current) => current.filter((item) => item.id !== link.id));
+    setEvents((current) => current.filter((event) => event.wallet_link_id !== link.id));
     try {
       await authenticatedFetch(user, "/api/wallet-links", { method: "DELETE", body: JSON.stringify({ id: link.id }) });
-      await load();
       showToast("Wallet unlinked", "success");
-    } catch (error) { showToast("Wallet could not be unlinked", "error", error instanceof Error ? error.message : "Try again."); }
+    } catch (error) { setLinks(previousLinks); setEvents(previousEvents); showToast("Wallet could not be unlinked", "error", error instanceof Error ? error.message : "Try again."); }
     finally { setBusyId(null); }
   };
 
@@ -184,7 +191,7 @@ export default function WalletSyncPanel({ onImportWalletTrade }: { onImportWalle
   return (
     <section className="rounded-xl border border-[#e9e9e7] bg-white p-4 shadow-xs" aria-labelledby="wallet-sync-heading">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex gap-2"><span className="rounded-lg bg-blue-50 p-2 text-blue-700"><WalletCards size={16}/></span><div><h2 id="wallet-sync-heading" className="text-sm font-semibold text-[#37352f]">Automatic wallet sync</h2><p className="mt-1 max-w-2xl text-[11px] text-[#787774]">Link public addresses, fetch only new activity after the first sync, and review detected swaps before they become journal trades. Never enter a seed phrase or private key.</p></div></div>
+        <div className="flex gap-2"><span className="rounded-lg bg-blue-50 p-2 text-blue-700"><WalletCards size={16}/></span><div><h2 id="wallet-sync-heading" className="text-sm font-semibold text-[#37352f]">Linked wallet activity</h2><p className="mt-1 max-w-2xl text-[11px] text-[#787774]">Add a public address once, then update that wallet individually. New buys and sells go to the review inbox; nothing is journaled automatically. Never enter a seed phrase or private key.</p></div></div>
         {loading && <span role="status" className="flex items-center gap-2 text-[11px] text-[#787774]"><Loader2 size={13} className="animate-spin"/>Loading</span>}
       </div>
 
@@ -197,12 +204,12 @@ export default function WalletSyncPanel({ onImportWalletTrade }: { onImportWalle
       {links.length > 0 && <div className="mt-4 grid gap-2">
         {links.map((link) => <article key={link.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#e9e9e7] bg-[#fbfbfa] p-3">
           <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><strong className="text-xs text-[#37352f]">{link.label}</strong>{link.verified_at && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-semibold text-emerald-700"><CheckCircle2 size={10}/>Verified owner</span>}</div><p className="mt-1 truncate font-mono text-[10px] text-[#787774]" title={link.address}>{link.address}</p><p className="mt-1 text-[10px] text-[#9b9a97]">{link.last_synced_at ? `Last synced ${new Date(link.last_synced_at).toLocaleString()}` : "Not synced yet"}</p></div>
-          <div className="flex flex-wrap items-center gap-2"><button type="button" onClick={() => void sync(link)} disabled={busyId === link.id} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-[10px] font-semibold text-blue-700 disabled:opacity-50">{busyId === link.id ? <Loader2 size={12} className="animate-spin"/> : <RefreshCw size={12}/>}Sync now</button>{!link.verified_at && <button type="button" onClick={() => void verify(link)} disabled={busyId === link.id} className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-semibold text-emerald-700 disabled:opacity-50"><ShieldCheck size={12}/>Verify ownership</button>}<button type="button" onClick={() => void unlink(link)} disabled={busyId === link.id} aria-label={`Unlink ${link.label}`} className="rounded-lg p-2 text-rose-600 hover:bg-rose-50 disabled:opacity-50"><Trash2 size={13}/></button></div>
+          <div className="flex flex-wrap items-center gap-2"><button type="button" onClick={() => void sync(link)} disabled={busyId === link.id} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-[10px] font-semibold text-blue-700 disabled:opacity-50">{busyId === link.id ? <Loader2 size={12} className="animate-spin"/> : <RefreshCw size={12}/>}Update activity</button>{!link.verified_at && <button type="button" onClick={() => void verify(link)} disabled={busyId === link.id} className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-semibold text-emerald-700 disabled:opacity-50"><ShieldCheck size={12}/>Verify ownership</button>}<button type="button" onClick={() => void unlink(link)} disabled={busyId === link.id} aria-label={`Unlink ${link.label}`} className="rounded-lg p-2 text-rose-600 hover:bg-rose-50 disabled:opacity-50"><Trash2 size={13}/></button></div>
         </article>)}
       </div>}
 
       <div className="mt-5 border-t border-[#f1f1ef] pt-4"><div className="flex items-center justify-between gap-3"><div><h3 className="text-xs font-semibold text-[#37352f]">Review inbox</h3><p className="mt-1 text-[10px] text-[#787774]">Nothing is journaled automatically. Add your reason and setup before opening the final trade form.</p></div><span className="rounded-full bg-[#f1f1ef] px-2 py-1 text-[10px] font-semibold text-[#5a5957]">{candidates.length} pending</span></div>
-        {candidates.length === 0 ? <p className="mt-3 rounded-lg bg-[#fbfbfa] p-4 text-center text-[11px] text-[#787774]">Sync a linked wallet. Detected buys and sells will appear here once.</p> : <div className="mt-3 space-y-2">{candidates.map((candidate) => { const pnl = candidate.soldSol - candidate.boughtSol - candidate.feesSol; return <article key={candidate.key} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#e9e9e7] p-3"><div className="min-w-0"><strong className="block truncate font-mono text-xs text-[#37352f]">{candidate.mint}</strong><p className="mt-1 text-[10px] text-[#787774]">{candidate.walletLabel} · Bought {formatSol(candidate.boughtSol)} SOL · Sold {formatSol(candidate.soldSol)} SOL · {candidate.soldSol ? `${pnl >= 0 ? "+" : ""}${formatSol(pnl)} SOL estimated P&L` : "Open position"}</p></div><div className="flex gap-2"><button type="button" onClick={() => void ignore(candidate)} className="rounded-lg px-3 py-2 text-[10px] font-semibold text-[#787774] hover:bg-[#f1f1ef]">Ignore</button><button type="button" onClick={() => setReviewing(candidate)} className="rounded-lg bg-[#1a73ca] px-3 py-2 text-[10px] font-semibold text-white">Review as trade</button></div></article>; })}</div>}
+        {candidates.length === 0 ? <p className="mt-3 rounded-lg bg-[#fbfbfa] p-4 text-center text-[11px] text-[#787774]">Update one linked wallet. Its detected buys and sells will appear here.</p> : <div className="mt-3 space-y-2">{candidates.map((candidate) => { const pnl = candidate.soldSol - candidate.boughtSol - candidate.feesSol; return <article key={candidate.key} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#e9e9e7] p-3"><div className="min-w-0"><strong className="block truncate text-xs text-[#37352f]">{candidate.tokenName} · ${candidate.tokenSymbol}</strong><p className="mt-0.5 truncate font-mono text-[9px] text-[#9b9a97]">{candidate.mint}</p><p className="mt-1 text-[10px] text-[#787774]">{candidate.walletLabel} · Bought {candidate.tokensBought.toLocaleString(undefined, { maximumFractionDigits: 4 })} tokens for {formatSol(candidate.boughtSol)} SOL · Sold {candidate.tokensSold.toLocaleString(undefined, { maximumFractionDigits: 4 })} for {formatSol(candidate.soldSol)} SOL · {candidate.soldSol ? `${pnl >= 0 ? "+" : ""}${formatSol(pnl)} SOL estimated P&amp;L` : "Open position"}{candidate.currentMarketCapUsd !== null ? ` · Current MC $${candidate.currentMarketCapUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : ""}</p></div><div className="flex gap-2"><button type="button" onClick={() => void ignore(candidate)} className="rounded-lg px-3 py-2 text-[10px] font-semibold text-[#787774] hover:bg-[#f1f1ef]">Ignore</button><button type="button" onClick={() => setReviewing(candidate)} className="rounded-lg bg-[#1a73ca] px-3 py-2 text-[10px] font-semibold text-white">Review as trade</button></div></article>; })}</div>}
       </div>
 
       {reviewing && <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/55 p-4" role="dialog" aria-modal="true" aria-labelledby="wallet-review-title"><div className="w-full max-w-lg rounded-2xl border border-[#d8d7d3] bg-white p-5 shadow-2xl"><div className="flex items-start justify-between gap-3"><div><h3 id="wallet-review-title" className="text-base font-semibold text-[#37352f]">Add your trade context</h3><p className="mt-1 text-[11px] text-[#787774]">On-chain data shows what happened. Your journal still needs to know why.</p></div><button type="button" onClick={() => setReviewing(null)} aria-label="Close wallet review" className="rounded-lg p-2 text-[#787774] hover:bg-[#f1f1ef]"><X size={15}/></button></div><div className="mt-4 space-y-3"><label className="block text-xs font-medium text-[#37352f]">Reason for entering <span className="text-rose-600">*</span><textarea value={reason} onChange={(event) => setReason(event.target.value)} rows={3} maxLength={1000} placeholder="What did you see before entering?" className="mt-1 w-full rounded-lg border border-[#d8d7d3] bg-[#fbfbfa] px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"/></label><label className="block text-xs font-medium text-[#37352f]">Setup <span className="text-rose-600">*</span><input value={setup} onChange={(event) => setSetup(event.target.value)} maxLength={120} placeholder="e.g. Breakout / ATH Push" className="mt-1 w-full rounded-lg border border-[#d8d7d3] bg-[#fbfbfa] px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"/></label><label className="block text-xs font-medium text-[#37352f]">Confidence at entry · {confidence}%<input type="range" min="0" max="100" value={confidence} onChange={(event) => setConfidence(event.target.value)} className="mt-2 w-full"/></label></div><button type="button" onClick={createDraft} className="mt-5 w-full rounded-lg bg-[#1a73ca] px-4 py-2.5 text-xs font-semibold text-white">Continue to final trade review</button></div></div>}

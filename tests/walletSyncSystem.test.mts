@@ -20,7 +20,11 @@ test("wallet sync uses a saved cursor and requires context before journal import
   const panel = await readFile(new URL("src/components/WalletSyncPanel.tsx", root), "utf8");
   assert.match(server, /options\.until = cursor/);
   assert.match(server, /ignoreDuplicates: true/);
+  assert.match(server, /tokenSnapshots/);
+  assert.match(server, /marketCapSnapshotAt/);
   assert.match(panel, /Reason and setup are required/);
   assert.match(panel, /walletEventIds: reviewing\.eventIds/);
   assert.match(panel, /Verify ownership/);
+  assert.match(panel, /Update activity/);
+  assert.match(panel, /setLinks\(\(current\) => current\.filter/);
 });
