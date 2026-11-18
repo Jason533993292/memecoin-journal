@@ -5,7 +5,10 @@ import type { Json } from "@/lib/database.types";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 
 export const SOLANA_ADDRESS_PATTERN = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
-const RPC_URLS = [process.env.SOLANA_RPC_URL?.trim(), "https://api.mainnet-beta.solana.com", "https://rpc.ankr.com/solana"].filter(Boolean) as string[];
+const HELIUS_RPC_URL = process.env.HELIUS_API_KEY?.trim() ? `https://mainnet.helius-rpc.com/?api-key=${process.env.HELIUS_API_KEY.trim()}` : "";
+const RPC_URLS = [process.env.SOLANA_RPC_URL?.trim(), HELIUS_RPC_URL, "https://api.mainnet-beta.solana.com", "https://rpc.ankr.com/solana"].filter(Boolean) as string[];
+const WRAPPED_SOL_MINT = "So11111111111111111111111111111111111111112";
+const TRANSACTION_BATCH_SIZE = 8;
 
 type RpcTokenBalance = { mint?: string; owner?: string; uiTokenAmount?: { uiAmount?: number | null; uiAmountString?: string } };
 type WalletLinkRow = { id: string; user_id: string; address: string; label: string; last_synced_signature: string | null; last_synced_at: string | null; verified_at: string | null; created_at: string; updated_at: string };
@@ -16,22 +19,32 @@ function admin() {
   return getSupabaseAdminClient();
 }
 
+function wait(milliseconds: number) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
 async function rpc(body: unknown) {
-  for (const url of RPC_URLS) {
-    try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-        cache: "no-store",
-        signal: AbortSignal.timeout(8_000),
-      });
-      if (response.ok) return response.json();
-    } catch {
-      // Try the next configured provider.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    for (const url of RPC_URLS) {
+      try {
+        const response = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+          cache: "no-store",
+          signal: AbortSignal.timeout(8_000),
+        });
+        if (!response.ok) continue;
+        const payload = await response.json();
+        if (!Array.isArray(payload) && payload?.error) continue;
+        return payload;
+      } catch {
+        // Try the next configured provider, then retry with backoff.
+      }
     }
+    if (attempt < 2) await wait(350 * (2 ** attempt));
   }
-  throw new Error("Solana RPC providers are unavailable.");
+  throw new Error("Solana data providers are temporarily unavailable. Wait a moment or configure a private RPC provider.");
 }
 
 function tokenAmount(balance: RpcTokenBalance) {
@@ -120,21 +133,30 @@ async function ownedLink(userId: string, linkId: string): Promise<WalletLinkRow>
   return data as WalletLinkRow;
 }
 
-export async function syncWalletLink(userId: string, linkId: string) {
+export async function syncWalletLink(userId: string, linkId: string, mode: "incremental" | "rescan" = "incremental") {
   const link = await ownedLink(userId, linkId);
   const cursor = link.last_synced_signature;
   const options: Record<string, unknown> = { limit: 50 };
-  if (cursor) options.until = cursor;
+  if (cursor && mode === "incremental") options.until = cursor;
   const signatureResult = await rpc({ jsonrpc: "2.0", id: 1, method: "getSignaturesForAddress", params: [link.address, options] });
   const signatures = Array.isArray(signatureResult?.result) ? signatureResult.result.filter((item: { err?: unknown; signature?: string }) => !item.err && item.signature).slice(0, 50) : [];
   const transactionBatch = signatures.map((item: { signature: string }, index: number) => ({ jsonrpc: "2.0", id: index + 10, method: "getTransaction", params: [item.signature, { encoding: "jsonParsed", maxSupportedTransactionVersion: 0 }] }));
-  const transactionResults = transactionBatch.length ? await rpc(transactionBatch) : [];
-  const byId = new Map((Array.isArray(transactionResults) ? transactionResults : []).map((item: { id?: number; result?: unknown }) => [item.id, item.result]));
+  const transactionResults: Array<{ id?: number; result?: unknown }> = [];
+  for (let offset = 0; offset < transactionBatch.length; offset += TRANSACTION_BATCH_SIZE) {
+    const result = await rpc(transactionBatch.slice(offset, offset + TRANSACTION_BATCH_SIZE));
+    if (!Array.isArray(result)) throw new Error("The Solana provider returned an incomplete transaction batch. No sync cursor was advanced.");
+    transactionResults.push(...result);
+  }
+  const byId = new Map(transactionResults.map((item) => [item.id, item.result]));
   const events: ParsedEvent[] = [];
+  let swapTransactions = 0;
+  let transferTransactions = 0;
+  let unclassifiedTransactions = 0;
+  let missingTransactions = 0;
 
   signatures.forEach((signature: { signature: string; blockTime?: number }, signatureIndex: number) => {
     const tx = byId.get(signatureIndex + 10) as { meta?: { fee?: number; preBalances?: number[]; postBalances?: number[]; preTokenBalances?: RpcTokenBalance[]; postTokenBalances?: RpcTokenBalance[] }; transaction?: { message?: { accountKeys?: Array<string | { pubkey?: string }> } } } | null;
-    if (!tx?.meta) return;
+    if (!tx?.meta) { missingTransactions += 1; return; }
     const keys = tx.transaction?.message?.accountKeys || [];
     const ownerIndex = keys.findIndex((key) => (typeof key === "string" ? key : key.pubkey) === link.address);
     const feeSol = (tx.meta.fee || 0) / 1e9;
@@ -142,17 +164,33 @@ export async function syncWalletLink(userId: string, linkId: string) {
     const before = ownedTokenMap(tx.meta.preTokenBalances, link.address);
     const after = ownedTokenMap(tx.meta.postTokenBalances, link.address);
     const tokenChanges = [...new Set([...before.keys(), ...after.keys()])].map((mint) => ({ mint, change: (after.get(mint) || 0) - (before.get(mint) || 0) })).filter((item) => Math.abs(item.change) > 0.000000001);
+    const wrappedSolChange = tokenChanges.find((item) => item.mint === WRAPPED_SOL_MINT)?.change;
+    const quoteChange = typeof wrappedSolChange === "number" && Math.abs(wrappedSolChange) > 0.000000001 ? wrappedSolChange : solChange;
+    const effectiveSolChange = typeof wrappedSolChange === "number" && Math.abs(wrappedSolChange) > 0.000000001 ? wrappedSolChange - feeSol : solChange;
+    const tradedTokens = tokenChanges.filter((item) => item.mint !== WRAPPED_SOL_MINT);
     const blockTime = new Date((signature.blockTime || Math.floor(Date.now() / 1000)) * 1000).toISOString();
-    tokenChanges.forEach((token, eventIndex) => {
-      const direction: ParsedEvent["direction"] = token.change > 0 && solChange < 0 ? "buy" : token.change < 0 && solChange > 0 ? "sell" : "transfer";
-      events.push({ signature: signature.signature, event_index: eventIndex, block_time: blockTime, mint: token.mint, direction, sol_change: solChange, token_change: token.change, fee_sol: feeSol, source: "rpc", raw: {} });
+    let transactionHasSwap = false;
+    let transactionHasTransfer = false;
+    tradedTokens.forEach((token, eventIndex) => {
+      const direction: ParsedEvent["direction"] = token.change > 0 && quoteChange < 0 ? "buy" : token.change < 0 && quoteChange > 0 ? "sell" : "transfer";
+      transactionHasSwap ||= direction === "buy" || direction === "sell";
+      transactionHasTransfer ||= direction === "transfer";
+      events.push({ signature: signature.signature, event_index: eventIndex, block_time: blockTime, mint: token.mint, direction, sol_change: direction === "buy" || direction === "sell" ? effectiveSolChange : solChange, token_change: token.change, fee_sol: feeSol, source: "rpc", raw: { classification: direction, usedWrappedSol: typeof wrappedSolChange === "number" } });
     });
+    if (transactionHasSwap) swapTransactions += 1;
+    else if (transactionHasTransfer || Math.abs(solChange) > 0.000000001) transferTransactions += 1;
+    else {
+      unclassifiedTransactions += 1;
+      events.push({ signature: signature.signature, event_index: 9999, block_time: blockTime, mint: "", direction: "unknown", sol_change: solChange, token_change: 0, fee_sol: feeSol, source: "rpc", raw: { classification: "unclassified" } });
+    }
   });
+
+  if (missingTransactions > 0) throw new Error(`${missingTransactions} transaction${missingTransactions === 1 ? " was" : "s were"} not returned by the provider. Nothing was skipped and the sync cursor was not advanced.`);
 
   const snapshots = await tokenSnapshots(events.map((event) => event.mint));
   for (const event of events) {
     const token = snapshots.get(event.mint);
-    if (token) event.raw = { token, marketCapSnapshotAt: new Date().toISOString() };
+    if (token) event.raw = { ...(event.raw as Record<string, Json | undefined>), token, marketCapSnapshotAt: new Date().toISOString() };
   }
 
   if (events.length) {
@@ -163,7 +201,7 @@ export async function syncWalletLink(userId: string, linkId: string) {
   const newestSignature = signatures[0]?.signature || cursor;
   const { error: updateError } = await admin().from("wallet_links").update({ last_synced_signature: newestSignature, last_synced_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("user_id", userId).eq("id", link.id);
   if (updateError) throw new Error(updateError.message);
-  return { fetchedTransactions: signatures.length, detectedEvents: events.length, incremental: Boolean(cursor), cursor: newestSignature };
+  return { checkedTransactions: signatures.length, swapTransactions, transferTransactions, unclassifiedTransactions, detectedEvents: events.filter((event) => event.direction === "buy" || event.direction === "sell").length, incremental: mode === "incremental" && Boolean(cursor), rescan: mode === "rescan", cursor: newestSignature };
 }
 
 export async function createVerificationChallenge(userId: string, linkId: string) {

@@ -418,7 +418,7 @@ export default function WalletsView({ trades, solPrice = 150, onImportWalletTrad
         </div>
       )}
 
-      <WalletSyncPanel onImportWalletTrade={onImportWalletTrade} />
+      <WalletSyncPanel onImportWalletTrade={onImportWalletTrade} existingWalletSignatures={trades.flatMap((trade) => trade.walletSourceSignatures || [])} />
 
       <div>
         <div data-tour="paper-capital" className="bg-white border border-[#e9e9e7] rounded-xl p-4 shadow-xs space-y-3">
