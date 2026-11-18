@@ -8,7 +8,8 @@ export const SOLANA_ADDRESS_PATTERN = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 const HELIUS_RPC_URL = process.env.HELIUS_API_KEY?.trim() ? `https://mainnet.helius-rpc.com/?api-key=${process.env.HELIUS_API_KEY.trim()}` : "";
 const RPC_URLS = [process.env.SOLANA_RPC_URL?.trim(), HELIUS_RPC_URL, "https://api.mainnet-beta.solana.com", "https://rpc.ankr.com/solana"].filter(Boolean) as string[];
 const WRAPPED_SOL_MINT = "So11111111111111111111111111111111111111112";
-const TRANSACTION_FETCH_CONCURRENCY = 3;
+const TRANSACTION_FETCH_CONCURRENCY = 1;
+const TRANSACTION_FETCH_DELAY_MS = 175;
 
 type RpcTokenBalance = { mint?: string; owner?: string; uiTokenAmount?: { uiAmount?: number | null; uiAmountString?: string } };
 type WalletLinkRow = { id: string; user_id: string; address: string; label: string; last_synced_signature: string | null; last_synced_at: string | null; verified_at: string | null; created_at: string; updated_at: string };
@@ -78,7 +79,7 @@ async function fetchTransactions(signatures: Array<{ signature: string }>) {
       if (result.transaction) transactions.set(result.id, result.transaction);
       else missingIds.push(result.id);
     }
-    if (offset + TRANSACTION_FETCH_CONCURRENCY < signatures.length) await wait(150);
+    if (offset + TRANSACTION_FETCH_CONCURRENCY < signatures.length) await wait(TRANSACTION_FETCH_DELAY_MS);
   }
 
   return { transactions, missingIds };
