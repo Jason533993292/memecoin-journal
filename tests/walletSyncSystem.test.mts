@@ -25,6 +25,8 @@ test("wallet sync uses a saved cursor and requires context before journal import
   assert.match(server, /TRANSACTION_FETCH_DEADLINE_MS = 22_000/);
   assert.match(server, /retried individually/);
   assert.match(server, /maxSupportedTransactionVersion: 1/);
+  assert.match(server, /assertLikelyWalletAddress/);
+  assert.match(server, /not a personal Solana wallet/);
   assert.match(server, /isUsable/);
   assert.match(server, /mode === "rescan"/);
   assert.match(server, /sync cursor was not advanced/);

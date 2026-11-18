@@ -8,6 +8,8 @@ export const SOLANA_ADDRESS_PATTERN = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 const HELIUS_RPC_URL = process.env.HELIUS_API_KEY?.trim() ? `https://mainnet.helius-rpc.com/?api-key=${process.env.HELIUS_API_KEY.trim()}` : "";
 const PRIVATE_RPC_URLS = [process.env.SOLANA_RPC_URL?.trim(), HELIUS_RPC_URL].filter(Boolean) as string[];
 const RPC_URLS = PRIVATE_RPC_URLS.length ? PRIVATE_RPC_URLS : ["https://api.mainnet-beta.solana.com", "https://rpc.ankr.com/solana"];
+const SYSTEM_PROGRAM_ID = "11111111111111111111111111111111";
+const TOKEN_PROGRAM_IDS = new Set(["TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"]);
 const WRAPPED_SOL_MINT = "So11111111111111111111111111111111111111112";
 const TRANSACTION_BATCH_SIZE = 5;
 const TRANSACTION_BATCH_DELAY_MS = 650;
@@ -100,6 +102,17 @@ async function fetchTransactions(signatures: Array<{ signature: string }>) {
   return { transactions, missingIds };
 }
 
+async function assertLikelyWalletAddress(address: string) {
+  const payload = await rpc({ jsonrpc: "2.0", id: 2, method: "getAccountInfo", params: [address, { encoding: "jsonParsed" }] }) as { result?: { value?: { executable?: boolean; owner?: string } | null } };
+  const account = payload.result?.value;
+  if (!account) return;
+  if (account.executable) throw new Error("This address belongs to an on-chain program, not a personal Solana wallet.");
+  if (account.owner && account.owner !== SYSTEM_PROGRAM_ID) {
+    const kind = TOKEN_PROGRAM_IDS.has(account.owner) ? "token mint or token account" : "program-owned account";
+    throw new Error(`This address is a ${kind}, not a personal Solana wallet. Link the public address shown in your wallet app instead.`);
+  }
+}
+
 function tokenAmount(balance: RpcTokenBalance) {
   const amount = balance.uiTokenAmount?.uiAmount ?? Number(balance.uiTokenAmount?.uiAmountString || 0);
   return Number.isFinite(amount) ? Number(amount) : 0;
@@ -156,6 +169,7 @@ export async function createWalletLink(userId: string, address: string, label: s
   const cleanAddress = address.trim();
   const cleanLabel = label.trim().slice(0, 80) || "Solana wallet";
   if (!SOLANA_ADDRESS_PATTERN.test(cleanAddress)) throw new Error("Enter a valid Solana wallet address.");
+  await assertLikelyWalletAddress(cleanAddress);
   const { data, error } = await admin().from("wallet_links").upsert({ user_id: userId, address: cleanAddress, label: cleanLabel, updated_at: new Date().toISOString() }, { onConflict: "user_id,address" }).select("id,address,label,last_synced_signature,last_synced_at,verified_at,created_at,updated_at").single();
   if (error) throw new Error(error.message);
   return data;
@@ -188,6 +202,7 @@ async function ownedLink(userId: string, linkId: string): Promise<WalletLinkRow>
 
 export async function syncWalletLink(userId: string, linkId: string, mode: "incremental" | "rescan" = "incremental") {
   const link = await ownedLink(userId, linkId);
+  await assertLikelyWalletAddress(link.address);
   const cursor = link.last_synced_signature;
   const options: Record<string, unknown> = { limit: 50 };
   if (cursor && mode === "incremental") options.until = cursor;
