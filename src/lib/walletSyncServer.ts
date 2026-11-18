@@ -8,7 +8,7 @@ export const SOLANA_ADDRESS_PATTERN = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 const HELIUS_RPC_URL = process.env.HELIUS_API_KEY?.trim() ? `https://mainnet.helius-rpc.com/?api-key=${process.env.HELIUS_API_KEY.trim()}` : "";
 const RPC_URLS = [process.env.SOLANA_RPC_URL?.trim(), HELIUS_RPC_URL, "https://api.mainnet-beta.solana.com", "https://rpc.ankr.com/solana"].filter(Boolean) as string[];
 const WRAPPED_SOL_MINT = "So11111111111111111111111111111111111111112";
-const TRANSACTION_BATCH_SIZE = 8;
+const TRANSACTION_FETCH_CONCURRENCY = 3;
 
 type RpcTokenBalance = { mint?: string; owner?: string; uiTokenAmount?: { uiAmount?: number | null; uiAmountString?: string } };
 type WalletLinkRow = { id: string; user_id: string; address: string; label: string; last_synced_signature: string | null; last_synced_at: string | null; verified_at: string | null; created_at: string; updated_at: string };
@@ -23,7 +23,12 @@ function wait(milliseconds: number) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
-async function rpc(body: unknown) {
+function usableRpcPayload(payload: unknown) {
+  if (Array.isArray(payload)) return true;
+  return Boolean(payload && typeof payload === "object" && !("error" in payload));
+}
+
+async function rpc(body: unknown, isUsable: (payload: unknown) => boolean = usableRpcPayload) {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     for (const url of RPC_URLS) {
       try {
@@ -36,7 +41,7 @@ async function rpc(body: unknown) {
         });
         if (!response.ok) continue;
         const payload = await response.json();
-        if (!Array.isArray(payload) && payload?.error) continue;
+        if (!isUsable(payload)) continue;
         return payload;
       } catch {
         // Try the next configured provider, then retry with backoff.
@@ -45,6 +50,38 @@ async function rpc(body: unknown) {
     if (attempt < 2) await wait(350 * (2 ** attempt));
   }
   throw new Error("Solana data providers are temporarily unavailable. Wait a moment or configure a private RPC provider.");
+}
+
+async function fetchTransactions(signatures: Array<{ signature: string }>) {
+  const transactions = new Map<number, unknown>();
+  const missingIds: number[] = [];
+
+  // Fetch signatures individually. Some Solana providers return a successful JSON-RPC
+  // batch with null entries; validating each response lets those exact signatures fall
+  // through to the next provider and retry without discarding the whole wallet scan.
+  for (let offset = 0; offset < signatures.length; offset += TRANSACTION_FETCH_CONCURRENCY) {
+    const group = signatures.slice(offset, offset + TRANSACTION_FETCH_CONCURRENCY);
+    const results = await Promise.all(group.map(async (item, groupIndex) => {
+      const id = offset + groupIndex + 10;
+      try {
+        const payload = await rpc(
+          { jsonrpc: "2.0", id, method: "getTransaction", params: [item.signature, { encoding: "jsonParsed", maxSupportedTransactionVersion: 0 }] },
+          (candidate) => Boolean(candidate && typeof candidate === "object" && !Array.isArray(candidate) && "result" in candidate && candidate.result && typeof candidate.result === "object" && "meta" in candidate.result && candidate.result.meta),
+        ) as { result: unknown };
+        return { id, transaction: payload.result };
+      } catch {
+        return { id, transaction: null };
+      }
+    }));
+
+    for (const result of results) {
+      if (result.transaction) transactions.set(result.id, result.transaction);
+      else missingIds.push(result.id);
+    }
+    if (offset + TRANSACTION_FETCH_CONCURRENCY < signatures.length) await wait(150);
+  }
+
+  return { transactions, missingIds };
 }
 
 function tokenAmount(balance: RpcTokenBalance) {
@@ -140,23 +177,16 @@ export async function syncWalletLink(userId: string, linkId: string, mode: "incr
   if (cursor && mode === "incremental") options.until = cursor;
   const signatureResult = await rpc({ jsonrpc: "2.0", id: 1, method: "getSignaturesForAddress", params: [link.address, options] });
   const signatures = Array.isArray(signatureResult?.result) ? signatureResult.result.filter((item: { err?: unknown; signature?: string }) => !item.err && item.signature).slice(0, 50) : [];
-  const transactionBatch = signatures.map((item: { signature: string }, index: number) => ({ jsonrpc: "2.0", id: index + 10, method: "getTransaction", params: [item.signature, { encoding: "jsonParsed", maxSupportedTransactionVersion: 0 }] }));
-  const transactionResults: Array<{ id?: number; result?: unknown }> = [];
-  for (let offset = 0; offset < transactionBatch.length; offset += TRANSACTION_BATCH_SIZE) {
-    const result = await rpc(transactionBatch.slice(offset, offset + TRANSACTION_BATCH_SIZE));
-    if (!Array.isArray(result)) throw new Error("The Solana provider returned an incomplete transaction batch. No sync cursor was advanced.");
-    transactionResults.push(...result);
-  }
-  const byId = new Map(transactionResults.map((item) => [item.id, item.result]));
+  const { transactions: byId, missingIds } = await fetchTransactions(signatures);
   const events: ParsedEvent[] = [];
   let swapTransactions = 0;
   let transferTransactions = 0;
   let unclassifiedTransactions = 0;
-  let missingTransactions = 0;
+  const missingTransactions = missingIds.length;
 
   signatures.forEach((signature: { signature: string; blockTime?: number }, signatureIndex: number) => {
     const tx = byId.get(signatureIndex + 10) as { meta?: { fee?: number; preBalances?: number[]; postBalances?: number[]; preTokenBalances?: RpcTokenBalance[]; postTokenBalances?: RpcTokenBalance[] }; transaction?: { message?: { accountKeys?: Array<string | { pubkey?: string }> } } } | null;
-    if (!tx?.meta) { missingTransactions += 1; return; }
+    if (!tx?.meta) return;
     const keys = tx.transaction?.message?.accountKeys || [];
     const ownerIndex = keys.findIndex((key) => (typeof key === "string" ? key : key.pubkey) === link.address);
     const feeSol = (tx.meta.fee || 0) / 1e9;

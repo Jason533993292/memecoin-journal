@@ -20,9 +20,11 @@ test("wallet sync uses a saved cursor and requires context before journal import
   const panel = await readFile(new URL("src/components/WalletSyncPanel.tsx", root), "utf8");
   assert.match(server, /options\.until = cursor/);
   assert.match(server, /ignoreDuplicates: true/);
-  assert.match(server, /TRANSACTION_BATCH_SIZE = 8/);
+  assert.match(server, /TRANSACTION_FETCH_CONCURRENCY = 3/);
+  assert.match(server, /Fetch signatures individually/);
+  assert.match(server, /isUsable/);
   assert.match(server, /mode === "rescan"/);
-  assert.match(server, /No sync cursor was advanced/);
+  assert.match(server, /sync cursor was not advanced/);
   assert.match(server, /missingTransactions > 0/);
   assert.match(server, /HELIUS_API_KEY/);
   assert.match(server, /tokenSnapshots/);
