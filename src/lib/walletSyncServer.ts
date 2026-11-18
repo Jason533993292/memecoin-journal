@@ -61,7 +61,7 @@ async function rpc(body: unknown, isUsable: (payload: unknown) => boolean = usab
 
 async function fetchTransactions(signatures: Array<{ signature: string }>) {
   const transactions = new Map<number, unknown>();
-  const requests = signatures.map((item, index) => ({ jsonrpc: "2.0", id: index + 10, method: "getTransaction", params: [item.signature, { encoding: "jsonParsed", maxSupportedTransactionVersion: 0 }] }));
+  const requests = signatures.map((item, index) => ({ jsonrpc: "2.0", id: index + 10, method: "getTransaction", params: [item.signature, { encoding: "jsonParsed", maxSupportedTransactionVersion: 1 }] }));
   const deadline = Date.now() + TRANSACTION_FETCH_DEADLINE_MS;
 
   // Small paced batches stay below provider burst limits. Null batch entries are
