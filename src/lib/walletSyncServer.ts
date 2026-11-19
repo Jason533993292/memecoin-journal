@@ -17,6 +17,7 @@ const TRANSACTION_RETRY_DELAY_MS = 175;
 const TRANSACTION_FETCH_DEADLINE_MS = 22_000;
 
 type RpcTokenBalance = { mint?: string; owner?: string; uiTokenAmount?: { uiAmount?: number | null; uiAmountString?: string } };
+type SignatureRow = { err?: unknown; signature?: string; blockTime?: number };
 type WalletLinkRow = { id: string; user_id: string; address: string; label: string; last_synced_signature: string | null; last_synced_at: string | null; verified_at: string | null; created_at: string; updated_at: string };
 type ParsedEvent = { signature: string; event_index: number; block_time: string; mint: string; direction: "buy" | "sell" | "transfer" | "unknown"; sol_change: number; token_change: number; fee_sol: number; source: "rpc" | "webhook"; raw: Json };
 type TokenSnapshot = { name: string; symbol: string; marketCapUsd: number | null };
@@ -113,6 +114,33 @@ async function assertLikelyWalletAddress(address: string) {
   }
 }
 
+async function successfulSignatures(address: string, cursor: string | null, mode: "incremental" | "rescan") {
+  const successful: Array<{ signature: string; blockTime?: number }> = [];
+  let failedTransactions = 0;
+  let before: string | undefined;
+
+  // Active wallets can have a full first page of failed attempts. Page past them
+  // instead of incorrectly reporting that the wallet has no recent activity.
+  for (let page = 0; page < 5 && successful.length < 50; page += 1) {
+    const options: Record<string, unknown> = { limit: 100 };
+    if (cursor && mode === "incremental") options.until = cursor;
+    if (before) options.before = before;
+    const payload = await rpc({ jsonrpc: "2.0", id: 1, method: "getSignaturesForAddress", params: [address, options] }) as { result?: SignatureRow[] };
+    const rows = Array.isArray(payload.result) ? payload.result : [];
+    for (const row of rows) {
+      if (!row.signature) continue;
+      if (row.err) failedTransactions += 1;
+      else successful.push({ signature: row.signature, blockTime: row.blockTime });
+      if (successful.length === 50) break;
+    }
+    if (rows.length < 100) break;
+    before = rows.at(-1)?.signature;
+    if (!before) break;
+  }
+
+  return { signatures: successful, failedTransactions };
+}
+
 function tokenAmount(balance: RpcTokenBalance) {
   const amount = balance.uiTokenAmount?.uiAmount ?? Number(balance.uiTokenAmount?.uiAmountString || 0);
   return Number.isFinite(amount) ? Number(amount) : 0;
@@ -204,10 +232,7 @@ export async function syncWalletLink(userId: string, linkId: string, mode: "incr
   const link = await ownedLink(userId, linkId);
   await assertLikelyWalletAddress(link.address);
   const cursor = link.last_synced_signature;
-  const options: Record<string, unknown> = { limit: 50 };
-  if (cursor && mode === "incremental") options.until = cursor;
-  const signatureResult = await rpc({ jsonrpc: "2.0", id: 1, method: "getSignaturesForAddress", params: [link.address, options] });
-  const signatures = Array.isArray(signatureResult?.result) ? signatureResult.result.filter((item: { err?: unknown; signature?: string }) => !item.err && item.signature).slice(0, 50) : [];
+  const { signatures, failedTransactions } = await successfulSignatures(link.address, cursor, mode);
   const { transactions: byId, missingIds } = await fetchTransactions(signatures);
   const events: ParsedEvent[] = [];
   let swapTransactions = 0;
@@ -262,7 +287,7 @@ export async function syncWalletLink(userId: string, linkId: string, mode: "incr
   const newestSignature = signatures[0]?.signature || cursor;
   const { error: updateError } = await admin().from("wallet_links").update({ last_synced_signature: newestSignature, last_synced_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("user_id", userId).eq("id", link.id);
   if (updateError) throw new Error(updateError.message);
-  return { checkedTransactions: signatures.length, swapTransactions, transferTransactions, unclassifiedTransactions, detectedEvents: events.filter((event) => event.direction === "buy" || event.direction === "sell").length, incremental: mode === "incremental" && Boolean(cursor), rescan: mode === "rescan", cursor: newestSignature };
+  return { checkedTransactions: signatures.length, failedTransactions, swapTransactions, transferTransactions, unclassifiedTransactions, detectedEvents: events.filter((event) => event.direction === "buy" || event.direction === "sell").length, incremental: mode === "incremental" && Boolean(cursor), rescan: mode === "rescan", cursor: newestSignature };
 }
 
 export async function createVerificationChallenge(userId: string, linkId: string) {

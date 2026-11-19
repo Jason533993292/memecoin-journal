@@ -105,7 +105,7 @@ export default function WalletSyncPanel({ onImportWalletTrade, existingWalletSig
 
   const sync = async (link: WalletLink, mode: "incremental" | "rescan" = "incremental") => {
     if (!user) return;
-    if (mode === "rescan" && !window.confirm(`Rescan the 50 most recent transactions for ${link.label}? Existing events will not be duplicated.`)) return;
+    if (mode === "rescan" && !window.confirm(`Rescan the 50 most recent successful transactions for ${link.label}? Failed attempts are ignored and existing events will not be duplicated.`)) return;
     setBusyId(link.id);
     try {
       const payload = await authenticatedFetch(user, "/api/wallet-sync", { method: "POST", body: JSON.stringify({ linkId: link.id, mode }) });
@@ -113,7 +113,8 @@ export default function WalletSyncPanel({ onImportWalletTrade, existingWalletSig
       setLinks((current) => current.map((item) => item.id === link.id ? { ...item, last_synced_at: new Date().toISOString(), last_synced_signature: payload.result?.cursor || item.last_synced_signature } : item));
       const result = payload.result || {};
       const checked = Number(result.checkedTransactions) || 0;
-      showToast(result.rescan ? "Recent history rescanned" : result.incremental ? "Wallet updated" : "First wallet update complete", "success", `${checked} checked · ${Number(result.swapTransactions) || 0} swap${Number(result.swapTransactions) === 1 ? "" : "s"} · ${Number(result.transferTransactions) || 0} transfer${Number(result.transferTransactions) === 1 ? "" : "s"} · ${Number(result.unclassifiedTransactions) || 0} unclassified.`);
+      const failed = Number(result.failedTransactions) || 0;
+      showToast(result.rescan ? "Recent history rescanned" : result.incremental ? "Wallet updated" : "First wallet update complete", "success", `${checked} checked · ${Number(result.swapTransactions) || 0} swap${Number(result.swapTransactions) === 1 ? "" : "s"} · ${Number(result.transferTransactions) || 0} transfer${Number(result.transferTransactions) === 1 ? "" : "s"} · ${Number(result.unclassifiedTransactions) || 0} unclassified${failed ? ` · ${failed} failed attempt${failed === 1 ? "" : "s"} ignored` : ""}.`);
     } catch (error) {
       showToast("Wallet sync failed", "error", error instanceof Error ? error.message : "Try again shortly.");
     } finally { setBusyId(null); }
@@ -195,7 +196,7 @@ export default function WalletSyncPanel({ onImportWalletTrade, existingWalletSig
   return (
     <section className="rounded-xl border border-[#e9e9e7] bg-white p-4 shadow-xs" aria-labelledby="wallet-sync-heading">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex gap-2"><span className="rounded-lg bg-blue-50 p-2 text-blue-700"><WalletCards size={16}/></span><div><h2 id="wallet-sync-heading" className="text-sm font-semibold text-[#37352f]">Linked wallet activity</h2><p className="mt-1 max-w-2xl text-[11px] text-[#787774]">Update activity checks transactions newer than the last saved signature. The first update and a manual rescan inspect the latest 50 transactions, whether they are seconds or days old. Detected swaps wait for your approval and are never journaled automatically.</p></div></div>
+        <div className="flex gap-2"><span className="rounded-lg bg-blue-50 p-2 text-blue-700"><WalletCards size={16}/></span><div><h2 id="wallet-sync-heading" className="text-sm font-semibold text-[#37352f]">Linked wallet activity</h2><p className="mt-1 max-w-2xl text-[11px] text-[#787774]">Update activity checks transactions newer than the last saved signature. The first update and a manual rescan inspect the latest 50 successful transactions, paging past failed attempts. Detected swaps wait for your approval and are never journaled automatically.</p></div></div>
         {loading && <span role="status" className="flex items-center gap-2 text-[11px] text-[#787774]"><Loader2 size={13} className="animate-spin"/>Loading</span>}
       </div>
 
