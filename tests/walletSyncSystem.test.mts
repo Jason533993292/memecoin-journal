@@ -29,6 +29,9 @@ test("wallet sync uses a saved cursor and requires context before journal import
   assert.match(server, /not a personal Solana wallet/);
   assert.match(server, /successfulSignatures/);
   assert.match(server, /failedTransactions/);
+  assert.match(server, /SIGNATURE_PAGE_LIMIT = 30/);
+  assert.match(panel, /Waiting for exit/);
+  assert.match(panel, /A buy without a detected sell is not a realized loss/);
   assert.match(panel, /failed attempts are ignored/i);
   assert.match(server, /isUsable/);
   assert.match(server, /mode === "rescan"/);

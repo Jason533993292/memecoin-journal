@@ -15,6 +15,8 @@ const TRANSACTION_BATCH_SIZE = 5;
 const TRANSACTION_BATCH_DELAY_MS = 650;
 const TRANSACTION_RETRY_DELAY_MS = 175;
 const TRANSACTION_FETCH_DEADLINE_MS = 22_000;
+const SIGNATURE_PAGE_LIMIT = 30;
+const SIGNATURE_PAGE_DELAY_MS = 200;
 
 type RpcTokenBalance = { mint?: string; owner?: string; uiTokenAmount?: { uiAmount?: number | null; uiAmountString?: string } };
 type SignatureRow = { err?: unknown; signature?: string; blockTime?: number };
@@ -121,7 +123,7 @@ async function successfulSignatures(address: string, cursor: string | null, mode
 
   // Active wallets can have a full first page of failed attempts. Page past them
   // instead of incorrectly reporting that the wallet has no recent activity.
-  for (let page = 0; page < 5 && successful.length < 50; page += 1) {
+  for (let page = 0; page < SIGNATURE_PAGE_LIMIT && successful.length < 50; page += 1) {
     const options: Record<string, unknown> = { limit: 100 };
     if (cursor && mode === "incremental") options.until = cursor;
     if (before) options.before = before;
@@ -136,6 +138,7 @@ async function successfulSignatures(address: string, cursor: string | null, mode
     if (rows.length < 100) break;
     before = rows.at(-1)?.signature;
     if (!before) break;
+    await wait(SIGNATURE_PAGE_DELAY_MS);
   }
 
   return { signatures: successful, failedTransactions };

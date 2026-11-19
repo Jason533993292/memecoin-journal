@@ -154,7 +154,7 @@ export default function LogTradeModal({
       : [];
   }, [storedCustomTags]);
 
-  const [notes, setNotes] = useState(initialData?.notes ? `[Clone] ${initialData.notes}` : "");
+  const [notes, setNotes] = useState(initialData?.notes ? `${initialData.walletSourceSignatures?.length ? "" : "[Clone] "}${initialData.notes}` : "");
   const [processGrade, setProcessGrade] = useState<Trade["processGrade"]>(initialData?.processGrade);
   const [confidenceAtEntry, setConfidenceAtEntry] = useState(String(initialData?.confidenceAtEntry ?? 50));
   const [showAdvanced, setShowAdvanced] = useState(
