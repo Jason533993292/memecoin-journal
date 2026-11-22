@@ -1663,6 +1663,24 @@ html[data-theme-preview] .theme-preview-control button.is-active {
   height: 0;
 }
 
+@keyframes wallet-hazard-move {
+  to { background-position: 48px 0; }
+}
+
+.wallet-sync-wip-stripes {
+  height: 8px;
+  background: repeating-linear-gradient(135deg, #ffd84d 0 14px, #171717 14px 28px);
+  background-size: 48px 48px;
+}
+
+.wallet-sync-wip:hover .wallet-sync-wip-stripes {
+  animation: wallet-hazard-move .7s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wallet-sync-wip:hover .wallet-sync-wip-stripes { animation: none; }
+}
+
 
 @media (min-width: 1280px) {
   .journal-page {

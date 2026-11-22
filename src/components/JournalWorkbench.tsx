@@ -124,7 +124,7 @@ export default function JournalWorkbench(p: Props) {
   };
 
   return <div className="journal-workbench-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)p.onClose();}}>
-    <section ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="journal-workbench-title" className="journal-workbench">
+    <section ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="journal-workbench-title" data-tour={`daily-journal-${p.panel}-workbench`} className="journal-workbench">
       <header><div><h2 id="journal-workbench-title">{p.panel === "writing" ? "Writing tools" : p.panel === "context" ? "Reflection & trade context" : p.panel === "review" ? "Review your journal" : "Recovery & history"}</h2><p>Optional tools. Your journal stays private.</p></div><button type="button" aria-label="Close journal tools" onClick={p.onClose}><X size={20}/></button></header>
       {message && <p role="status" className="journal-workbench-message">{message}</p>}
       {p.panel === "writing" && <>

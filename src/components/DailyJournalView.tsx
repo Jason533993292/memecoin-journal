@@ -178,12 +178,14 @@ export default function DailyJournalView({ userId, trades, tutorialMode = false 
       const id = (event as CustomEvent<{ id?: string }>).detail?.id || "";
       setLibraryOpen(id === "daily-journal-library");
       setDetailsOpen(id === "daily-journal-context");
-      setToolsMenuOpen(["daily-journal-writing-tools", "daily-journal-review-tools", "daily-journal-recovery-tools"].includes(id));
+      setToolsMenuOpen(false);
+      setWorkbench(id === "daily-journal-writing-tools" ? "writing" : id === "daily-journal-review-tools" ? "review" : id === "daily-journal-recovery-tools" ? "recovery" : null);
     };
     const closeTourPanels = () => {
       setLibraryOpen(false);
       setDetailsOpen(false);
       setToolsMenuOpen(false);
+      setWorkbench(null);
       setGuidedOpen(false);
       setPromptOpen(false);
       setMoreOpen(false);
@@ -692,7 +694,7 @@ export default function DailyJournalView({ userId, trades, tutorialMode = false 
       {locked && <div className="journal-notice" role="alert">This entry is being edited in another tab. Close that editor, then reopen this entry here.<button onClick={()=>{setDraft(null);setSelectedId(null);setLibraryOpen(true);}}>Back to entries</button></div>}
       {conflict && <div className="journal-notice" role="alert">This entry changed elsewhere. Your draft is preserved. Save a separate copy to keep both versions.<button onClick={()=>{if(draft)newCustomEntry(`${draft.title.slice(0,140)} (recovered copy)`,draft.contentHtml,draft.details);}}>Keep my writing as a copy</button><button onClick={()=>{setDraft(null);setSelectedId(null);void loadEntries();setLibraryOpen(true);setConflict(false);conflictRef.current=false;}}>Reload saved entries</button></div>}
 
-      {workbench && !tutorialMode && <JournalWorkbench panel={workbench} onClose={()=>setWorkbench(null)}
+      {workbench && <JournalWorkbench panel={workbench} onClose={()=>setWorkbench(null)}
         entry={draft} entries={entries} trades={trades} research={research} drafts={browserDrafts(draftStorageKey)} preferences={preferences}
         onPreferences={changePreferences} onDetails={patch=>{const current=latestDraftRef.current;if(!current || current.id!==draft?.id)return;const details={...current.details,...patch};updateDraft({details,linkedTradeIds:[...new Set([...(current.linkedTradeIds||[]),...(details.snapshots||[]).map(s=>s.id),...(details.notes||[]).map(n=>n.tradeId).filter((id): id is string=>!!id)])].slice(0,50)});}}
         onInsert={insertHtml} onNew={newCustomEntry} onOpen={openEntry} onRestore={restoreEntry} onErase={eraseEntry} onReplace={replaceWriting}

@@ -61,6 +61,8 @@ test("wallet sync uses a saved cursor and requires context before journal import
   assert.match(panel, /setLinks\(\(current\) => current\.filter/);
   assert.doesNotMatch(panel, /border border-blue-200/);
   assert.doesNotMatch(panel, /border border-emerald-200/);
+  assert.match(panel, /data-tour="wallet-sync"/);
+  assert.match(panel, /W\.I\.P\./);
 });
 
 test("the welcome tour measures each new target once after layout settles", async () => {
@@ -70,4 +72,8 @@ test("the welcome tour measures each new target once after layout settles", asyn
   assert.match(tour, /duration-400 ease-out/);
   assert.doesNotMatch(tour, /setTimeout\(locateTarget, 90\)/);
   assert.doesNotMatch(tour, /setTimeout\(locateTarget, 220\)/);
+  assert.match(tour, /daily-journal-writing-workbench/);
+  assert.match(tour, /daily-journal-review-workbench/);
+  assert.match(tour, /daily-journal-recovery-workbench/);
+  assert.doesNotMatch(tour, /selector: '\[data-tour="wallet-scan"\]'/);
 });

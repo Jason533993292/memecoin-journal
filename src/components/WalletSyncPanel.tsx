@@ -190,7 +190,11 @@ export default function WalletSyncPanel({ onImportWalletTrade, existingWalletSig
 
   if (!user) return null;
   return (
-    <section className="rounded-xl border border-[#e9e9e7] bg-white p-4 shadow-xs" aria-labelledby="wallet-sync-heading">
+    <section data-tour="wallet-sync" className="rounded-xl border border-[#e9e9e7] bg-white p-4 shadow-xs" aria-labelledby="wallet-sync-heading">
+      <div className="wallet-sync-wip mb-4 overflow-hidden rounded-lg" role="status" aria-label="Wallet synchronization is a work in progress">
+        <div className="wallet-sync-wip-stripes" aria-hidden="true" />
+        <div className="flex items-center justify-between gap-4 bg-[#171717] px-4 py-2 text-[#ffd84d]"><strong className="text-xs font-black tracking-[0.24em]">W.I.P.</strong><span className="text-[10px] font-semibold text-[#f6e7a8]">Experimental wallet detection — verify every result before saving.</span></div>
+      </div>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex gap-2"><span className="rounded-lg bg-blue-50 p-2 text-blue-700"><WalletCards size={16}/></span><div><h2 id="wallet-sync-heading" className="text-sm font-semibold text-[#37352f]">Linked wallet activity</h2><p className="mt-1 max-w-2xl text-[11px] text-[#787774]">Sync wallet checks transactions newer than the last saved signature, 50 at a time, oldest first, so nothing is skipped. The first sync looks at the latest 50 successful transactions. Detected swaps wait for your approval and are never journaled automatically.</p></div></div>
         {loading && <span role="status" className="flex items-center gap-2 text-[11px] text-[#787774]"><Loader2 size={13} className="animate-spin"/>Loading</span>}

@@ -510,7 +510,7 @@ export default function WalletsView({ trades, solPrice = 150, onImportWalletTrad
       </div>}
 
       {/* Wallet data toolbar */}
-      {(wallets.length > 0 || transactions.length > 0) && <div data-tour="wallet-history" className="flex items-center justify-between border-b border-[#e9e9e7] pb-3 text-xs text-[#787774]">
+      <div data-tour="wallet-history" className="flex items-center justify-between border-b border-[#e9e9e7] pb-3 text-xs text-[#787774]">
         <div className="flex items-center gap-2">
           <button
             onClick={() => setActiveTab("wallets")}
@@ -535,7 +535,7 @@ export default function WalletsView({ trades, solPrice = 150, onImportWalletTrad
             <span>Deposit & Paycheck History ({transactions.length})</span>
           </button>
         </div>
-      </div>}
+      </div>
 
       {/* Add / Edit Wallet Inline Form */}
       {isAddingWallet && (
