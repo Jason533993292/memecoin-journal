@@ -7,11 +7,11 @@ import { useAuth } from "@/context/AuthContext";
 import type { Trade } from "@/lib/types";
 import { formatSol } from "@/lib/utils";
 import { useToast } from "@/components/Toast";
+import { buildWalletPositions, type WalletEventLike, type WalletPosition } from "@/lib/walletPositions";
 
 type WalletLink = { id: string; address: string; label: string; last_synced_signature: string | null; last_synced_at: string | null; verified_at: string | null; created_at: string; updated_at: string };
-type TokenSnapshot = { name?: string; symbol?: string; marketCapUsd?: number | null };
-type WalletEvent = { id: string; wallet_link_id: string; signature: string; event_index: number; block_time: string; mint: string; direction: "buy" | "sell" | "transfer" | "unknown"; sol_change: number; token_change: number; fee_sol: number; status: string; source: "rpc" | "webhook"; raw?: { token?: TokenSnapshot }; wallet_links?: { label?: string; address?: string } | null };
-type ReviewCandidate = { key: string; walletLinkId: string; walletLabel: string; mint: string; tokenName: string; tokenSymbol: string; currentMarketCapUsd: number | null; eventIds: string[]; signatures: string[]; boughtSol: number; soldSol: number; tokensBought: number; tokensSold: number; feesSol: number; entryAt: number; exitAt?: number; source: "sync" | "webhook"; fills: NonNullable<Trade["fills"]> };
+type WalletEvent = WalletEventLike;
+type ReviewCandidate = WalletPosition;
 type SolanaProvider = { publicKey?: { toBase58(): string }; connect(): Promise<{ publicKey: { toBase58(): string } }>; signMessage(message: Uint8Array, encoding: "utf8"): Promise<{ signature: Uint8Array }> };
 
 async function authenticatedFetch(user: NonNullable<ReturnType<typeof useAuth>["user"]>, url: string, init?: RequestInit) {
@@ -60,35 +60,9 @@ export default function WalletSyncPanel({ onImportWalletTrade, existingWalletSig
   }, [load]);
 
   const existingSignatureSet = useMemo(() => new Set(existingWalletSignatures), [existingWalletSignatures]);
-  const candidates = useMemo(() => {
-    const grouped = new Map<string, ReviewCandidate>();
-    for (const event of [...events].sort((a, b) => Date.parse(a.block_time) - Date.parse(b.block_time))) {
-      if (existingSignatureSet.has(event.signature)) continue;
-      if ((event.direction !== "buy" && event.direction !== "sell") || !event.mint) continue;
-      const key = `${event.wallet_link_id}:${event.mint}`;
-      const time = Date.parse(event.block_time);
-      const token = event.raw?.token;
-      const current = grouped.get(key) || { key, walletLinkId: event.wallet_link_id, walletLabel: event.wallet_links?.label || "Linked wallet", mint: event.mint, tokenName: token?.name || "Solana token", tokenSymbol: token?.symbol || event.mint.slice(0, 5), currentMarketCapUsd: typeof token?.marketCapUsd === "number" ? token.marketCapUsd : null, eventIds: [], signatures: [], boughtSol: 0, soldSol: 0, tokensBought: 0, tokensSold: 0, feesSol: 0, entryAt: time, source: event.source === "webhook" ? "webhook" : "sync", fills: [] };
-      const quoteAmount = event.direction === "buy" ? Math.max(0, -Number(event.sol_change) - Number(event.fee_sol)) : Math.max(0, Number(event.sol_change) + Number(event.fee_sol));
-      if (event.direction === "buy") {
-        current.boughtSol += quoteAmount;
-        current.tokensBought += Math.max(0, Number(event.token_change));
-        current.entryAt = Math.min(current.entryAt, time);
-        current.fills.push({ id: `${event.signature}-${event.event_index}`, side: "entry", quoteAmount, feeSol: Number(event.fee_sol), executedAt: time });
-      } else {
-        current.soldSol += quoteAmount;
-        current.tokensSold += Math.max(0, -Number(event.token_change));
-        current.exitAt = Math.max(current.exitAt || 0, time);
-        current.fills.push({ id: `${event.signature}-${event.event_index}`, side: "exit", quoteAmount, feeSol: Number(event.fee_sol), executedAt: time });
-      }
-      current.feesSol += Number(event.fee_sol);
-      current.eventIds.push(event.id);
-      if (!current.signatures.includes(event.signature)) current.signatures.push(event.signature);
-      if (event.source === "webhook") current.source = "webhook";
-      grouped.set(key, current);
-    }
-    return [...grouped.values()].sort((a, b) => (b.exitAt || b.entryAt) - (a.exitAt || a.entryAt));
-  }, [events, existingSignatureSet]);
+  const positions = useMemo(() => buildWalletPositions(events, existingSignatureSet), [events, existingSignatureSet]);
+  const candidates = useMemo(() => positions.filter((position) => !position.dismissed), [positions]);
+  const dismissedPositions = useMemo(() => positions.filter((position) => position.dismissed), [positions]);
 
   const linkWallet = async () => {
     if (!user) return;
@@ -105,7 +79,7 @@ export default function WalletSyncPanel({ onImportWalletTrade, existingWalletSig
 
   const sync = async (link: WalletLink, mode: "incremental" | "rescan" = "incremental") => {
     if (!user) return;
-    if (mode === "rescan" && !window.confirm(`Rescan the 50 most recent successful transactions for ${link.label}? Failed attempts are ignored and existing events will not be duplicated.`)) return;
+    if (mode === "rescan" && !window.confirm(`Repair history for ${link.label}? This re-checks the 50 most recent successful transactions and reclassifies activity that was not understood before. Your dismissed and imported decisions are kept and nothing is duplicated.`)) return;
     setBusyId(link.id);
     try {
       const payload = await authenticatedFetch(user, "/api/wallet-sync", { method: "POST", body: JSON.stringify({ linkId: link.id, mode }) });
@@ -114,7 +88,15 @@ export default function WalletSyncPanel({ onImportWalletTrade, existingWalletSig
       const result = payload.result || {};
       const checked = Number(result.checkedTransactions) || 0;
       const failed = Number(result.failedTransactions) || 0;
-      showToast(result.rescan ? "Recent history rescanned" : result.incremental ? "Wallet updated" : "First wallet update complete", "success", `${checked} checked · ${Number(result.swapTransactions) || 0} swap${Number(result.swapTransactions) === 1 ? "" : "s"} · ${Number(result.transferTransactions) || 0} transfer${Number(result.transferTransactions) === 1 ? "" : "s"} · ${Number(result.unclassifiedTransactions) || 0} unclassified${failed ? ` · ${failed} failed attempt${failed === 1 ? "" : "s"} ignored` : ""}.`);
+      const swaps = Number(result.swapTransactions) || 0;
+      const transfers = Number(result.transferTransactions) || 0;
+      const unclassified = Number(result.unclassifiedTransactions) || 0;
+      const detail = [`${checked} checked`, `${swaps} swap${swaps === 1 ? "" : "s"} detected`, `${transfers} transfer${transfers === 1 ? "" : "s"}`, `${unclassified} need${unclassified === 1 ? "s" : ""} review or ${unclassified === 1 ? "is" : "are"} unsupported`, failed ? `${failed} failed on-chain attempt${failed === 1 ? "" : "s"} skipped` : ""].filter(Boolean).join(" · ") + ".";
+      const more = result.hasMore ? " More activity is waiting. Press Sync wallet again to continue." : "";
+      const skipped = result.skippedOlder ? " This wallet had more than 3,000 new transactions, so the oldest ones were skipped." : "";
+      if (result.incomplete) showToast("Wallet partly synced", "info", `${detail} The provider did not return every transaction, so the sync stopped early and will retry the rest.${skipped}`);
+      else if (checked > 0 && swaps === 0 && transfers === 0) showToast("Synced, but nothing could be classified", "info", `${detail} The parser does not understand these transactions yet, so no trades were created. Try Repair history after an update.${more}${skipped}`);
+      else showToast(result.rescan ? "History repaired" : result.incremental ? "Wallet synced" : "First sync complete", "success", `${detail}${more}${skipped}`);
     } catch (error) {
       showToast("Wallet sync failed", "error", error instanceof Error ? error.message : "Try again shortly.");
     } finally { setBusyId(null); }
@@ -154,17 +136,27 @@ export default function WalletSyncPanel({ onImportWalletTrade, existingWalletSig
     finally { setBusyId(null); }
   };
 
-  const ignore = async (candidate: ReviewCandidate) => {
+  const setCandidateStatus = async (candidate: ReviewCandidate, status: "ignored" | "needs_review") => {
     if (!user) return;
     try {
-      await authenticatedFetch(user, "/api/wallet-events", { method: "PATCH", body: JSON.stringify({ ids: candidate.eventIds, status: "ignored" }) });
-      setEvents((current) => current.filter((event) => !candidate.eventIds.includes(event.id)));
-      showToast("Activity ignored", "success", "It was not added to your journal.");
+      await authenticatedFetch(user, "/api/wallet-events", { method: "PATCH", body: JSON.stringify({ ids: candidate.eventIds, status }) });
+      // Events stay in memory: a dismissed buy is still needed to value a later sell.
+      setEvents((current) => current.map((event) => candidate.eventIds.includes(event.id) ? { ...event, status } : event));
+      if (status === "ignored") showToast("Dismissed for now", "success", "It comes back automatically if a matching sell or new buy appears.");
+      else showToast("Restored to the review inbox", "success");
     } catch (error) { showToast("Review inbox could not update", "error", error instanceof Error ? error.message : "Try again."); }
   };
 
   const createDraft = () => {
     if (!reviewing || !onImportWalletTrade) return;
+    if (reviewing.status === "exit_only") {
+      showToast("No entry was found", "info", "This sell has no matching buy in the synced history, so profit and loss cannot be calculated. Repair history to look further back.");
+      return;
+    }
+    if (reviewing.status === "partial") {
+      showToast("Part of this position is still open", "info", "Wait for the remaining exit before importing. This keeps the original entry cost attached to the position and prevents incorrect realized P&L.");
+      return;
+    }
     if (!reviewing.exitAt || reviewing.soldSol <= 0) {
       showToast("This position is still open", "info", "A buy without a detected sell is not a realized loss. Sync again after an exit appears.");
       return;
@@ -200,7 +192,7 @@ export default function WalletSyncPanel({ onImportWalletTrade, existingWalletSig
   return (
     <section className="rounded-xl border border-[#e9e9e7] bg-white p-4 shadow-xs" aria-labelledby="wallet-sync-heading">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex gap-2"><span className="rounded-lg bg-blue-50 p-2 text-blue-700"><WalletCards size={16}/></span><div><h2 id="wallet-sync-heading" className="text-sm font-semibold text-[#37352f]">Linked wallet activity</h2><p className="mt-1 max-w-2xl text-[11px] text-[#787774]">Update activity checks transactions newer than the last saved signature. The first update and a manual rescan inspect the latest 50 successful transactions, paging past failed attempts. Detected swaps wait for your approval and are never journaled automatically.</p></div></div>
+        <div className="flex gap-2"><span className="rounded-lg bg-blue-50 p-2 text-blue-700"><WalletCards size={16}/></span><div><h2 id="wallet-sync-heading" className="text-sm font-semibold text-[#37352f]">Linked wallet activity</h2><p className="mt-1 max-w-2xl text-[11px] text-[#787774]">Sync wallet checks transactions newer than the last saved signature, 50 at a time, oldest first, so nothing is skipped. The first sync looks at the latest 50 successful transactions. Detected swaps wait for your approval and are never journaled automatically.</p></div></div>
         {loading && <span role="status" className="flex items-center gap-2 text-[11px] text-[#787774]"><Loader2 size={13} className="animate-spin"/>Loading</span>}
       </div>
 
@@ -213,12 +205,21 @@ export default function WalletSyncPanel({ onImportWalletTrade, existingWalletSig
       {links.length > 0 && <div className="mt-4 grid gap-2">
         {links.map((link) => <article key={link.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#e9e9e7] bg-[#fbfbfa] p-3">
           <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><strong className="text-xs text-[#37352f]">{link.label}</strong>{link.verified_at && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-semibold text-emerald-700"><CheckCircle2 size={10}/>Verified owner</span>}</div><p className="mt-1 truncate font-mono text-[10px] text-[#787774]" title={link.address}>{link.address}</p><p className="mt-1 text-[10px] text-[#9b9a97]">{link.last_synced_at ? `Last synced ${new Date(link.last_synced_at).toLocaleString()}` : "Not synced yet"}</p></div>
-          <div className="flex flex-wrap items-center gap-2"><button type="button" onClick={() => void sync(link)} disabled={busyId === link.id} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-[10px] font-semibold text-blue-700 disabled:opacity-50">{busyId === link.id ? <Loader2 size={12} className="animate-spin"/> : <RefreshCw size={12}/>}Update activity</button><button type="button" onClick={() => void sync(link, "rescan")} disabled={busyId === link.id} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-[10px] font-semibold text-[#5a5957] hover:bg-[#f1f1ef] disabled:opacity-50" title="Recheck the 50 most recent transactions without duplicating saved events"><History size={12}/>Rescan recent history</button>{!link.verified_at && <button type="button" onClick={() => void verify(link)} disabled={busyId === link.id} className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-semibold text-emerald-700 disabled:opacity-50"><ShieldCheck size={12}/>Verify ownership</button>}<button type="button" onClick={() => void unlink(link)} disabled={busyId === link.id} aria-label={`Unlink ${link.label}`} className="rounded-lg p-2 text-rose-600 hover:bg-rose-50 disabled:opacity-50"><Trash2 size={13}/></button></div>
+          <div className="flex flex-wrap items-center gap-2"><button type="button" onClick={() => void sync(link)} disabled={busyId === link.id} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-[10px] font-semibold text-blue-700 disabled:opacity-50">{busyId === link.id ? <Loader2 size={12} className="animate-spin"/> : <RefreshCw size={12}/>}Sync wallet</button><details className="relative"><summary className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded-lg px-3 py-2 text-[10px] font-semibold text-[#5a5957] hover:bg-[#f1f1ef]"><History size={12}/>Advanced</summary><div className="absolute right-0 z-10 mt-1 w-56 rounded-lg border border-[#e9e9e7] bg-white p-2 shadow-lg"><button type="button" onClick={() => void sync(link, "rescan")} disabled={busyId === link.id} className="w-full rounded-md px-2 py-2 text-left text-[10px] font-semibold text-[#37352f] hover:bg-[#f1f1ef] disabled:opacity-50" title="Re-checks the 50 most recent transactions and reclassifies activity that was not understood. Dismissed and imported decisions are kept.">Repair history<span className="mt-0.5 block font-normal text-[#787774]">Re-check recent transactions if a trade looks missing.</span></button></div></details>{!link.verified_at && <button type="button" onClick={() => void verify(link)} disabled={busyId === link.id} className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-semibold text-emerald-700 disabled:opacity-50"><ShieldCheck size={12}/>Verify ownership</button>}<button type="button" onClick={() => void unlink(link)} disabled={busyId === link.id} aria-label={`Unlink ${link.label}`} className="rounded-lg p-2 text-rose-600 hover:bg-rose-50 disabled:opacity-50"><Trash2 size={13}/></button></div>
         </article>)}
       </div>}
 
       <div className="mt-5 border-t border-[#f1f1ef] pt-4"><div className="flex items-center justify-between gap-3"><div><h3 className="text-xs font-semibold text-[#37352f]">Review inbox</h3><p className="mt-1 text-[10px] text-[#787774]">Nothing is journaled automatically. Add your reason and setup before opening the final trade form.</p></div><span className="rounded-full bg-[#f1f1ef] px-2 py-1 text-[10px] font-semibold text-[#5a5957]">{candidates.length} pending</span></div>
-            {candidates.length === 0 ? <p className="mt-3 rounded-lg bg-[#fbfbfa] p-4 text-center text-[11px] text-[#787774]">Update one linked wallet. Its detected buys and sells will appear here.</p> : <div className="mt-3 space-y-2">{candidates.map((candidate) => { const pnl = candidate.soldSol - candidate.boughtSol - candidate.feesSol; const isOpen = !candidate.exitAt || candidate.soldSol <= 0; return <article key={candidate.key} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#e9e9e7] p-3"><div className="min-w-0"><strong className="block truncate text-xs text-[#37352f]">{candidate.tokenName} · ${candidate.tokenSymbol}</strong><p className="mt-0.5 truncate font-mono text-[9px] text-[#9b9a97]">{candidate.mint}</p><p className="mt-1 text-[10px] text-[#787774]">{candidate.walletLabel} · Bought {candidate.tokensBought.toLocaleString(undefined, { maximumFractionDigits: 4 })} tokens for {formatSol(candidate.boughtSol)} SOL · Sold {candidate.tokensSold.toLocaleString(undefined, { maximumFractionDigits: 4 })} for {formatSol(candidate.soldSol)} SOL · {candidate.soldSol ? `${pnl >= 0 ? "+" : ""}${formatSol(pnl)} SOL estimated P&amp;L` : "Open position"}{candidate.currentMarketCapUsd !== null ? ` · Current MC $${candidate.currentMarketCapUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : ""}</p></div><div className="flex gap-2"><button type="button" onClick={() => void ignore(candidate)} className="rounded-lg px-3 py-2 text-[10px] font-semibold text-[#787774] hover:bg-[#f1f1ef]">Ignore</button><button type="button" onClick={() => setReviewing(candidate)} disabled={isOpen} title={isOpen ? "Sync again after a sell is detected" : "Review and import this completed position"} className="rounded-lg bg-[#1a73ca] px-3 py-2 text-[10px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-45">{isOpen ? "Waiting for exit" : "Review as trade"}</button></div></article>; })}</div>}
+            {candidates.length === 0 ? <p className="mt-3 rounded-lg bg-[#fbfbfa] p-4 text-center text-[11px] text-[#787774]">Sync one linked wallet. Its detected buys and sells will appear here.</p> : <div className="mt-3 space-y-2">{candidates.map((candidate) => {
+              const pnl = candidate.soldSol - candidate.boughtSol - candidate.feesSol;
+              const heldPct = candidate.tokensBought > 0 ? Math.round((candidate.remainingTokens / candidate.tokensBought) * 100) : 0;
+              const statusLabel = candidate.status === "closed" ? "Closed" : candidate.status === "partial" ? `Partly sold · ${heldPct}% still held` : candidate.status === "exit_only" ? "Sell without a detected buy" : "Open position";
+              const canImport = candidate.status === "closed";
+              const buttonLabel = candidate.status === "closed" ? "Review as trade" : candidate.status === "partial" ? "Waiting for full exit" : candidate.status === "exit_only" ? "No entry found" : "Waiting for exit";
+              const buttonHint = candidate.status === "closed" ? "Review and import this completed position" : candidate.status === "partial" ? "The remaining position must close before it can be imported with accurate realized P&L." : candidate.status === "exit_only" ? "The matching buy is not in the synced history. Repair history to look further back." : "Sync again after a sell is detected";
+              return <article key={candidate.key} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#e9e9e7] p-3"><div className="min-w-0"><strong className="block truncate text-xs text-[#37352f]">{candidate.tokenName} · ${candidate.tokenSymbol}</strong><p className="mt-0.5 truncate font-mono text-[9px] text-[#9b9a97]">{candidate.mint}</p><p className="mt-1 text-[10px] text-[#787774]"><span className="font-semibold text-[#5a5957]">{statusLabel}</span> · {candidate.walletLabel} · Bought {candidate.tokensBought.toLocaleString(undefined, { maximumFractionDigits: 4 })} tokens for {formatSol(candidate.boughtSol)} SOL · Sold {candidate.tokensSold.toLocaleString(undefined, { maximumFractionDigits: 4 })} for {formatSol(candidate.soldSol)} SOL{candidate.status === "closed" ? ` · ${pnl >= 0 ? "+" : ""}${formatSol(pnl)} SOL estimated P&L` : ""}{candidate.currentMarketCapUsd !== null ? ` · Current MC $${candidate.currentMarketCapUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : ""}</p></div><div className="flex gap-2"><button type="button" onClick={() => void setCandidateStatus(candidate, "ignored")} className="rounded-lg px-3 py-2 text-[10px] font-semibold text-[#787774] hover:bg-[#f1f1ef]" title="Hide this for now. It returns automatically if a matching sell or new buy appears.">Dismiss for now</button><button type="button" onClick={() => setReviewing(candidate)} disabled={!canImport} title={buttonHint} className="rounded-lg bg-[#1a73ca] px-3 py-2 text-[10px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-45">{buttonLabel}</button></div></article>;
+            })}</div>}
+            {dismissedPositions.length > 0 && <details className="mt-3"><summary className="cursor-pointer text-[10px] font-semibold text-[#787774]">{dismissedPositions.length} dismissed for now</summary><div className="mt-2 space-y-1">{dismissedPositions.map((position) => <div key={position.key} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[#fbfbfa] px-3 py-2"><span className="truncate text-[10px] text-[#5a5957]">{position.tokenName} · ${position.tokenSymbol} · {position.status === "closed" ? "closed" : position.status === "partial" ? "partly sold" : position.status === "exit_only" ? "sell only" : "open"}</span><button type="button" onClick={() => void setCandidateStatus(position, "needs_review")} className="rounded-lg px-2 py-1 text-[10px] font-semibold text-blue-700 hover:bg-blue-50">Restore</button></div>)}</div></details>}
       </div>
 
           {reviewing && <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/55 p-4" role="dialog" aria-modal="true" aria-labelledby="wallet-review-title"><div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl"><div className="flex items-start justify-between gap-3"><div><h3 id="wallet-review-title" className="text-base font-semibold text-[#37352f]">Add your trade context</h3><p className="mt-1 text-[11px] text-[#787774]">On-chain data shows what happened. Your journal still needs to know why.</p></div><button type="button" onClick={() => setReviewing(null)} aria-label="Close wallet review" className="rounded-lg p-2 text-[#787774] hover:bg-[#f1f1ef]"><X size={15}/></button></div><div className="mt-4 space-y-3"><label className="block text-xs font-medium text-[#37352f]">Reason for entering <span className="text-rose-600">*</span><textarea value={reason} onChange={(event) => setReason(event.target.value)} rows={3} maxLength={1000} placeholder="What did you see before entering?" className="mt-1 w-full rounded-lg border border-[#d8d7d3] bg-[#fbfbfa] px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"/></label><label className="block text-xs font-medium text-[#37352f]">Setup <span className="text-rose-600">*</span><input value={setup} onChange={(event) => setSetup(event.target.value)} maxLength={120} placeholder="e.g. Breakout / ATH Push" className="mt-1 w-full rounded-lg border border-[#d8d7d3] bg-[#fbfbfa] px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"/></label><label className="block text-xs font-medium text-[#37352f]">Confidence at entry · {confidence}%<input type="range" min="0" max="100" value={confidence} onChange={(event) => setConfidence(event.target.value)} className="mt-2 w-full"/></label></div><button type="button" onClick={createDraft} className="mt-5 w-full rounded-lg bg-[#1a73ca] px-4 py-2.5 text-xs font-semibold text-white">Continue to final trade review</button></div></div>}

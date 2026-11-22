@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import bs58 from "bs58";
 import nacl from "tweetnacl";
 import type { Json } from "@/lib/database.types";
+import { nextSyncCursor, planSignatureWindow, type SignatureRow } from "./walletSyncWindow";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 
 export const SOLANA_ADDRESS_PATTERN = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
@@ -19,7 +20,6 @@ const SIGNATURE_PAGE_LIMIT = 30;
 const SIGNATURE_PAGE_DELAY_MS = 200;
 
 type RpcTokenBalance = { mint?: string; owner?: string; uiTokenAmount?: { uiAmount?: number | null; uiAmountString?: string } };
-type SignatureRow = { err?: unknown; signature?: string; blockTime?: number };
 type WalletLinkRow = { id: string; user_id: string; address: string; label: string; last_synced_signature: string | null; last_synced_at: string | null; verified_at: string | null; created_at: string; updated_at: string };
 type ParsedEvent = { signature: string; event_index: number; block_time: string; mint: string; direction: "buy" | "sell" | "transfer" | "unknown"; sol_change: number; token_change: number; fee_sol: number; source: "rpc" | "webhook"; raw: Json };
 type TokenSnapshot = { name: string; symbol: string; marketCapUsd: number | null };
@@ -117,31 +117,39 @@ async function assertLikelyWalletAddress(address: string) {
 }
 
 async function successfulSignatures(address: string, cursor: string | null, mode: "incremental" | "rescan") {
-  const successful: Array<{ signature: string; blockTime?: number }> = [];
-  let failedTransactions = 0;
+  const incrementalWithCursor = Boolean(cursor) && mode === "incremental";
+  const rows: SignatureRow[] = [];
   let before: string | undefined;
+  let successfulSeen = 0;
+  let pageLimitHit = false;
 
-  // Active wallets can have a full first page of failed attempts. Page past them
-  // instead of incorrectly reporting that the wallet has no recent activity.
-  for (let page = 0; page < SIGNATURE_PAGE_LIMIT && successful.length < 50; page += 1) {
+  // Active wallets can have a full page of failed attempts, so keep paging. An incremental sync
+  // pages until it reaches the saved cursor so the batch can be taken oldest-first without gaps.
+  // A first sync or rescan only needs the newest successful transactions.
+  for (let page = 0; page < SIGNATURE_PAGE_LIMIT; page += 1) {
     const options: Record<string, unknown> = { limit: 100 };
-    if (cursor && mode === "incremental") options.until = cursor;
+    if (incrementalWithCursor && cursor) options.until = cursor;
     if (before) options.before = before;
     const payload = await rpc({ jsonrpc: "2.0", id: 1, method: "getSignaturesForAddress", params: [address, options] }) as { result?: SignatureRow[] };
-    const rows = Array.isArray(payload.result) ? payload.result : [];
-    for (const row of rows) {
+    const pageRows = Array.isArray(payload.result) ? payload.result : [];
+    for (const row of pageRows) {
       if (!row.signature) continue;
-      if (row.err) failedTransactions += 1;
-      else successful.push({ signature: row.signature, blockTime: row.blockTime });
-      if (successful.length === 50) break;
+      rows.push(row);
+      if (!row.err) successfulSeen += 1;
     }
-    if (rows.length < 100) break;
-    before = rows.at(-1)?.signature;
+    if (pageRows.length < 100) break;
+    if (!incrementalWithCursor && successfulSeen >= 50) break;
+    before = pageRows.at(-1)?.signature;
     if (!before) break;
-    await wait(SIGNATURE_PAGE_DELAY_MS);
+    if (page === SIGNATURE_PAGE_LIMIT - 1) pageLimitHit = true;
+    else await wait(SIGNATURE_PAGE_DELAY_MS);
   }
 
-  return { signatures: successful, failedTransactions };
+  if (incrementalWithCursor && pageLimitHit) {
+    throw new Error("More than 3,000 new wallet transactions are waiting. The sync stopped without advancing its cursor so older activity is not skipped. Use an indexed wallet-history provider before continuing.");
+  }
+
+  return planSignatureWindow(rows, { incrementalWithCursor, pageLimitHit });
 }
 
 function tokenAmount(balance: RpcTokenBalance) {
@@ -211,9 +219,10 @@ export async function deleteWalletLink(userId: string, id: string) {
   if (error) throw new Error(error.message);
 }
 
-export async function listWalletEvents(userId: string, status = "needs_review") {
-  const query = admin().from("wallet_events").select("id,wallet_link_id,signature,event_index,block_time,mint,direction,sol_change,token_change,fee_sol,status,source,raw,created_at,wallet_links(label,address)").eq("user_id", userId).order("block_time", { ascending: false }).limit(300);
-  const { data, error } = status === "all" ? await query : await query.eq("status", status);
+export async function listWalletEvents(userId: string, status = "open") {
+  const query = admin().from("wallet_events").select("id,wallet_link_id,signature,event_index,block_time,mint,direction,sol_change,token_change,fee_sol,status,source,raw,created_at,wallet_links(label,address)").eq("user_id", userId).order("block_time", { ascending: false }).limit(500);
+  // "open" keeps dismissed events: a later sell needs the original buy to value the position.
+  const { data, error } = status === "all" ? await query : status === "open" ? await query.in("status", ["needs_review", "ignored"]) : await query.eq("status", status);
   if (error) throw new Error(error.message);
   return data || [];
 }
@@ -235,15 +244,24 @@ export async function syncWalletLink(userId: string, linkId: string, mode: "incr
   const link = await ownedLink(userId, linkId);
   await assertLikelyWalletAddress(link.address);
   const cursor = link.last_synced_signature;
-  const { signatures, failedTransactions } = await successfulSignatures(link.address, cursor, mode);
-  const { transactions: byId, missingIds } = await fetchTransactions(signatures);
+  const window = await successfulSignatures(link.address, cursor, mode);
+  const { failedTransactions } = window;
+  const signatures = window.ordered;
+  const { transactions: byId } = await fetchTransactions(signatures);
+
+  // Keep the contiguous prefix the provider returned. Everything before the first missing
+  // transaction is saved and the cursor stops there, so the next update retries the gap.
+  const firstMissing = signatures.findIndex((_, index) => !byId.has(index + 10));
+  const usableCount = firstMissing === -1 ? signatures.length : firstMissing;
+  if (firstMissing === 0) throw new Error("The provider did not return the transactions. Nothing was saved and the sync cursor was not advanced. Try again shortly.");
+  const usable = signatures.slice(0, usableCount);
+  const incomplete = usableCount < signatures.length;
   const events: ParsedEvent[] = [];
   let swapTransactions = 0;
   let transferTransactions = 0;
   let unclassifiedTransactions = 0;
-  const missingTransactions = missingIds.length;
 
-  signatures.forEach((signature: { signature: string; blockTime?: number }, signatureIndex: number) => {
+  usable.forEach((signature: { signature: string; blockTime?: number }, signatureIndex: number) => {
     const tx = byId.get(signatureIndex + 10) as { meta?: { fee?: number; preBalances?: number[]; postBalances?: number[]; preTokenBalances?: RpcTokenBalance[]; postTokenBalances?: RpcTokenBalance[] }; transaction?: { message?: { accountKeys?: Array<string | { pubkey?: string }> } } } | null;
     if (!tx?.meta) return;
     const keys = tx.transaction?.message?.accountKeys || [];
@@ -274,23 +292,61 @@ export async function syncWalletLink(userId: string, linkId: string, mode: "incr
     }
   });
 
-  if (missingTransactions > 0) throw new Error(`${missingTransactions} transaction${missingTransactions === 1 ? " was" : "s were"} not returned by the provider. Nothing was skipped and the sync cursor was not advanced.`);
-
   const snapshots = await tokenSnapshots(events.map((event) => event.mint));
   for (const event of events) {
     const token = snapshots.get(event.mint);
     if (token) event.raw = { ...(event.raw as Record<string, Json | undefined>), token, marketCapSnapshotAt: new Date().toISOString() };
   }
 
-  if (events.length) {
-    const rows = events.map((event) => ({ ...event, user_id: userId, wallet_link_id: link.id }));
-    const { error } = await admin().from("wallet_events").upsert(rows, { onConflict: "wallet_link_id,signature,event_index", ignoreDuplicates: true });
+  const signaturesInBatch = [...new Set(events.map((event) => event.signature))];
+  type ExistingEvent = { signature: string; event_index: number; status: string; direction: string };
+  const existing: ExistingEvent[] = [];
+  for (let offset = 0; offset < signaturesInBatch.length; offset += 25) {
+    const { data, error } = await admin().from("wallet_events").select("signature,event_index,status,direction").eq("wallet_link_id", link.id).in("signature", signaturesInBatch.slice(offset, offset + 25));
+    if (error) throw new Error(error.message);
+    existing.push(...((data || []) as ExistingEvent[]));
+  }
+  const eventKey = (signature: string, index: number) => `${signature}:${index}`;
+  const existingKeys = new Set(existing.map((row) => eventKey(row.signature, row.event_index)));
+  const importedSignatures = new Set(existing.filter((row) => row.status === "imported").map((row) => row.signature));
+  const newEvents = events.filter((event) => !importedSignatures.has(event.signature) && !existingKeys.has(eventKey(event.signature, event.event_index))).length;
+
+  // Rows already in the journal are never touched. Every other row is refreshed, so a rescan
+  // can reclassify earlier "unknown" activity. The payload omits `status` on purpose: an upsert
+  // only updates the columns it sends, so a dismissed or pending decision is preserved.
+  const now = new Date().toISOString();
+  const rows = events.filter((event) => !importedSignatures.has(event.signature)).map((event) => ({ ...event, user_id: userId, wallet_link_id: link.id, updated_at: now }));
+  if (rows.length) {
+    const { error } = await admin().from("wallet_events").upsert(rows, { onConflict: "wallet_link_id,signature,event_index", defaultToNull: false });
     if (error) throw new Error(error.message);
   }
-  const newestSignature = signatures[0]?.signature || cursor;
-  const { error: updateError } = await admin().from("wallet_links").update({ last_synced_signature: newestSignature, last_synced_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("user_id", userId).eq("id", link.id);
+
+  // A transaction that is now understood no longer needs its "unknown" placeholder row.
+  const classifiedSignatures = new Set(events.filter((event) => event.direction !== "unknown").map((event) => event.signature));
+  const staleUnknown = existing.filter((row) => row.direction === "unknown" && row.event_index === 9999 && row.status !== "imported" && classifiedSignatures.has(row.signature)).map((row) => row.signature);
+  if (staleUnknown.length) {
+    const { error } = await admin().from("wallet_events").delete().eq("wallet_link_id", link.id).eq("event_index", 9999).eq("direction", "unknown").neq("status", "imported").in("signature", staleUnknown);
+    if (error) throw new Error(error.message);
+  }
+
+  const nextCursor = nextSyncCursor({ previousCursor: cursor, mode, window, usableCount });
+  const { error: updateError } = await admin().from("wallet_links").update({ last_synced_signature: nextCursor, last_synced_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("user_id", userId).eq("id", link.id);
   if (updateError) throw new Error(updateError.message);
-  return { checkedTransactions: signatures.length, failedTransactions, swapTransactions, transferTransactions, unclassifiedTransactions, detectedEvents: events.filter((event) => event.direction === "buy" || event.direction === "sell").length, incremental: mode === "incremental" && Boolean(cursor), rescan: mode === "rescan", cursor: newestSignature };
+  return {
+    checkedTransactions: usable.length,
+    failedTransactions,
+    swapTransactions,
+    transferTransactions,
+    unclassifiedTransactions,
+    detectedEvents: events.filter((event) => event.direction === "buy" || event.direction === "sell").length,
+    newEvents,
+    hasMore: window.hasMore || incomplete,
+    incomplete,
+    skippedOlder: window.skippedOlder,
+    incremental: mode === "incremental" && Boolean(cursor),
+    rescan: mode === "rescan",
+    cursor: nextCursor,
+  };
 }
 
 export async function createVerificationChallenge(userId: string, linkId: string) {
