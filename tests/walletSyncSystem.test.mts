@@ -67,6 +67,8 @@ test("wallet sync uses a saved cursor and requires context before journal import
 
 test("the welcome tour measures each new target once after layout settles", async () => {
   const tour = await readFile(new URL("src/components/WelcomeTourModal.tsx", root), "utf8");
+  const dailyJournal = await readFile(new URL("src/components/DailyJournalView.tsx", root), "utf8");
+  const globalStyles = await readFile(new URL("src/app/globals.css", root), "utf8");
   assert.doesNotMatch(tour, /setTargetRect\(null\);\s*setStepIndex/);
   assert.match(tour, /new ResizeObserver\(scheduleSettledMeasure\)/);
   assert.match(tour, /duration-400 ease-out/);
@@ -75,5 +77,9 @@ test("the welcome tour measures each new target once after layout settles", asyn
   assert.match(tour, /daily-journal-writing-workbench/);
   assert.match(tour, /daily-journal-review-workbench/);
   assert.match(tour, /daily-journal-recovery-workbench/);
+  assert.match(tour, /announceStep\(\);\s*if \(attempt < 30\)/);
+  assert.match(tour, /previousViewRef\.current !== step\.viewTab/);
+  assert.doesNotMatch(dailyJournal, /if \(!tutorialMode\) return;\s*const syncTourPanels/);
   assert.doesNotMatch(tour, /selector: '\[data-tour="wallet-scan"\]'/);
+  assert.match(globalStyles, /\.wallet-sync-wip-frame:hover/);
 });

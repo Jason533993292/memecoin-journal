@@ -81,6 +81,7 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
   const [stepIndex, setStepIndex] = useState(0);
   const [targetRect, setTargetRect] = useState<TargetRect | null>(null);
   const introButtonRef = useRef<HTMLButtonElement>(null);
+  const previousViewRef = useRef<string | undefined>(undefined);
   const step = SPOTLIGHT_STEPS[stepIndex];
 
   const endTour = useCallback(() => {
@@ -173,6 +174,8 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
 
   useEffect(() => {
     if (!isOpen || !started || !step) return;
+    if (step.viewTab && previousViewRef.current && previousViewRef.current !== step.viewTab) setTargetRect(null);
+    if (step.viewTab) previousViewRef.current = step.viewTab;
     if (step.viewTab) onNavigateTab(step.viewTab);
     document.documentElement.dataset.tourStep = step.id;
     const announceStep = () => window.dispatchEvent(new CustomEvent("memecoin-journal-tour-step", { detail: { id: step.id } }));
@@ -204,7 +207,8 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
     const locateTarget = (attempt = 0) => {
       target = findVisibleTarget(step.selector);
       if (!target) {
-        if (attempt < 20) timers.push(window.setTimeout(() => locateTarget(attempt + 1), 50));
+        announceStep();
+        if (attempt < 30) timers.push(window.setTimeout(() => locateTarget(attempt + 1), 50));
         return;
       }
       const initialRect = target.getBoundingClientRect();

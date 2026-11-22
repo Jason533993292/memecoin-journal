@@ -1667,18 +1667,17 @@ html[data-theme-preview] .theme-preview-control button.is-active {
   to { background-position: 48px 0; }
 }
 
-.wallet-sync-wip-stripes {
-  height: 8px;
+.wallet-sync-wip-frame {
   background: repeating-linear-gradient(135deg, #ffd84d 0 14px, #171717 14px 28px);
   background-size: 48px 48px;
 }
 
-.wallet-sync-wip:hover .wallet-sync-wip-stripes {
+.wallet-sync-wip-frame:hover {
   animation: wallet-hazard-move .7s linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .wallet-sync-wip:hover .wallet-sync-wip-stripes { animation: none; }
+  .wallet-sync-wip-frame:hover { animation: none; }
 }
 
 

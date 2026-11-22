@@ -173,7 +173,6 @@ export default function DailyJournalView({ userId, trades, tutorialMode = false 
     return () => window.removeEventListener("journal-draft-storage-full", failed);
   }, []);
   useEffect(() => {
-    if (!tutorialMode) return;
     const syncTourPanels = (event: Event) => {
       const id = (event as CustomEvent<{ id?: string }>).detail?.id || "";
       setLibraryOpen(id === "daily-journal-library");
@@ -196,7 +195,7 @@ export default function DailyJournalView({ userId, trades, tutorialMode = false 
       window.removeEventListener("memecoin-journal-tour-step", syncTourPanels);
       window.removeEventListener("memecoin-journal-tour-end", closeTourPanels);
     };
-  }, [tutorialMode]);
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
