@@ -82,4 +82,7 @@ test("the welcome tour measures each new target once after layout settles", asyn
   assert.doesNotMatch(dailyJournal, /if \(!tutorialMode\) return;\s*const syncTourPanels/);
   assert.doesNotMatch(tour, /selector: '\[data-tour="wallet-scan"\]'/);
   assert.match(globalStyles, /\.wallet-sync-wip-frame:hover/);
+  assert.match(globalStyles, /repeating-conic-gradient/);
+  assert.match(globalStyles, /animation-play-state: paused/);
+  assert.match(globalStyles, /\.wallet-sync-wip-frame:hover\s*\{\s*animation-play-state: running/);
 });
