@@ -102,12 +102,10 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
       completeTour();
       return;
     }
-    setTargetRect(null);
     setStepIndex((index) => index + 1);
   }, [completeTour, onNavigateTab, stepIndex]);
 
   const goBack = useCallback(() => {
-    setTargetRect(null);
     setStepIndex((index) => Math.max(0, index - 1));
   }, []);
 
@@ -185,6 +183,7 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
     let hasAdvanced = false;
     const timers: number[] = [];
     let measureFrame: number | null = null;
+    let resizeObserver: ResizeObserver | null = null;
     const measureTarget = () => {
       if (!target) return;
       const rect = target.getBoundingClientRect();
@@ -193,7 +192,8 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
       const left = Math.max(7, rect.left - padding);
       const right = Math.min(window.innerWidth - 7, rect.right + padding);
       const bottom = Math.min(window.innerHeight - 7, rect.bottom + padding);
-      setTargetRect({ top, left, right, bottom, width: Math.max(0, right - left), height: Math.max(0, bottom - top) });
+      const next = { top, left, right, bottom, width: Math.max(0, right - left), height: Math.max(0, bottom - top) };
+      setTargetRect((current) => current && Math.abs(current.top - next.top) < 0.5 && Math.abs(current.left - next.left) < 0.5 && Math.abs(current.width - next.width) < 0.5 && Math.abs(current.height - next.height) < 0.5 ? current : next);
     };
     const scheduleSettledMeasure = () => {
       if (measureFrame !== null) window.cancelAnimationFrame(measureFrame);
@@ -201,16 +201,20 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
         measureFrame = window.requestAnimationFrame(measureTarget);
       });
     };
-    const locateTarget = () => {
+    const locateTarget = (attempt = 0) => {
       target = findVisibleTarget(step.selector);
-      if (!target) { setTargetRect(null); return; }
+      if (!target) {
+        if (attempt < 20) timers.push(window.setTimeout(() => locateTarget(attempt + 1), 50));
+        return;
+      }
       const initialRect = target.getBoundingClientRect();
       if (initialRect.top < 76 || initialRect.bottom > window.innerHeight - 28) {
         target.scrollIntoView({ behavior: "auto", block: "center", inline: "nearest" });
-        scheduleSettledMeasure();
-      } else {
-        scheduleSettledMeasure();
       }
+      timers.push(window.setTimeout(scheduleSettledMeasure, 80));
+      resizeObserver?.disconnect();
+      resizeObserver = new ResizeObserver(scheduleSettledMeasure);
+      resizeObserver.observe(target);
       if (step.requireTargetClick && clickTarget !== target) {
         if (clickTarget && clickHandler) clickTarget.removeEventListener("click", clickHandler);
         clickTarget = target;
@@ -224,9 +228,7 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
     };
     announceStep();
     timers.push(window.setTimeout(announceStep, 60));
-    timers.push(window.setTimeout(locateTarget, 0));
-    timers.push(window.setTimeout(locateTarget, 90));
-    timers.push(window.setTimeout(locateTarget, 220));
+    timers.push(window.setTimeout(() => locateTarget(), 40));
     const settleAfterScroll = () => scheduleSettledMeasure();
     const settleAfterResize = () => scheduleSettledMeasure();
     window.addEventListener("resize", settleAfterResize);
@@ -234,6 +236,7 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
     return () => {
       timers.forEach((timer) => window.clearTimeout(timer));
       if (measureFrame !== null) window.cancelAnimationFrame(measureFrame);
+      resizeObserver?.disconnect();
       if (clickTarget && clickHandler) clickTarget.removeEventListener("click", clickHandler);
       window.removeEventListener("resize", settleAfterResize);
       window.removeEventListener("scroll", settleAfterScroll, true);
@@ -288,14 +291,14 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
     <div className="pointer-events-none fixed inset-0 z-[80]" aria-live="polite">
       {!targetRect && <div className="pointer-events-auto fixed inset-0 bg-black/80" aria-hidden="true" />}
       {targetRect && <>
-        <div className="pointer-events-auto fixed left-0 right-0 top-0 bg-black/80" style={{ height: targetRect.top }} />
-        <div className="pointer-events-auto fixed bottom-0 left-0 right-0 bg-black/80" style={{ top: targetRect.bottom }} />
-        <div className="pointer-events-auto fixed left-0 bg-black/80" style={{ top: targetRect.top, width: targetRect.left, height: targetRect.height }} />
-        <div className="pointer-events-auto fixed right-0 bg-black/80" style={{ top: targetRect.top, left: targetRect.right, height: targetRect.height }} />
+        <div className="pointer-events-auto fixed left-0 right-0 top-0 bg-black/80 transition-[height] duration-400 ease-out" style={{ height: targetRect.top }} />
+        <div className="pointer-events-auto fixed bottom-0 left-0 right-0 bg-black/80 transition-[top] duration-400 ease-out" style={{ top: targetRect.bottom }} />
+        <div className="pointer-events-auto fixed left-0 bg-black/80 transition-[top,width,height] duration-400 ease-out" style={{ top: targetRect.top, width: targetRect.left, height: targetRect.height }} />
+        <div className="pointer-events-auto fixed right-0 bg-black/80 transition-[top,left,height] duration-400 ease-out" style={{ top: targetRect.top, left: targetRect.right, height: targetRect.height }} />
         {!step.requireTargetClick && <div className="pointer-events-auto fixed bg-transparent" aria-hidden="true" style={{ top: targetRect.top, left: targetRect.left, width: targetRect.width, height: targetRect.height }} />}
-        <div className="pointer-events-none fixed rounded-xl transition-[top,left,width,height] duration-150 ease-out border-2 border-[#55a7f1] shadow-[0_0_0_4px_rgba(35,131,226,0.25),0_0_28px_rgba(35,131,226,0.7)]" style={{ top: targetRect.top, left: targetRect.left, width: targetRect.width, height: targetRect.height }} />
+        <div className="pointer-events-none fixed rounded-xl border-2 border-[#55a7f1] shadow-[0_0_0_4px_rgba(35,131,226,0.25),0_0_28px_rgba(35,131,226,0.7)] transition-[top,left,width,height] duration-400 ease-out" style={{ top: targetRect.top, left: targetRect.left, width: targetRect.width, height: targetRect.height }} />
       </>}
-      <section data-tour-dialog role="dialog" aria-modal="true" aria-label={`Tutorial step ${stepIndex + 1}: ${step.title}`} className="tour-tooltip-scrollbar pointer-events-auto fixed z-[91] max-h-[calc(100vh-24px)] overflow-y-auto rounded-2xl border border-white/10 bg-[#111318] p-4 text-white shadow-2xl transition-[top,left,right,bottom] duration-150 ease-out" style={tooltipStyle}>
+      <section data-tour-dialog role="dialog" aria-modal="true" aria-label={`Tutorial step ${stepIndex + 1}: ${step.title}`} className="tour-tooltip-scrollbar pointer-events-auto fixed z-[91] max-h-[calc(100vh-24px)] overflow-y-auto rounded-2xl border border-white/10 bg-[#111318] p-4 text-white shadow-2xl transition-[top,left,right,bottom,transform] duration-400 ease-out" style={tooltipStyle}>
         {targetRect && (sidePlacement === "right" ? <ArrowLeft className="tour-arrow-horizontal absolute -left-8 top-5 text-[#55a7f1]" size={24} /> : sidePlacement === "left" ? <ArrowRight className="tour-arrow-horizontal absolute -right-8 top-5 text-[#55a7f1]" size={24} /> : showBelow ? <ArrowUp className="tour-arrow-vertical absolute -top-8 left-6 text-[#55a7f1]" size={24} /> : <ArrowDown className="tour-arrow-vertical absolute -bottom-8 left-6 text-[#55a7f1]" size={24} />)}
         <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#55a7f1]">{step.chapter} · Step {stepIndex + 1} of {SPOTLIGHT_STEPS.length}</p><h2 className="mt-1 text-base font-bold">{step.title}</h2></div><button type="button" onClick={closeTour} aria-label="Close tutorial" className="rounded-md p-1 text-neutral-500 hover:bg-white/8 hover:text-white"><X size={16} /></button></div>
         <p className="mt-2 text-xs leading-5 text-neutral-300">{step.description}</p>

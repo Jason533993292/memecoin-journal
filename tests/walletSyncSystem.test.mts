@@ -43,6 +43,10 @@ test("wallet sync uses a saved cursor and requires context before journal import
   assert.match(server, /sync cursor was not advanced/);
   assert.match(server, /firstMissing === 0/);
   assert.match(server, /HELIUS_API_KEY/);
+  assert.match(server, /getTransactionsForAddress/);
+  assert.match(server, /sortOrder: "asc"/);
+  assert.match(server, /signature: \{ gt: cursor \}/);
+  assert.match(server, /limit: SYNC_BATCH_LIMIT \+ 1/);
   assert.match(server, /tokenSnapshots/);
   assert.match(server, /marketCapSnapshotAt/);
   assert.match(panel, /Reason and setup are required/);
@@ -55,4 +59,15 @@ test("wallet sync uses a saved cursor and requires context before journal import
   assert.match(panel, /Waiting for full exit/);
   assert.match(panel, /prevents incorrect realized P&L/);
   assert.match(panel, /setLinks\(\(current\) => current\.filter/);
+  assert.doesNotMatch(panel, /border border-blue-200/);
+  assert.doesNotMatch(panel, /border border-emerald-200/);
+});
+
+test("the welcome tour measures each new target once after layout settles", async () => {
+  const tour = await readFile(new URL("src/components/WelcomeTourModal.tsx", root), "utf8");
+  assert.doesNotMatch(tour, /setTargetRect\(null\);\s*setStepIndex/);
+  assert.match(tour, /new ResizeObserver\(scheduleSettledMeasure\)/);
+  assert.match(tour, /duration-400 ease-out/);
+  assert.doesNotMatch(tour, /setTimeout\(locateTarget, 90\)/);
+  assert.doesNotMatch(tour, /setTimeout\(locateTarget, 220\)/);
 });

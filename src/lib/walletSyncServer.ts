@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import bs58 from "bs58";
 import nacl from "tweetnacl";
 import type { Json } from "@/lib/database.types";
-import { nextSyncCursor, planSignatureWindow, type SignatureRow } from "./walletSyncWindow";
+import { nextSyncCursor, planSignatureWindow, SYNC_BATCH_LIMIT, type SignatureRow, type SignatureWindow } from "./walletSyncWindow";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 
 export const SOLANA_ADDRESS_PATTERN = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
@@ -64,6 +64,48 @@ async function rpc(body: unknown, isUsable: (payload: unknown) => boolean = usab
   throw new Error("Solana data providers are temporarily unavailable. Wait a moment or configure a private RPC provider.");
 }
 
+async function indexedSignatureWindow(address: string, cursor: string): Promise<SignatureWindow | null> {
+  if (!HELIUS_RPC_URL) return null;
+  try {
+    const response = await fetch(HELIUS_RPC_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "getTransactionsForAddress",
+        params: [address, {
+          transactionDetails: "signatures",
+          limit: SYNC_BATCH_LIMIT + 1,
+          sortOrder: "asc",
+          filters: {
+            status: "succeeded",
+            signature: { gt: cursor },
+            tokenAccounts: "all",
+          },
+        }],
+      }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (!response.ok) return null;
+    const payload = await response.json() as { result?: { data?: SignatureRow[] }; error?: unknown };
+    if (payload.error || !Array.isArray(payload.result?.data)) return null;
+    const rows = payload.result.data.filter((row): row is SignatureRow & { signature: string } => Boolean(row.signature));
+    const ordered = rows.slice(0, SYNC_BATCH_LIMIT).map((row) => ({ signature: row.signature, blockTime: row.blockTime }));
+    return {
+      ordered,
+      windowEnd: ordered.at(-1)?.signature ?? null,
+      failedTransactions: 0,
+      hasMore: rows.length > SYNC_BATCH_LIMIT,
+      skippedOlder: false,
+    };
+  } catch {
+    // Fall back to standard Solana RPC. Its page limit still refuses to skip a large backlog.
+    return null;
+  }
+}
+
 async function fetchTransactions(signatures: Array<{ signature: string }>) {
   const transactions = new Map<number, unknown>();
   const requests = signatures.map((item, index) => ({ jsonrpc: "2.0", id: index + 10, method: "getTransaction", params: [item.signature, { encoding: "jsonParsed", maxSupportedTransactionVersion: 1 }] }));
@@ -118,6 +160,10 @@ async function assertLikelyWalletAddress(address: string) {
 
 async function successfulSignatures(address: string, cursor: string | null, mode: "incremental" | "rescan") {
   const incrementalWithCursor = Boolean(cursor) && mode === "incremental";
+  if (incrementalWithCursor && cursor) {
+    const indexed = await indexedSignatureWindow(address, cursor);
+    if (indexed) return indexed;
+  }
   const rows: SignatureRow[] = [];
   let before: string | undefined;
   let successfulSeen = 0;
