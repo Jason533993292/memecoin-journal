@@ -49,7 +49,7 @@ jobs:
           test -s backup/data.sql
           grep -Eq "CREATE TABLE|CREATE POLICY|CREATE FUNCTION" backup/schema.sql
           grep -Eq "COPY |INSERT INTO" backup/data.sql
-          shasum -a 256 backup/roles.sql backup/schema.sql backup/data.sql > backup/SHA256SUMS
+          (cd backup && shasum -a 256 roles.sql schema.sql data.sql > SHA256SUMS)
 
       - name: Encrypt backup before upload
         env:
