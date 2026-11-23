@@ -51,10 +51,27 @@ jobs:
           grep -Eq "COPY |INSERT INTO" backup/data.sql
           shasum -a 256 backup/roles.sql backup/schema.sql backup/data.sql > backup/SHA256SUMS
 
-      - name: Upload encrypted-at-rest workflow artifact
+      - name: Encrypt backup before upload
+        env:
+          BACKUP_AGE_RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
+        run: |
+          set -euo pipefail
+          test -n "$BACKUP_AGE_RECIPIENT" || { echo "BACKUP_AGE_RECIPIENT is not configured. Refusing to upload plaintext."; exit 1; }
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq age
+          mkdir -p upload
+          tar -C backup -cf - roles.sql schema.sql data.sql SHA256SUMS \
+            | age -r "$BACKUP_AGE_RECIPIENT" -o upload/production-database-backup.tar.age
+          test -s upload/production-database-backup.tar.age
+          (cd upload && shasum -a 256 production-database-backup.tar.age > SHA256SUMS)
+          find upload -maxdepth 1 -type f ! -name '*.age' ! -name 'SHA256SUMS' -print -quit | grep -q . \
+            && { echo "Unexpected plaintext file in upload directory."; exit 1; } || true
+          rm -rf backup
+
+      - name: Upload encrypted backup artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: production-database-backup-${{ github.run_id }}
-          path: backup/
+          path: upload/
           retention-days: 30
           if-no-files-found: error

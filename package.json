@@ -18,6 +18,7 @@
     "test:staging:isolation": "node scripts/verify-staging-isolation.mjs",
     "test:staging:trade-lifecycle": "node scripts/verify-staging-trade-lifecycle.mjs",
     "backup:verify": "node scripts/verify-supabase-backups.mjs",
+    "backup:compare-restore": "node scripts/restore-drill-compare.mjs",
     "security:secrets": "node scripts/scan-secrets.mjs",
     "security:dependencies": "npm audit --omit=dev --audit-level=high",
     "test:rules": "npx -y firebase-tools@latest emulators:exec --only firestore \"node --test tests/firestoreRules.test.mjs\"",

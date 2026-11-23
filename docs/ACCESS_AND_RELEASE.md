@@ -87,13 +87,32 @@ Do not enable enforcement before valid production traffic appears in App Check m
 
 `npm run backup:verify` confirms that Supabase reports a recent backup, but it deliberately does not restore production. A restore causes downtime and must remain an owner-approved operation.
 
-1. In Supabase, create an isolated preview branch or separate temporary project.
-2. Download a logical backup or select a provider backup made before the drill.
-3. Restore it only into the isolated target.
-4. Run the migration verifier and compare counts for `trades`, `wallets`, `wallet_transactions`, `coin_research`, `user_settings`, and `user_feedback`.
-5. Sign in with a disposable account and confirm row-level security still isolates accounts.
-6. Record the backup timestamp, restoration duration, record counts, and result.
-7. Remove the temporary target only after the evidence is saved. Never use production as the drill target.
+### Encrypted off-site backups
+
+The nightly `Database logical backup` workflow creates separate roles, schema, and data dumps. Before GitHub receives them, the workflow packs and encrypts them with `age`. It uploads only the `.age` archive and its encrypted-file checksum, and fails closed when `BACKUP_AGE_RECIPIENT` is absent. Never upload the SQL files directly: workflow artifacts on a public repository are not an appropriate confidentiality boundary.
+
+The public recipient is stored as the GitHub Actions variable `BACKUP_AGE_RECIPIENT`. The matching private identity is stored on the trusted maintainer Mac in Keychain under `memecoin-journal-backup-age-identity`, base64 encoded so its multiline format remains intact. Losing that identity makes the off-site backups unreadable; anyone who obtains it can read them.
+
+To recover the identity into a temporary file without printing it:
+
+```sh
+security find-generic-password -a "$USER" -s memecoin-journal-backup-age-identity -w | base64 --decode > /tmp/memecoin-journal-backup-age-identity.txt
+```
+
+Delete that exact temporary file after the drill. Do not commit it, upload it, paste it into logs, or store it as a GitHub secret.
+
+### Drill procedure
+
+1. Create a disposable Supabase branch or temporary project. Confirm it contains no data that must be retained. Never use production or the standing staging project as the target.
+2. Download the newest `production-database-backup-*` artifact. Confirm its outer `SHA256SUMS` and that it contains no `.sql` files.
+3. Decrypt it with the Keychain identity: `age -d -i /tmp/memecoin-journal-backup-age-identity.txt production-database-backup.tar.age | tar -x`.
+4. Verify the inner files with `shasum -a 256 -c SHA256SUMS`.
+5. Restore `roles.sql`, then `schema.sql`, then `data.sql` into the isolated target with `psql --single-transaction --variable ON_ERROR_STOP=1`. Follow the current Supabase logical restore guide and do not restore storage objects from the database dump.
+6. Run `SOURCE_DB_URL=<production read-only URL> RESTORED_DB_URL=<isolated URL> npm run backup:compare-restore`. The comparison checks every public table's row count plus exact table owners, RLS flags, policy definitions, table grants, and default privileges. A backup may have fewer rows than current production; different or missing security metadata fails.
+7. Point a disposable test deployment at the isolated target. With two disposable accounts, confirm neither can read the other's trades, journal entries, wallets, research, settings, feedback, or wallet events.
+8. Record the backup run, restore duration, comparison output, and result. Remove the disposable target only after saving the evidence.
+
+Run this drill after security-related schema migrations and at least quarterly.
 
 ## Release order
 
