@@ -167,7 +167,9 @@ function PublicWorkspace() {
   const [guestTrades, setGuestTrades] = useState<Trade[]>(() => readTransientGuestTrades());
   const [solPrice, setSolPrice] = useState(0);
   const demoTrades = useMemo(() => buildDemoTrades(), []);
-  const activeTrades = guestMode ? guestTrades : demoVisible ? demoTrades : [];
+  const activeTrades = guestMode
+    ? guestTutorialOpen && guestTrades.length === 0 ? demoTrades : guestTrades
+    : demoVisible ? demoTrades : [];
 
   useEffect(() => {
     // Remove temporary data written by older builds. The current guest session

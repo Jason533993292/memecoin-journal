@@ -188,7 +188,14 @@ export default function WalletSyncPanel({ onImportWalletTrade, existingWalletSig
     setReviewing(null); setReason(""); setSetup(""); setConfidence("50");
   };
 
-  if (!user) return null;
+  if (!user) return (
+    <section data-tour="wallet-sync" className="wallet-sync-wip-frame relative rounded-xl p-[7px]" aria-labelledby="wallet-sync-guest-heading">
+      <span className="absolute -top-3 left-5 z-10 rounded-md bg-[#171717] px-3 py-1 text-[10px] font-black tracking-[0.24em] text-[#ffd84d] shadow-lg">W.I.P.</span>
+      <div className="rounded-[9px] bg-white p-4 shadow-xs">
+        <div className="flex gap-2"><span className="rounded-lg bg-blue-50 p-2 text-blue-700"><WalletCards size={16}/></span><div><h2 id="wallet-sync-guest-heading" className="text-sm font-semibold text-[#37352f]">Linked wallet activity</h2><p className="mt-1 max-w-2xl text-[11px] leading-5 text-[#787774]">Account holders can link a public Solana address and review supported swaps before adding them to the journal. Guest mode shows this preview only; it never asks for a private key or seed phrase.</p></div></div>
+      </div>
+    </section>
+  );
   return (
     <section data-tour="wallet-sync" className="wallet-sync-wip-frame relative rounded-xl p-[7px]" aria-labelledby="wallet-sync-heading">
       <span className="absolute -top-3 left-5 z-10 rounded-md bg-[#171717] px-3 py-1 text-[10px] font-black tracking-[0.24em] text-[#ffd84d] shadow-lg" role="status">W.I.P.</span>

@@ -36,7 +36,7 @@ const SPOTLIGHT_STEPS: SpotlightStep[] = [
   { id: "paper-capital", chapter: "Wallets", selector: '[data-tour="paper-capital"]', title: "Paper Trading Capital", description: "Set a fictional starting balance for practice trades. Current simulated equity combines that starting amount with paper-trade P&L.", instruction: "Paper capital is not real SOL and cannot be withdrawn.", requireTargetClick: false, viewTab: "wallets" },
   { id: "new-wallet", chapter: "Wallets", selector: '[data-tour="new-wallet"]', title: "Add a trading wallet", description: "Create a named wallet with a balance and optional public address so trades and performance can be grouped correctly.", instruction: "This explanation does not open or submit the form.", requireTargetClick: false, viewTab: "wallets" },
   { id: "wallet-records", chapter: "Wallets", selector: '[data-tour="wallet-records"]', title: "Wallet performance and actions", description: "Review each wallet's balance, win rate, trades, P&L, address, deposits, withdrawals, and management actions in one place.", instruction: "If you have no real wallets yet, this area explains what will appear after you add one.", requireTargetClick: false, viewTab: "wallets" },
-  { id: "wallet-history", chapter: "Wallets", selector: '[data-tour="wallet-history"], [data-tour="wallet-records"]', title: "Deposit & Paycheck History", description: "Deposits record capital moved into a wallet. Paychecks record profit removed from it without changing your historical trades.", instruction: "The history keeps those balance changes separate from trading P&L. The tab appears after the first wallet transaction exists.", requireTargetClick: false, viewTab: "wallets" },
+  { id: "wallet-history", chapter: "Wallets", selector: '[data-tour="wallet-history"]', title: "Deposit & Paycheck History", description: "Deposits record capital moved into a wallet. Paychecks record profit removed from it without changing your historical trades.", instruction: "The history keeps those balance changes separate from trading P&L. The tab appears after the first wallet transaction exists.", requireTargetClick: false, viewTab: "wallets" },
   { id: "analytics", chapter: "Analytics", selector: '[data-tour="nav-statistics"]', title: "Analytics", description: "Compare win rate, setups, discipline, streaks, holding time, and performance across your saved history.", instruction: "Click the highlighted Analytics button.", requireTargetClick: true },
   { id: "analytics-calendar", chapter: "Analytics", selector: '[data-tour="monthly-calendar"]', title: "Review every trading day", description: "Move between months, switch SOL or USD, and select any profit or loss day to open the trade cards that produced that result.", instruction: "Use the calendar to connect a monthly total back to the individual decisions behind it.", requireTargetClick: false, viewTab: "statistics" },
   { id: "analytics-discipline", chapter: "Analytics", selector: '[data-tour="analytics-discipline"]', title: "Discipline & confidence", description: "Compare process grades and entry confidence with actual outcomes to find where execution matches—or conflicts with—your expectations.", instruction: "Small samples can mislead, so use these figures as descriptive evidence.", requireTargetClick: false, viewTab: "statistics" },
@@ -151,7 +151,7 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
         event.preventDefault();
         event.stopImmediatePropagation();
         if (step.requireTargetClick) findVisibleTarget(step.selector)?.click();
-        else advance();
+        advance();
         return;
       }
       if (isInsideTutorial(event.target)) return;
@@ -181,9 +181,6 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
     const announceStep = () => window.dispatchEvent(new CustomEvent("memecoin-journal-tour-step", { detail: { id: step.id } }));
 
     let target: HTMLElement | null = null;
-    let clickTarget: HTMLElement | null = null;
-    let clickHandler: (() => void) | null = null;
-    let hasAdvanced = false;
     const timers: number[] = [];
     let measureFrame: number | null = null;
     let resizeObserver: ResizeObserver | null = null;
@@ -219,16 +216,6 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
       resizeObserver?.disconnect();
       resizeObserver = new ResizeObserver(scheduleSettledMeasure);
       resizeObserver.observe(target);
-      if (step.requireTargetClick && clickTarget !== target) {
-        if (clickTarget && clickHandler) clickTarget.removeEventListener("click", clickHandler);
-        clickTarget = target;
-        clickHandler = () => {
-          if (hasAdvanced) return;
-          hasAdvanced = true;
-          window.setTimeout(advance, 40);
-        };
-        clickTarget.addEventListener("click", clickHandler, { once: true });
-      }
     };
     announceStep();
     timers.push(window.setTimeout(announceStep, 60));
@@ -241,7 +228,6 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
       timers.forEach((timer) => window.clearTimeout(timer));
       if (measureFrame !== null) window.cancelAnimationFrame(measureFrame);
       resizeObserver?.disconnect();
-      if (clickTarget && clickHandler) clickTarget.removeEventListener("click", clickHandler);
       window.removeEventListener("resize", settleAfterResize);
       window.removeEventListener("scroll", settleAfterScroll, true);
       if (document.documentElement.dataset.tourStep === step.id) delete document.documentElement.dataset.tourStep;
@@ -251,7 +237,7 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
   if (!isOpen) return null;
   if (!started) {
     return (
-      <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+      <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
         <section role="dialog" aria-modal="true" aria-labelledby="welcome-tour-title" className="relative w-full max-w-xl overflow-hidden rounded-3xl border border-white/10 bg-[#111318] p-6 text-white shadow-2xl sm:p-8">
           <button type="button" onClick={closeTour} aria-label="Close welcome tour" className="absolute right-4 top-4 rounded-lg p-2 text-neutral-400 transition hover:bg-white/8 hover:text-white"><X size={18} /></button>
           <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-500/15 text-[#55a7f1]"><BookOpen size={24} /></div>
@@ -292,17 +278,19 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
     : { top: "50%", left: "50%", width: tooltipWidth, transform: "translate(-50%, -50%)" };
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-[80]" aria-live="polite">
+    <div className="pointer-events-none fixed inset-0 z-[200]" aria-live="polite">
       {!targetRect && <div className="pointer-events-auto fixed inset-0 bg-black/80" aria-hidden="true" />}
       {targetRect && <>
         <div className="pointer-events-auto fixed left-0 right-0 top-0 bg-black/80 transition-[height] duration-400 ease-out" style={{ height: targetRect.top }} />
         <div className="pointer-events-auto fixed bottom-0 left-0 right-0 bg-black/80 transition-[top] duration-400 ease-out" style={{ top: targetRect.bottom }} />
         <div className="pointer-events-auto fixed left-0 bg-black/80 transition-[top,width,height] duration-400 ease-out" style={{ top: targetRect.top, width: targetRect.left, height: targetRect.height }} />
         <div className="pointer-events-auto fixed right-0 bg-black/80 transition-[top,left,height] duration-400 ease-out" style={{ top: targetRect.top, left: targetRect.right, height: targetRect.height }} />
-        {!step.requireTargetClick && <div className="pointer-events-auto fixed bg-transparent" aria-hidden="true" style={{ top: targetRect.top, left: targetRect.left, width: targetRect.width, height: targetRect.height }} />}
-        <div className="pointer-events-none fixed rounded-xl border-2 border-[#55a7f1] shadow-[0_0_0_4px_rgba(35,131,226,0.25),0_0_28px_rgba(35,131,226,0.7)] transition-[top,left,width,height] duration-400 ease-out" style={{ top: targetRect.top, left: targetRect.left, width: targetRect.width, height: targetRect.height }} />
+        {step.requireTargetClick
+          ? <button type="button" aria-label={`Activate ${step.title}`} onClick={() => { findVisibleTarget(step.selector)?.click(); advance(); }} className="pointer-events-auto fixed bg-transparent" style={{ top: targetRect.top, left: targetRect.left, width: targetRect.width, height: targetRect.height }} />
+          : <div className="pointer-events-auto fixed bg-transparent" aria-hidden="true" style={{ top: targetRect.top, left: targetRect.left, width: targetRect.width, height: targetRect.height }} />}
+        <div data-tour-highlight={step.id} className="pointer-events-none fixed rounded-xl border-2 border-[#55a7f1] shadow-[0_0_0_4px_rgba(35,131,226,0.25),0_0_28px_rgba(35,131,226,0.7)] transition-[top,left,width,height] duration-400 ease-out" style={{ top: targetRect.top, left: targetRect.left, width: targetRect.width, height: targetRect.height }} />
       </>}
-      <section data-tour-dialog role="dialog" aria-modal="true" aria-label={`Tutorial step ${stepIndex + 1}: ${step.title}`} className="tour-tooltip-scrollbar pointer-events-auto fixed z-[91] max-h-[calc(100vh-24px)] overflow-y-auto rounded-2xl border border-white/10 bg-[#111318] p-4 text-white shadow-2xl transition-[top,left,right,bottom,transform] duration-400 ease-out" style={tooltipStyle}>
+      <section data-tour-dialog role="dialog" aria-modal="true" aria-label={`Tutorial step ${stepIndex + 1}: ${step.title}`} className="tour-tooltip-scrollbar pointer-events-auto fixed z-[201] max-h-[calc(100vh-24px)] overflow-y-auto rounded-2xl border border-white/10 bg-[#111318] p-4 text-white shadow-2xl transition-[top,left,right,bottom,transform] duration-400 ease-out" style={tooltipStyle}>
         {targetRect && (sidePlacement === "right" ? <ArrowLeft className="tour-arrow-horizontal absolute -left-8 top-5 text-[#55a7f1]" size={24} /> : sidePlacement === "left" ? <ArrowRight className="tour-arrow-horizontal absolute -right-8 top-5 text-[#55a7f1]" size={24} /> : showBelow ? <ArrowUp className="tour-arrow-vertical absolute -top-8 left-6 text-[#55a7f1]" size={24} /> : <ArrowDown className="tour-arrow-vertical absolute -bottom-8 left-6 text-[#55a7f1]" size={24} />)}
         <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#55a7f1]">{step.chapter} · Step {stepIndex + 1} of {SPOTLIGHT_STEPS.length}</p><h2 className="mt-1 text-base font-bold">{step.title}</h2></div><button type="button" onClick={closeTour} aria-label="Close tutorial" className="rounded-md p-1 text-neutral-500 hover:bg-white/8 hover:text-white"><X size={16} /></button></div>
         <p className="mt-2 text-xs leading-5 text-neutral-300">{step.description}</p>
