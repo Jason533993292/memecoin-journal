@@ -46,7 +46,7 @@ where table_schema = 'public'
 order by table_name, grantee, privilege_type;
 
 select 'default_acl',
-       coalesce(n.nspname, '*') || '.' || pg_get_userbyid(d.defaclrole) || '.' || d.defaclobjtype,
+       coalesce(n.nspname, '*') || '.' || pg_get_userbyid(d.defaclrole) || '.' || d.defaclobjtype::text,
        md5(array_to_string(coalesce(d.defaclacl, acldefault(d.defaclobjtype, d.defaclrole)), ','))
 from pg_default_acl d
 left join pg_namespace n on n.oid = d.defaclnamespace
