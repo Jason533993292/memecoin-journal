@@ -8,7 +8,7 @@ export const maxDuration = 30;
 function validSecret(request: Request) {
   const expected = process.env.WALLET_WEBHOOK_SECRET?.trim() || "";
   const supplied = request.headers.get("x-wallet-webhook-secret") || "";
-  if (expected.length < 32 || expected.length !== supplied.length) return false;
+  if (expected.length < 32 || Buffer.byteLength(expected) !== Buffer.byteLength(supplied)) return false;
   return timingSafeEqual(Buffer.from(expected), Buffer.from(supplied));
 }
 

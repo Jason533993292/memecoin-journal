@@ -13,7 +13,7 @@ export type WalletEventLike = {
   fee_sol: number;
   status: string;
   source: "rpc" | "webhook";
-  raw?: { token?: { name?: string; symbol?: string; marketCapUsd?: number | null } };
+  raw?: { executionMarketCapUsd?: number; token?: { name?: string; symbol?: string; marketCapUsd?: number | null } };
   wallet_links?: { label?: string; address?: string } | null;
 };
 
@@ -32,6 +32,8 @@ export type WalletPosition = {
   mint: string;
   tokenName: string;
   tokenSymbol: string;
+  entryMarketCapUsd?: number;
+  exitMarketCapUsd?: number;
   currentMarketCapUsd: number | null;
   eventIds: string[];
   signatures: string[];
@@ -116,11 +118,13 @@ export function buildWalletPositions(events: WalletEventLike[], journaledSignatu
     const quoteAmount = event.direction === "buy" ? Math.max(0, -solChange - fee) : Math.max(0, solChange + fee);
     const fillId = `${event.signature}-${event.event_index}`;
     if (event.direction === "buy") {
+      if (!position.tokensBought) position.entryMarketCapUsd = event.raw?.executionMarketCapUsd;
       position.boughtSol += quoteAmount;
       position.tokensBought += Math.max(0, tokenChange);
       position.entryAt = Math.min(position.entryAt, time);
       position.fills.push({ id: fillId, side: "entry", quoteAmount, feeSol: fee, executedAt: time });
     } else {
+      position.exitMarketCapUsd = event.raw?.executionMarketCapUsd;
       position.soldSol += quoteAmount;
       position.tokensSold += Math.max(0, -tokenChange);
       position.exitAt = Math.max(position.exitAt || 0, time);

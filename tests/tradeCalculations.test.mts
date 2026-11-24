@@ -8,7 +8,6 @@ import {
   getTradeSoldUsd,
   getUsdValueStatus,
   normalizeTrade,
-  summarizeTrades,
 } from "../src/lib/tradeCalculations.ts";
 
 test("calculates realized R-multiple only when planned risk is valid", () => {
@@ -91,19 +90,4 @@ test("uses the saved entry conversion rate for missing historical USD amounts", 
   assert.deepEqual(getUsdValueStatus(trade, 150), { value: 40, source: "stored" });
   assert.deepEqual(getTradeBoughtUsd(trade, 150), { value: 80, source: "stored" });
   assert.deepEqual(getTradeSoldUsd(trade, 150), { value: 120, source: "stored" });
-});
-
-test("summaries keep zero USD values, calculate median, drawdown, and trade mode filters", () => {
-  const trades = [
-    normalizeTrade({ id: "a", ca: "a", name: "A", symbol: "A", wallet: "Main", result: "Win", boughtSol: 1, pnlSol: 2, pnlUsd: 0, mistakes: [], tradeMode: "real" }),
-    normalizeTrade({ id: "b", ca: "b", name: "B", symbol: "B", wallet: "Main", result: "Loss", boughtSol: 1, pnlSol: -1, pnlUsd: -100, mistakes: [], tradeMode: "real", feesSol: 0.1 }),
-    normalizeTrade({ id: "c", ca: "c", name: "C", symbol: "C", wallet: "Paper", result: "Win", boughtSol: 1, pnlSol: 1, pnlUsd: 100, mistakes: [], tradeMode: "paper" }),
-  ];
-
-  const summary = summarizeTrades(trades, 100, "real");
-  assert.equal(summary.count, 2);
-  assert.equal(summary.totalPnlUsd, -100);
-  assert.equal(summary.medianPnlSol, 0.5);
-  assert.equal(summary.maxDrawdownSol, 1);
-  assert.equal(summary.totalFeesSol, 0.1);
 });

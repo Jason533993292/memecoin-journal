@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
@@ -21,9 +22,15 @@ export function parseSnapshot(text) {
   return snapshot;
 }
 
-export function compareSnapshots(source, restored) {
+export function compareSnapshots(source, restored, backupRows) {
   const failures = [];
   const notes = [];
+  if (backupRows) {
+    const restoredRows = new Map([...restored].filter(([, row]) => row.kind === "rows"));
+    for (const key of new Set([...backupRows.keys(), ...restoredRows.keys()])) {
+      if (!backupRows.has(key) || backupRows.get(key)?.value !== restoredRows.get(key)?.value) failures.push(`${key}: backup row count mismatch`);
+    }
+  }
   const allKeys = new Set([...source.keys(), ...restored.keys()]);
   for (const compoundKey of [...allKeys].sort()) {
     const expected = source.get(compoundKey);
@@ -37,9 +44,9 @@ export function compareSnapshots(source, restored) {
       const restoredRows = Number(actual.value);
       if (!Number.isSafeInteger(sourceRows) || !Number.isSafeInteger(restoredRows)) {
         failures.push(`${compoundKey}: invalid row count`);
-      } else if (restoredRows > sourceRows) {
+      } else if (!backupRows && restoredRows !== sourceRows) {
         failures.push(`${compoundKey}: restored has ${restoredRows}, production has ${sourceRows}`);
-      } else if (restoredRows < sourceRows) {
+      } else if (restoredRows !== sourceRows) {
         notes.push(`${compoundKey}: restored ${restoredRows}; production now ${sourceRows}`);
       }
       continue;
@@ -53,7 +60,8 @@ export function compareSnapshots(source, restored) {
 
 function capture(url) {
   const script = fileURLToPath(new URL("./restore-drill-checks.sql", import.meta.url));
-  return execFileSync("psql", ["-X", "-qAt", "-v", "ON_ERROR_STOP=1", "--dbname", url, "--file", script], {
+  return execFileSync("psql", ["-X", "-qAt", "-v", "ON_ERROR_STOP=1", "--file", script], {
+    env: { ...process.env, PGDATABASE: url },
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
     maxBuffer: 20 * 1024 * 1024,
@@ -64,7 +72,10 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const sourceUrl = process.env.SOURCE_DB_URL;
   const restoredUrl = process.env.RESTORED_DB_URL;
   if (!sourceUrl || !restoredUrl) throw new Error("Set SOURCE_DB_URL and RESTORED_DB_URL.");
-  const result = compareSnapshots(parseSnapshot(capture(sourceUrl)), parseSnapshot(capture(restoredUrl)));
+  if (!process.env.BACKUP_ROW_MANIFEST) throw new Error("Set BACKUP_ROW_MANIFEST to the extracted row-counts.txt.");
+  const manifest = parseSnapshot(readFileSync(process.env.BACKUP_ROW_MANIFEST, "utf8"));
+  if (!manifest.size) throw new Error("Empty backup manifest.");
+  const result = compareSnapshots(parseSnapshot(capture(sourceUrl)), parseSnapshot(capture(restoredUrl)), manifest);
   for (const note of result.notes) console.log(`NOTE ${note}`);
   if (result.failures.length) {
     for (const failure of result.failures) console.error(`FAIL ${failure}`);

@@ -28,7 +28,6 @@ export interface TradeAmountResult {
   pnlUsd: number;
 }
 
-export type TradeCurrencyMode = "SOL" | "USD";
 export const QUOTE_CURRENCIES = ["SOL", "USD", "USDC", "USDT", "ETH", "BTC", "EUR", "GBP", "OTHER"] as const;
 export const TRADING_VENUES = ["Robinhood", "Coinbase", "Binance", "Kraken", "Phantom", "Jupiter", "Raydium", "Other"] as const;
 
@@ -61,10 +60,6 @@ export function quoteAmountsToBase(input: {
   };
 }
 
-export interface CurrencyAmountPair {
-  sol: string;
-  usd: string;
-}
 
 const TRADE_CREATE_FIELDS = new Set([
   "ca", "name", "symbol", "wallet", "result", "setupType", "mcap",
@@ -238,36 +233,6 @@ function parseRequiredAmount(value: string, field: string): number {
     throw new RangeError(`${field} is required.`);
   }
   return parsed;
-}
-
-function formatConvertedSol(value: number): string {
-  return value.toFixed(9).replace(/\.?0+$/, "");
-}
-
-/**
- * Reinterprets the visible amount when its unit changes without changing the
- * text the user entered. The hidden counterpart is recalculated so persisted
- * SOL and USD values remain internally consistent.
- */
-export function reinterpretAmountForCurrency(
-  visibleValue: string,
-  currency: TradeCurrencyMode,
-  solPrice: number
-): CurrencyAmountPair {
-  const trimmed = visibleValue.trim();
-  if (!trimmed) return { sol: "", usd: "" };
-
-  const amount = Number(trimmed);
-  const validPrice = Number.isFinite(solPrice) && solPrice > 0;
-  if (!Number.isFinite(amount) || !validPrice) {
-    return currency === "SOL"
-      ? { sol: visibleValue, usd: "" }
-      : { sol: "", usd: visibleValue };
-  }
-
-  return currency === "SOL"
-    ? { sol: visibleValue, usd: (amount * solPrice).toFixed(2) }
-    : { sol: formatConvertedSol(amount / solPrice), usd: visibleValue };
 }
 
 export function parseQuickTradePaste(value: string): QuickTradePasteResult {

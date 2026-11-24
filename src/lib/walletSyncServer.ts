@@ -212,6 +212,34 @@ function ownedTokenMap(items: RpcTokenBalance[] | undefined, owner: string) {
   return map;
 }
 
+// Sample only the hour preceding each execution. Sparse or unavailable history stays blank.
+async function enrichHistoricalCaps(events: ParsedEvent[]) {
+  const groups = new Map<string, ParsedEvent[]>();
+  for (const event of events) {
+    if (!SOLANA_ADDRESS_PATTERN.test(event.mint) || !["buy", "sell"].includes(event.direction)) continue;
+    const hour = Math.floor(Date.parse(event.block_time) / 3_600_000);
+    const key = event.mint + ":" + hour;
+    const group = groups.get(key);
+    if (group) group.push(event);
+    else if (groups.size < 4) groups.set(key, [event]);
+  }
+  await Promise.all([...groups.values()].map(async group => {
+    const first = group[0];
+    const hour = Math.floor(Date.parse(first.block_time) / 3_600_000) * 3600;
+    try {
+      const response = await fetch(`https://api.coingecko.com/api/v3/coins/solana/contract/${first.mint}/market_chart/range?vs_currency=usd&from=${hour - 3600}&to=${hour + 3600}`, { signal: AbortSignal.timeout(2200) });
+      if (!response.ok) return;
+      const { market_caps: samples } = await response.json();
+      if (!Array.isArray(samples)) return;
+      for (const event of group) {
+        const time = Date.parse(event.block_time);
+        const match = samples.filter(p => Array.isArray(p) && Number.isFinite(p[0]) && p[0] <= time && time - p[0] <= 3_600_000 && Number.isFinite(p[1]) && p[1] > 0).sort((a,b) => b[0]-a[0])[0];
+        if (match) event.raw = { ...(event.raw as Record<string, Json>), executionMarketCapUsd: match[1], marketCapSampleAt: match[0] };
+      }
+    } catch { /* Market data is optional; a missing quote must not block a sync. */ }
+  }));
+}
+
 async function tokenSnapshots(mints: string[]) {
   const unique = [...new Set(mints)].filter((mint) => SOLANA_ADDRESS_PATTERN.test(mint)).slice(0, 30);
   const snapshots = new Map<string, TokenSnapshot>();
@@ -230,7 +258,7 @@ async function tokenSnapshots(mints: string[]) {
       if (!mint || !unique.includes(mint)) continue;
       const liquidity = Number(pair.liquidity?.usd) || 0;
       if (snapshots.has(mint) && liquidity <= (liquidityByMint.get(mint) || 0)) continue;
-      const marketCap = Number(pair.marketCap ?? pair.fdv);
+      const marketCap = Number(pair.marketCap ?? NaN);
       snapshots.set(mint, {
         name: pair.baseToken?.name?.trim() || "Solana token",
         symbol: pair.baseToken?.symbol?.trim() || mint.slice(0, 5),
@@ -312,32 +340,33 @@ export async function syncWalletLink(userId: string, linkId: string, mode: "incr
     if (!tx?.meta) return;
     const keys = tx.transaction?.message?.accountKeys || [];
     const ownerIndex = keys.findIndex((key) => (typeof key === "string" ? key : key.pubkey) === link.address);
-    const feeSol = (tx.meta.fee || 0) / 1e9;
+    const feeSol = ownerIndex === 0 ? (tx.meta.fee || 0) / 1e9 : 0;
     const solChange = ownerIndex >= 0 ? ((tx.meta.postBalances?.[ownerIndex] || 0) - (tx.meta.preBalances?.[ownerIndex] || 0)) / 1e9 : 0;
     const before = ownedTokenMap(tx.meta.preTokenBalances, link.address);
     const after = ownedTokenMap(tx.meta.postTokenBalances, link.address);
     const tokenChanges = [...new Set([...before.keys(), ...after.keys()])].map((mint) => ({ mint, change: (after.get(mint) || 0) - (before.get(mint) || 0) })).filter((item) => Math.abs(item.change) > 0.000000001);
     const wrappedSolChange = tokenChanges.find((item) => item.mint === WRAPPED_SOL_MINT)?.change;
-    const quoteChange = typeof wrappedSolChange === "number" && Math.abs(wrappedSolChange) > 0.000000001 ? wrappedSolChange : solChange;
+    const quoteChange = typeof wrappedSolChange === "number" && Math.abs(wrappedSolChange) > 0.000000001 ? wrappedSolChange : solChange + feeSol;
     const effectiveSolChange = typeof wrappedSolChange === "number" && Math.abs(wrappedSolChange) > 0.000000001 ? wrappedSolChange - feeSol : solChange;
     const tradedTokens = tokenChanges.filter((item) => item.mint !== WRAPPED_SOL_MINT);
     const blockTime = new Date((signature.blockTime || Math.floor(Date.now() / 1000)) * 1000).toISOString();
     let transactionHasSwap = false;
     let transactionHasTransfer = false;
     tradedTokens.forEach((token, eventIndex) => {
-      const direction: ParsedEvent["direction"] = token.change > 0 && quoteChange < 0 ? "buy" : token.change < 0 && quoteChange > 0 ? "sell" : "transfer";
+      const direction: ParsedEvent["direction"] = tradedTokens.length > 1 ? "unknown" : token.change > 0 && quoteChange < 0 ? "buy" : token.change < 0 && quoteChange > 0 ? "sell" : "transfer";
       transactionHasSwap ||= direction === "buy" || direction === "sell";
       transactionHasTransfer ||= direction === "transfer";
       events.push({ signature: signature.signature, event_index: eventIndex, block_time: blockTime, mint: token.mint, direction, sol_change: direction === "buy" || direction === "sell" ? effectiveSolChange : solChange, token_change: token.change, fee_sol: feeSol, source: "rpc", raw: { classification: direction, usedWrappedSol: typeof wrappedSolChange === "number" } });
     });
     if (transactionHasSwap) swapTransactions += 1;
-    else if (transactionHasTransfer || Math.abs(solChange) > 0.000000001) transferTransactions += 1;
+    else if (transactionHasTransfer || (!tradedTokens.length && Math.abs(quoteChange) > 0.000000001)) transferTransactions += 1;
     else {
       unclassifiedTransactions += 1;
       events.push({ signature: signature.signature, event_index: 9999, block_time: blockTime, mint: "", direction: "unknown", sol_change: solChange, token_change: 0, fee_sol: feeSol, source: "rpc", raw: { classification: "unclassified" } });
     }
   });
 
+  await enrichHistoricalCaps(events);
   const snapshots = await tokenSnapshots(events.map((event) => event.mint));
   for (const event of events) {
     const token = snapshots.get(event.mint);
@@ -420,7 +449,7 @@ export async function confirmWalletOwnership(userId: string, linkId: string, sig
   if (updateError) throw new Error(updateError.message);
 }
 
-export async function ingestWebhookEvents(input: Array<{ address: string; signature: string; blockTime: number; mint: string; direction: string; solChange?: number; tokenChange?: number; feeSol?: number; eventIndex?: number }>) {
+export async function ingestWebhookEvents(input: Array<{ address: string; signature: string; blockTime: number; mint: string; direction: string; solChange?: number; tokenChange?: number; feeSol?: number; executionMarketCapUsd?: number; eventIndex?: number }>) {
   let stored = 0;
   for (const event of input.slice(0, 100)) {
     if (!SOLANA_ADDRESS_PATTERN.test(event.address) || !SOLANA_ADDRESS_PATTERN.test(event.mint) || !/^[1-9A-HJ-NP-Za-km-z]{64,128}$/.test(event.signature)) continue;
@@ -428,7 +457,7 @@ export async function ingestWebhookEvents(input: Array<{ address: string; signat
     if (error) throw new Error(error.message);
     for (const link of links || []) {
       const direction = ["buy", "sell", "transfer", "unknown"].includes(event.direction) ? event.direction : "unknown";
-      const { error: insertError } = await admin().from("wallet_events").upsert({ user_id: link.user_id, wallet_link_id: link.id, signature: event.signature, event_index: Number.isInteger(event.eventIndex) ? event.eventIndex : 0, block_time: new Date(event.blockTime).toISOString(), mint: event.mint, direction, sol_change: Number(event.solChange) || 0, token_change: Number(event.tokenChange) || 0, fee_sol: Math.max(0, Number(event.feeSol) || 0), source: "webhook", raw: {} }, { onConflict: "wallet_link_id,signature,event_index", ignoreDuplicates: true });
+      const { error: insertError } = await admin().from("wallet_events").upsert({ user_id: link.user_id, wallet_link_id: link.id, signature: event.signature, event_index: Number.isInteger(event.eventIndex) ? event.eventIndex : 0, block_time: new Date(event.blockTime).toISOString(), mint: event.mint, direction, sol_change: Number(event.solChange) || 0, token_change: Number(event.tokenChange) || 0, fee_sol: Math.max(0, Number(event.feeSol) || 0), source: "webhook", raw: typeof event.executionMarketCapUsd === "number" && Number.isFinite(event.executionMarketCapUsd) && event.executionMarketCapUsd > 0 ? { executionMarketCapUsd: event.executionMarketCapUsd } : {} }, { onConflict: "wallet_link_id,signature,event_index", ignoreDuplicates: true });
       if (insertError) throw new Error(insertError.message);
       stored += 1;
     }

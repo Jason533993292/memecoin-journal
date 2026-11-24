@@ -49,7 +49,9 @@ jobs:
           test -s backup/data.sql
           grep -Eq "CREATE TABLE|CREATE POLICY|CREATE FUNCTION" backup/schema.sql
           grep -Eq "COPY |INSERT INTO" backup/data.sql
-          (cd backup && shasum -a 256 roles.sql schema.sql data.sql > SHA256SUMS)
+          awk '/^COPY "public"\."[^"]+" / {split($0, a, "\""); name=a[4]; count=0; next} name && $0=="\\." {print "rows|public." name "|" count; name=""; next} name {count++} END {if(name) exit 1}' backup/data.sql > backup/row-counts.txt
+          test -s backup/row-counts.txt
+          (cd backup && shasum -a 256 roles.sql schema.sql data.sql row-counts.txt > SHA256SUMS)
 
       - name: Encrypt backup before upload
         env:
@@ -60,7 +62,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq age
           mkdir -p upload
-          tar -C backup -cf - roles.sql schema.sql data.sql SHA256SUMS \
+          tar -C backup -cf - roles.sql schema.sql data.sql row-counts.txt SHA256SUMS \
             | age -r "$BACKUP_AGE_RECIPIENT" -o upload/production-database-backup.tar.age
           test -s upload/production-database-backup.tar.age
           (cd upload && shasum -a 256 production-database-backup.tar.age > SHA256SUMS)

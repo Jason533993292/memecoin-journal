@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildTradeAmounts, calculateTradePnl, isValidSolAmount, parseQuickTradePaste, reinterpretAmountForCurrency, quoteAmountsToBase, defaultQuoteUsdRate, summarizeTradeFills, getTradeCreateValidationError } from "../src/lib/tradeInput.ts";
+import { buildTradeAmounts, calculateTradePnl, isValidSolAmount, parseQuickTradePaste, quoteAmountsToBase, defaultQuoteUsdRate, summarizeTradeFills, getTradeCreateValidationError } from "../src/lib/tradeInput.ts";
 
 const DIGIT_HEAVY_ADDRESS = "So11111111111111111111111111111111111111112";
 
@@ -77,20 +77,6 @@ test("SOL amounts preserve lamport precision and reject unsupported precision or
   assert.equal(isValidSolAmount(1.0000000001), false);
   assert.equal(isValidSolAmount(100_000_001), false);
   assert.equal(isValidSolAmount(0, false), false);
-});
-
-test("switching from SOL to USD keeps the visible number and reinterprets its unit", () => {
-  assert.deepEqual(reinterpretAmountForCurrency("1", "USD", 150), {
-    sol: "0.006666667",
-    usd: "1",
-  });
-});
-
-test("switching from USD to SOL keeps the visible number and updates the hidden USD value", () => {
-  assert.deepEqual(reinterpretAmountForCurrency("1", "SOL", 150), {
-    sol: "1",
-    usd: "150.00",
-  });
 });
 
 test("ETH quote amounts normalize to SOL and USD using the recorded historical conversion rate", () => {

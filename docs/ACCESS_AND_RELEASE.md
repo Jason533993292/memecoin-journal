@@ -108,7 +108,7 @@ Delete that exact temporary file after the drill. Do not commit it, upload it, p
 3. Decrypt it with the Keychain identity: `age -d -i /tmp/memecoin-journal-backup-age-identity.txt production-database-backup.tar.age | tar -x`.
 4. Verify the inner files with `shasum -a 256 -c SHA256SUMS`.
 5. Restore `roles.sql`, then `schema.sql`, then `data.sql` into the isolated target with `psql --single-transaction --variable ON_ERROR_STOP=1`. Follow the current Supabase logical restore guide and do not restore storage objects from the database dump.
-6. Run `SOURCE_DB_URL=<production read-only URL> RESTORED_DB_URL=<isolated URL> npm run backup:compare-restore`. The comparison checks every public table's row count plus exact table owners, RLS flags, policy definitions, table grants, and default privileges. A backup may have fewer rows than current production; different or missing security metadata fails.
+6. Run `BACKUP_ROW_MANIFEST=./row-counts.txt SOURCE_DB_URL=<production read-only URL> RESTORED_DB_URL=<isolated URL> npm run backup:compare-restore`. The comparison checks every public table's row count plus exact table owners, RLS flags, policy definitions, table grants, and default privileges. Restored counts must match the encrypted backup’s manifest exactly. Production counts can change after the backup; different or missing security metadata fails.
 7. Point a disposable test deployment at the isolated target. With two disposable accounts, confirm neither can read the other's trades, journal entries, wallets, research, settings, feedback, or wallet events.
 8. Record the backup run, restore duration, comparison output, and result. Remove the disposable target only after saving the evidence.
 

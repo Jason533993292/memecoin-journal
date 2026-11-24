@@ -15,11 +15,16 @@ test("restore comparison detects exact grants and owners", () => {
 });
 
 test("older backup row counts are notes, not failures", () => {
-  const result = compareSnapshots(parseSnapshot("rows|public.trades|8"), parseSnapshot("rows|public.trades|6"));
+  const result = compareSnapshots(parseSnapshot("rows|public.trades|8"), parseSnapshot("rows|public.trades|6"), parseSnapshot("rows|public.trades|6"));
   assert.deepEqual(result.failures, []);
   assert.equal(result.notes.length, 1);
 });
 
 test("duplicate snapshot keys are rejected", () => {
   assert.throws(() => parseSnapshot("rows|public.trades|1\nrows|public.trades|1"), /Duplicate/);
+});
+
+test("lost backup rows fail even if production grew", () => {
+  const counts = (n: number) => parseSnapshot("rows|public.trades|" + n);
+  assert.equal(compareSnapshots(counts(8), counts(5), counts(6)).failures.length, 1);
 });

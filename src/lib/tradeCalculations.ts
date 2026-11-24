@@ -1,4 +1,4 @@
-import type { Trade, TradeMode } from "./types";
+import type { Trade } from "./types";
 
 type UsdValueSource = "stored" | "estimated" | "unavailable";
 
@@ -12,15 +12,6 @@ export interface TradeOutcome {
   pnlUsd: number | null;
   feesSol: number;
   result: Trade["result"];
-}
-
-export interface TradeSummary {
-  count: number;
-  totalPnlSol: number;
-  totalPnlUsd: number;
-  medianPnlSol: number;
-  maxDrawdownSol: number;
-  totalFeesSol: number;
 }
 
 function getTimestamp(trade: Trade): number {
@@ -103,42 +94,4 @@ export function getRMultiple(trade: Trade): number | null {
   if (typeof trade.initialRiskSol !== "number" || !Number.isFinite(trade.initialRiskSol) || trade.initialRiskSol <= 0) return null;
   if (!Number.isFinite(trade.pnlSol)) return null;
   return trade.pnlSol / trade.initialRiskSol;
-}
-
-function median(values: number[]): number {
-  if (values.length === 0) return 0;
-  const sorted = [...values].sort((a, b) => a - b);
-  const midpoint = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0
-    ? (sorted[midpoint - 1] + sorted[midpoint]) / 2
-    : sorted[midpoint];
-}
-
-export function summarizeTrades(trades: Trade[], currentSolPrice: number, mode?: TradeMode): TradeSummary {
-  const selected = mode ? trades.filter((trade) => normalizeTrade(trade).tradeMode === mode) : trades;
-  let equity = 0;
-  let peak = 0;
-  let maxDrawdownSol = 0;
-  let totalPnlSol = 0;
-  let totalPnlUsd = 0;
-  let totalFeesSol = 0;
-
-  for (const trade of selected) {
-    const outcome = calculateTradeOutcome(trade, currentSolPrice);
-    totalPnlSol += outcome.pnlSol;
-    totalPnlUsd += outcome.pnlUsd ?? 0;
-    totalFeesSol += outcome.feesSol;
-    equity += outcome.pnlSol;
-    peak = Math.max(peak, equity);
-    maxDrawdownSol = Math.max(maxDrawdownSol, peak - equity);
-  }
-
-  return {
-    count: selected.length,
-    totalPnlSol,
-    totalPnlUsd,
-    medianPnlSol: median(selected.map((trade) => trade.pnlSol || 0)),
-    maxDrawdownSol,
-    totalFeesSol,
-  };
 }

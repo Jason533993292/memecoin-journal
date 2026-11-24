@@ -32,6 +32,7 @@ export default function WalletSyncPanel({ onImportWalletTrade, existingWalletSig
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [reviewing, setReviewing] = useState<ReviewCandidate | null>(null);
+  const [autoLinkId, setAutoLinkId] = useState("");
   const [reason, setReason] = useState("");
   const [setup, setSetup] = useState("");
   const [confidence, setConfidence] = useState("50");
@@ -77,7 +78,7 @@ export default function WalletSyncPanel({ onImportWalletTrade, existingWalletSig
     } finally { setBusyId(null); }
   };
 
-  const sync = async (link: WalletLink, mode: "incremental" | "rescan" = "incremental") => {
+  const sync = useCallback(async (link: WalletLink, mode: "incremental" | "rescan" = "incremental") => {
     if (!user) return;
     if (mode === "rescan" && !window.confirm(`Repair history for ${link.label}? This re-checks the 50 most recent successful transactions and reclassifies activity that was not understood before. Your dismissed and imported decisions are kept and nothing is duplicated.`)) return;
     setBusyId(link.id);
@@ -98,9 +99,19 @@ export default function WalletSyncPanel({ onImportWalletTrade, existingWalletSig
       else if (checked > 0 && swaps === 0 && transfers === 0) showToast("No supported trades found", "info", `${detail} These were successful on-chain transactions, but none contained a swap or transfer this tracker can safely identify. No journal trades were created.${result.rescan ? " Repair finished; repeating it will not change these transactions until parser support improves." : " You can use Repair history after a parser update."}${more}${skipped}`);
       else showToast(result.rescan ? "History repaired" : result.incremental ? "Wallet synced" : "First sync complete", "success", `${detail}${more}${skipped}`);
     } catch (error) {
+      setAutoLinkId("");
       showToast("Wallet sync failed", "error", error instanceof Error ? error.message : "Try again shortly.");
     } finally { setBusyId(null); }
-  };
+  }, [user, showToast]);
+
+  useEffect(() => {
+    const link = links.find(item => item.id === autoLinkId);
+    if (!link || busyId || reviewing) return;
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void sync(link);
+    }, 120_000);
+    return () => window.clearInterval(timer);
+  }, [links, autoLinkId, busyId, reviewing, sync]);
 
   const unlink = async (link: WalletLink) => {
     if (!user || !window.confirm(`Unlink ${link.label}? Its pending review events will also be removed.`)) return;
@@ -168,6 +179,10 @@ export default function WalletSyncPanel({ onImportWalletTrade, existingWalletSig
     const pnl = reviewing.soldSol - reviewing.boughtSol - reviewing.feesSol;
     onImportWalletTrade({
       ca: reviewing.mint,
+      name: reviewing.tokenName,
+      symbol: reviewing.tokenSymbol,
+      entryMarketCapUsd: reviewing.entryMarketCapUsd,
+      exitMarketCapUsd: reviewing.exitMarketCapUsd,
       wallet: reviewing.walletLabel,
       setupType: setup.trim(),
       confidenceAtEntry: Math.max(0, Math.min(100, Number(confidence) || 0)),
@@ -180,7 +195,7 @@ export default function WalletSyncPanel({ onImportWalletTrade, existingWalletSig
       exitTime: reviewing.exitAt ? new Date(reviewing.exitAt).toISOString() : undefined,
       tradedAt: reviewing.entryAt,
       fills: reviewing.fills,
-      notes: `Reason for entry: ${reason.trim()}\nImported from read-only wallet sync. Verify amounts before saving. Transactions: ${reviewing.signatures.join(", ")}`,
+      notes: `Reason for entry: ${reason.trim()}\nImported from read-only wallet sync. Verify amounts before saving. Entry/exit caps, when supplied, are provider figures or historical estimates from the preceding hour. Transactions: ${reviewing.signatures.join(", ")}`,
       walletSource: reviewing.source,
       walletSourceSignatures: reviewing.signatures,
       walletEventIds: reviewing.eventIds,
@@ -215,6 +230,7 @@ export default function WalletSyncPanel({ onImportWalletTrade, existingWalletSig
         {links.map((link) => <article key={link.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#e9e9e7] bg-[#fbfbfa] p-3">
           <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><strong className="text-xs text-[#37352f]">{link.label}</strong>{link.verified_at && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[9px] font-semibold text-emerald-700"><CheckCircle2 size={10}/>Verified owner</span>}</div><p className="mt-1 truncate font-mono text-[10px] text-[#787774]" title={link.address}>{link.address}</p><p className="mt-1 text-[10px] text-[#9b9a97]">{link.last_synced_at ? `Last synced ${new Date(link.last_synced_at).toLocaleString()}` : "Not synced yet"}</p></div>
           <div className="flex flex-wrap items-center gap-2"><button type="button" onClick={() => void sync(link)} disabled={busyId === link.id} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-3 py-2 text-[10px] font-semibold text-blue-700 transition-colors hover:bg-blue-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:opacity-50">{busyId === link.id ? <Loader2 size={12} className="animate-spin"/> : <RefreshCw size={12}/>}Sync wallet</button><details className="relative"><summary className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded-lg px-3 py-2 text-[10px] font-semibold text-[#5a5957] hover:bg-[#f1f1ef]"><History size={12}/>Advanced</summary><div className="absolute right-0 z-10 mt-1 w-56 rounded-lg border border-[#e9e9e7] bg-white p-2 shadow-lg"><button type="button" onClick={() => void sync(link, "rescan")} disabled={busyId === link.id} className="w-full rounded-md px-2 py-2 text-left text-[10px] font-semibold text-[#37352f] hover:bg-[#f1f1ef] disabled:opacity-50" title="Re-checks the 50 most recent transactions and reclassifies activity that was not understood. Dismissed and imported decisions are kept.">Repair history<span className="mt-0.5 block font-normal text-[#787774]">Re-check recent transactions if a trade looks missing.</span></button></div></details>{!link.verified_at && <button type="button" onClick={() => void verify(link)} disabled={busyId === link.id} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-2 text-[10px] font-semibold text-emerald-700 transition-colors hover:bg-emerald-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 disabled:opacity-50"><ShieldCheck size={12}/>Verify ownership</button>}<button type="button" onClick={() => void unlink(link)} disabled={busyId === link.id} aria-label={`Unlink ${link.label}`} className="rounded-lg p-2 text-rose-600 hover:bg-rose-50 disabled:opacity-50"><Trash2 size={13}/></button></div>
+          <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={autoLinkId === link.id} onChange={e => setAutoLinkId(e.target.checked ? link.id : "")} />Auto-sync every 2 minutes while viewing Wallets</label>
         </article>)}
       </div>}
 
@@ -226,7 +242,7 @@ export default function WalletSyncPanel({ onImportWalletTrade, existingWalletSig
               const canImport = candidate.status === "closed";
               const buttonLabel = candidate.status === "closed" ? "Review as trade" : candidate.status === "partial" ? "Waiting for full exit" : candidate.status === "exit_only" ? "No entry found" : "Waiting for exit";
               const buttonHint = candidate.status === "closed" ? "Review and import this completed position" : candidate.status === "partial" ? "The remaining position must close before it can be imported with accurate realized P&L." : candidate.status === "exit_only" ? "The matching buy is not in the synced history. Repair history to look further back." : "Sync again after a sell is detected";
-              return <article key={candidate.key} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#e9e9e7] p-3"><div className="min-w-0"><strong className="block truncate text-xs text-[#37352f]">{candidate.tokenName} · ${candidate.tokenSymbol}</strong><p className="mt-0.5 truncate font-mono text-[9px] text-[#9b9a97]">{candidate.mint}</p><p className="mt-1 text-[10px] text-[#787774]"><span className="font-semibold text-[#5a5957]">{statusLabel}</span> · {candidate.walletLabel} · Bought {candidate.tokensBought.toLocaleString(undefined, { maximumFractionDigits: 4 })} tokens for {formatSol(candidate.boughtSol)} SOL · Sold {candidate.tokensSold.toLocaleString(undefined, { maximumFractionDigits: 4 })} for {formatSol(candidate.soldSol)} SOL{candidate.status === "closed" ? ` · ${pnl >= 0 ? "+" : ""}${formatSol(pnl)} SOL estimated P&L` : ""}{candidate.currentMarketCapUsd !== null ? ` · Current MC $${candidate.currentMarketCapUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : ""}</p></div><div className="flex gap-2"><button type="button" onClick={() => void setCandidateStatus(candidate, "ignored")} className="rounded-lg px-3 py-2 text-[10px] font-semibold text-[#787774] hover:bg-[#f1f1ef]" title="Hide this for now. It returns automatically if a matching sell or new buy appears.">Dismiss for now</button><button type="button" onClick={() => setReviewing(candidate)} disabled={!canImport} title={buttonHint} className="rounded-lg bg-[#1a73ca] px-3 py-2 text-[10px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-45">{buttonLabel}</button></div></article>;
+              return <article key={candidate.key} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#e9e9e7] p-3"><div className="min-w-0"><strong className="block truncate text-xs text-[#37352f]">{candidate.tokenName} · ${candidate.tokenSymbol}</strong><p className="mt-0.5 truncate font-mono text-[9px] text-[#9b9a97]">{candidate.mint}</p><p className="mt-1 text-[10px] text-[#787774]"><span className="font-semibold text-[#5a5957]">{statusLabel}</span> · {candidate.walletLabel} · Bought {candidate.tokensBought.toLocaleString(undefined, { maximumFractionDigits: 4 })} tokens for {formatSol(candidate.boughtSol)} SOL · Sold {candidate.tokensSold.toLocaleString(undefined, { maximumFractionDigits: 4 })} for {formatSol(candidate.soldSol)} SOL{candidate.status === "closed" ? ` · ${pnl >= 0 ? "+" : ""}${formatSol(pnl)} SOL estimated P&L` : ""} · Entry MC {candidate.entryMarketCapUsd ? "~$" + candidate.entryMarketCapUsd.toLocaleString() : "unavailable"} · Exit MC {candidate.exitMarketCapUsd ? "~$" + candidate.exitMarketCapUsd.toLocaleString() : "unavailable"}{candidate.currentMarketCapUsd !== null ? ` · MC at sync $${candidate.currentMarketCapUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : ""}</p></div><div className="flex gap-2"><button type="button" onClick={() => void setCandidateStatus(candidate, "ignored")} className="rounded-lg px-3 py-2 text-[10px] font-semibold text-[#787774] hover:bg-[#f1f1ef]" title="Hide this for now. It returns automatically if a matching sell or new buy appears.">Dismiss for now</button><button type="button" onClick={() => setReviewing(candidate)} disabled={!canImport} title={buttonHint} className="rounded-lg bg-[#1a73ca] px-3 py-2 text-[10px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-45">{buttonLabel}</button></div></article>;
             })}</div>}
             {dismissedPositions.length > 0 && <details className="mt-3"><summary className="cursor-pointer text-[10px] font-semibold text-[#787774]">{dismissedPositions.length} dismissed for now</summary><div className="mt-2 space-y-1">{dismissedPositions.map((position) => <div key={position.key} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[#fbfbfa] px-3 py-2"><span className="truncate text-[10px] text-[#5a5957]">{position.tokenName} · ${position.tokenSymbol} · {position.status === "closed" ? "closed" : position.status === "partial" ? "partly sold" : position.status === "exit_only" ? "sell only" : "open"}</span><button type="button" onClick={() => void setCandidateStatus(position, "needs_review")} className="rounded-lg px-2 py-1 text-[10px] font-semibold text-blue-700 hover:bg-blue-50">Restore</button></div>)}</div></details>}
       </div>
