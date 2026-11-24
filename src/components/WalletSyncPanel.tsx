@@ -194,6 +194,7 @@ export default function WalletSyncPanel({ onImportWalletTrade, existingWalletSig
       entryTime: new Date(reviewing.entryAt).toISOString(),
       exitTime: reviewing.exitAt ? new Date(reviewing.exitAt).toISOString() : undefined,
       tradedAt: reviewing.entryAt,
+      durationMinutes: Math.round((reviewing.exitAt - reviewing.entryAt) / 60_000),
       fills: reviewing.fills,
       notes: `Reason for entry: ${reason.trim()}\nImported from read-only wallet sync. Verify amounts before saving. Entry/exit caps, when supplied, are provider figures or historical estimates from the preceding hour. Transactions: ${reviewing.signatures.join(", ")}`,
       walletSource: reviewing.source,

@@ -115,8 +115,8 @@ export default function LogTradeModal({
   const [result, setResult] = useState<"Win" | "Loss" | "BE" | "">(initialData?.result || "");
   const [setupType, setSetupType] = useState<string>(isKnownInitialSetup ? initialSetup : "Custom");
   const [customSetup, setCustomSetup] = useState(isKnownInitialSetup ? "" : initialSetup);
-  const [durationMinutes, setDurationMinutes] = useState<number | undefined>(initialData?.durationMinutes || 15);
-  const [tradedAtInput, setTradedAtInput] = useState(() => toLocalDateTimeInput(Date.now()));
+  const [durationMinutes, setDurationMinutes] = useState<number | undefined>(initialData?.durationMinutes ?? 15);
+  const [tradedAtInput, setTradedAtInput] = useState(() => toLocalDateTimeInput(initialData?.walletSource && initialData.tradedAt ? initialData.tradedAt : Date.now()));
 
   // Financial fields
   const [initialRiskSol, setInitialRiskSol] = useState(initialData?.initialRiskSol ? String(initialData.initialRiskSol) : "");
@@ -562,7 +562,8 @@ export default function LogTradeModal({
         wallet,
         result,
         setupType: finalSetup,
-        durationMinutes: durationMinutes || null,
+        durationMinutes: durationMinutes ?? null,
+        ...(initialData?.walletSource ? { entryTime: initialData.entryTime, exitTime: initialData.exitTime } : {}),
         screenshotUrl: screenshotUrl || null,
         mcap: tokenData?.marketCap || 0,
         liquidity: tokenData?.liquidity || 0,
