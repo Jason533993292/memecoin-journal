@@ -1,3 +1,4 @@
+import { receiptEvidence } from "./walletReceipt";
 import { randomBytes } from "node:crypto";
 import bs58 from "bs58";
 import nacl from "tweetnacl";
@@ -293,12 +294,17 @@ export async function deleteWalletLink(userId: string, id: string) {
   if (error) throw new Error(error.message);
 }
 
-export async function listWalletEvents(userId: string, status = "open") {
-  const query = admin().from("wallet_events").select("id,wallet_link_id,signature,event_index,block_time,mint,direction,sol_change,token_change,fee_sol,status,source,raw,created_at,wallet_links(label,address)").eq("user_id", userId).order("block_time", { ascending: false }).limit(500);
-  // "open" keeps dismissed events: a later sell needs the original buy to value the position.
-  const { data, error } = status === "all" ? await query : status === "open" ? await query.in("status", ["needs_review", "ignored"]) : await query.eq("status", status);
-  if (error) throw new Error(error.message);
-  return data || [];
+export async function listWalletEvents(userId: string, links = listWalletLinks(userId)) {
+  // Give each wallet its own window so a busy wallet cannot displace another wallet's history.
+  const pages = await Promise.all((await links).map(async link => {
+    const { data, error } = await admin().from("wallet_events")
+      .select("id,wallet_link_id,signature,event_index,block_time,mint,direction,sol_change,token_change,fee_sol,status,source,raw,created_at,wallet_links(label,address)")
+      .eq("user_id", userId).eq("wallet_link_id", link.id).in("status", ["needs_review", "ignored"])
+      .order("block_time", { ascending: false }).order("id").limit(501);
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  }));
+  return { events: pages.flatMap(page => page.slice(0, 500)), limitedHistory: pages.some(page => page.length > 500) };
 }
 
 export async function setWalletEventStatus(userId: string, ids: string[], status: "imported" | "ignored" | "needs_review") {
@@ -336,12 +342,13 @@ export async function syncWalletLink(userId: string, linkId: string, mode: "incr
   let unclassifiedTransactions = 0;
 
   usable.forEach((signature: { signature: string; blockTime?: number }, signatureIndex: number) => {
-    const tx = byId.get(signatureIndex + 10) as { meta?: { fee?: number; preBalances?: number[]; postBalances?: number[]; preTokenBalances?: RpcTokenBalance[]; postTokenBalances?: RpcTokenBalance[] }; transaction?: { message?: { accountKeys?: Array<string | { pubkey?: string }> } } } | null;
+    const tx = byId.get(signatureIndex + 10) as { slot?: number; meta?: { logMessages?: string[]; fee?: number; preBalances?: number[]; postBalances?: number[]; preTokenBalances?: RpcTokenBalance[]; postTokenBalances?: RpcTokenBalance[] }; transaction?: { message?: { instructions?: Parameters<typeof receiptEvidence>[1]; accountKeys?: Array<string | { pubkey?: string }> } } } | null;
     if (!tx?.meta) return;
     const keys = tx.transaction?.message?.accountKeys || [];
     const ownerIndex = keys.findIndex((key) => (typeof key === "string" ? key : key.pubkey) === link.address);
     const feeSol = ownerIndex === 0 ? (tx.meta.fee || 0) / 1e9 : 0;
     const solChange = ownerIndex >= 0 ? ((tx.meta.postBalances?.[ownerIndex] || 0) - (tx.meta.preBalances?.[ownerIndex] || 0)) / 1e9 : 0;
+    const evidence = receiptEvidence(tx.meta.logMessages ?? [], tx.transaction?.message?.instructions ?? [], link.address);
     const before = ownedTokenMap(tx.meta.preTokenBalances, link.address);
     const after = ownedTokenMap(tx.meta.postTokenBalances, link.address);
     const tokenChanges = [...new Set([...before.keys(), ...after.keys()])].map((mint) => ({ mint, change: (after.get(mint) || 0) - (before.get(mint) || 0) })).filter((item) => Math.abs(item.change) > 0.000000001);
@@ -353,13 +360,15 @@ export async function syncWalletLink(userId: string, linkId: string, mode: "incr
     let transactionHasSwap = false;
     let transactionHasTransfer = false;
     tradedTokens.forEach((token, eventIndex) => {
-      const direction: ParsedEvent["direction"] = tradedTokens.length > 1 ? "unknown" : token.change > 0 && quoteChange < 0 ? "buy" : token.change < 0 && quoteChange > 0 ? "sell" : "transfer";
+      const direction: ParsedEvent["direction"] = evidence.endsWith("-transfer") ? "transfer"
+        : evidence !== "swap" || tradedTokens.length !== 1 || ownerIndex < 0 ? "unknown"
+        : token.change > 0 && quoteChange < 0 ? "buy" : token.change < 0 && quoteChange > 0 ? "sell" : "unknown";
       transactionHasSwap ||= direction === "buy" || direction === "sell";
       transactionHasTransfer ||= direction === "transfer";
-      events.push({ signature: signature.signature, event_index: eventIndex, block_time: blockTime, mint: token.mint, direction, sol_change: direction === "buy" || direction === "sell" ? effectiveSolChange : solChange, token_change: token.change, fee_sol: feeSol, source: "rpc", raw: { classification: direction, usedWrappedSol: typeof wrappedSolChange === "number" } });
+      events.push({ signature: signature.signature, event_index: eventIndex, block_time: blockTime, mint: token.mint, direction, sol_change: direction === "buy" || direction === "sell" ? effectiveSolChange : solChange, token_change: token.change, fee_sol: feeSol, source: "rpc", raw: { classification: direction, balanceBefore: before.get(token.mint) ?? 0, balanceAfter: after.get(token.mint) ?? 0, slot: tx.slot ?? 0, usedWrappedSol: typeof wrappedSolChange === "number" } });
     });
     if (transactionHasSwap) swapTransactions += 1;
-    else if (transactionHasTransfer || (!tradedTokens.length && Math.abs(quoteChange) > 0.000000001)) transferTransactions += 1;
+    else if (transactionHasTransfer || (evidence === "native-transfer" && !tradedTokens.length)) transferTransactions += 1;
     else {
       unclassifiedTransactions += 1;
       events.push({ signature: signature.signature, event_index: 9999, block_time: blockTime, mint: "", direction: "unknown", sol_change: solChange, token_change: 0, fee_sol: feeSol, source: "rpc", raw: { classification: "unclassified" } });

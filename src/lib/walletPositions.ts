@@ -13,7 +13,7 @@ export type WalletEventLike = {
   fee_sol: number;
   status: string;
   source: "rpc" | "webhook";
-  raw?: { marketCapSampleAt?: number; executionMarketCapUsd?: number; token?: { name?: string; symbol?: string; marketCapUsd?: number | null } };
+  raw?: { balanceBefore?: number; balanceAfter?: number; slot?: number; marketCapSampleAt?: number; executionMarketCapUsd?: number; token?: { name?: string; symbol?: string; marketCapUsd?: number | null } };
   wallet_links?: { label?: string; address?: string } | null;
 };
 
@@ -44,6 +44,8 @@ export type WalletPosition = {
   tokensBought: number;
   tokensSold: number;
   remainingTokens: number;
+  incompleteHistory: boolean;
+  lastBalance?: number;
   feesSol: number;
   entryAt: number;
   exitAt?: number;
@@ -54,17 +56,13 @@ export type WalletPosition = {
   dismissed: boolean;
 };
 
-/** Selling at least 99% of what was bought counts as closed, so token dust does not block an import. */
-export const CLOSE_TOLERANCE = 0.01;
-
-function isClosed(position: Pick<WalletPosition, "tokensBought" | "tokensSold">) {
-  if (position.tokensBought <= 0 || position.tokensSold <= 0) return false;
-  return position.tokensBought - position.tokensSold <= position.tokensBought * CLOSE_TOLERANCE;
+function isClosed(position: WalletPosition) {
+  return position.tokensSold > 0 && position.lastBalance === 0;
 }
 
 function finalize(position: WalletPosition, statuses: string[]): WalletPosition {
-  const remaining = Math.max(0, position.tokensBought - position.tokensSold);
-  const status: PositionStatus = position.tokensBought <= 0 || position.tokensSold > position.tokensBought * (1 + 1e-10) ? "exit_only" : position.tokensSold <= 0 ? "open" : isClosed(position) ? "closed" : "partial";
+  const remaining = position.lastBalance ?? Math.max(0, position.tokensBought - position.tokensSold);
+  const status: PositionStatus = position.incompleteHistory || position.tokensBought <= 0 ? "exit_only" : position.tokensSold <= 0 ? "open" : isClosed(position) ? "closed" : "partial";
   return { ...position, remainingTokens: remaining, status, dismissed: statuses.length > 0 && statuses.every((value) => value === "ignored") };
 }
 
@@ -78,7 +76,7 @@ function finalize(position: WalletPosition, statuses: string[]): WalletPosition 
 export function buildWalletPositions(events: WalletEventLike[], journaledSignatures: ReadonlySet<string> = new Set()): WalletPosition[] {
   const ordered = [...events]
     .filter((event) => (event.direction === "buy" || event.direction === "sell") && event.mint && !journaledSignatures.has(event.signature))
-    .sort((a, b) => Date.parse(a.block_time) - Date.parse(b.block_time) || a.event_index - b.event_index || a.signature.localeCompare(b.signature));
+    .sort((a, b) => Date.parse(a.block_time) - Date.parse(b.block_time) || (a.raw?.slot ?? 0) - (b.raw?.slot ?? 0) || a.event_index - b.event_index || a.signature.localeCompare(b.signature));
 
   const finished: WalletPosition[] = [];
   const active = new Map<string, { position: WalletPosition; statuses: string[] }>();
@@ -91,7 +89,7 @@ export function buildWalletPositions(events: WalletEventLike[], journaledSignatu
     const tokenChange = Number(event.token_change) || 0;
     let entry = active.get(groupKey);
 
-    if (entry && event.direction === "buy" && (isClosed(entry.position) || entry.position.tokensBought === 0)) {
+    if (entry && event.direction === "buy" && (isClosed(entry.position) || entry.position.tokensBought === 0 || event.raw?.balanceBefore === 0)) {
       finished.push(finalize(entry.position, entry.statuses));
       active.delete(groupKey);
       entry = undefined;
@@ -109,7 +107,7 @@ export function buildWalletPositions(events: WalletEventLike[], journaledSignatu
           tokenName: token?.name || "Solana token",
           tokenSymbol: token?.symbol || event.mint.slice(0, 5),
           currentMarketCapUsd: typeof token?.marketCapUsd === "number" ? token.marketCapUsd : null,
-          eventIds: [], signatures: [], boughtSol: 0, soldSol: 0, tokensBought: 0, tokensSold: 0, remainingTokens: 0, feesSol: 0,
+          eventIds: [], signatures: [], boughtSol: 0, soldSol: 0, tokensBought: 0, tokensSold: 0, remainingTokens: 0, incompleteHistory: false, feesSol: 0,
           entryAt: time, source: event.source === "webhook" ? "webhook" : "sync", fills: [], status: "open", dismissed: false,
         },
       };
@@ -117,6 +115,11 @@ export function buildWalletPositions(events: WalletEventLike[], journaledSignatu
     }
 
     const { position } = entry;
+    const previousBalance = position.lastBalance ?? 0;
+    if (event.raw?.balanceBefore !== previousBalance || typeof event.raw?.balanceAfter !== "number") {
+      position.incompleteHistory = true;
+    }
+    position.lastBalance = event.raw?.balanceAfter;
     const quoteAmount = event.direction === "buy" ? Math.max(0, -solChange - fee) : Math.max(0, solChange + fee);
     const fillId = event.id;
     if (event.direction === "buy") {

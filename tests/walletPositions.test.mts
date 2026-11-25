@@ -1,7 +1,18 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildWalletPositions, type WalletEventLike } from "../src/lib/walletPositions.ts";
+import { buildWalletPositions as group, type WalletEventLike } from "../src/lib/walletPositions.ts";
 
+function buildWalletPositions(events: WalletEventLike[], saved = new Set<string>()) {
+  const balances = new Map<string, number>();
+  const receipts = [...events].sort((a,b) => a.block_time.localeCompare(b.block_time)).map(event => {
+    const key = event.wallet_link_id + event.mint;
+    const before = balances.get(key) ?? 0;
+    const after = Math.max(0, before + event.token_change);
+    balances.set(key, after);
+    return { ...event, raw: { balanceBefore: before, balanceAfter: after, ...event.raw } };
+  });
+  return group(receipts, saved);
+}
 const MINT = "So11111111111111111111111111111111111111112";
 let counter = 0;
 function event(overrides: Partial<WalletEventLike> & Pick<WalletEventLike, "direction" | "block_time">): WalletEventLike {
@@ -31,9 +42,9 @@ test("a partial sell is NOT treated as an exit", () => {
   assert.equal(position.remainingTokens, 600);
 });
 
-test("selling 99.5% counts as closed so token dust does not block an import", () => {
+test("selling 99.5% leaves an open remainder", () => {
   const [position] = buildWalletPositions([buy("2026-11-01T10:00:00Z", 1, 1000), sell("2026-11-01T11:00:00Z", 2, 995)]);
-  assert.equal(position.status, "closed");
+  assert.equal(position.status, "partial");
 });
 
 test("two separate round trips in the same token are not merged", () => {
@@ -87,7 +98,7 @@ test("transactions already in the journal are skipped, and transfers or unknown 
 // Each SOL amount here is the wallet balance delta including the fee.
 test("real multi-buy exit needs the earlier purchase to determine its net SOL result", () => {
   const first = buy("2026-11-19T17:01:39Z", 3.016518840, 22858552.265451, { fee_sol: 0.000559405, signature: "37DBvwxmz7Eq9cPvo6DW6mPSScvSXrKkQh5KmRJMPuLNqkyXDAHguPVKhVmAmCkTBHM65eHCfhDAHAvhRci7nu9U" });
-  const second = buy("2026-11-19T17:01:49Z", 0.265005, 1431211.795251, { fee_sol: 0.000509049, signature: "W3waGtVvcCpxLcsTHbYo2xpGM9EMDUKHBG9PK8K8ATDFNZbT8iCgkuSetBJzaB9H1JgHJM8eyYj9G15tpNamzyA" });
+  const second = buy("2026-11-19T17:01:49Z", 0.265005, 1431211.795251, { raw: { balanceBefore: 22858552.265451, balanceAfter: 24289764.060702 }, fee_sol: 0.000509049, signature: "W3waGtVvcCpxLcsTHbYo2xpGM9EMDUKHBG9PK8K8ATDFNZbT8iCgkuSetBJzaB9H1JgHJM8eyYj9G15tpNamzyA" });
   const exit = sell("2026-11-19T17:02:01Z", 2.763566538, 24289764.060702, { fee_sol: 0.000215934, signature: "3Cvbs1jkce4EDq2afHeP1eECHi5qX8hWVfWW11DDia9PPMCzQBYgrr3DLQa9oBmhYLMSs4dSVqe8ygv7QsYbGRbQ" });
   assert.equal(buildWalletPositions([second, exit])[0].status, "exit_only");
   assert.equal(buildWalletPositions([first, second])[0].status, "open");

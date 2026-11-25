@@ -12,8 +12,9 @@ export async function GET(request: Request) {
   const user = await userFor(request);
   if (!user) return NextResponse.json({ error: "Sign in again to load linked wallets." }, { status: 401 });
   try {
-    const [links, events] = await Promise.all([listWalletLinks(user.uid), listWalletEvents(user.uid)]);
-    return NextResponse.json({ links, events }, { headers: { "Cache-Control": "no-store" } });
+    const pendingLinks = listWalletLinks(user.uid);
+    const [links, events] = await Promise.all([pendingLinks, listWalletEvents(user.uid, pendingLinks)]);
+    return NextResponse.json({ links, ...events }, { headers: { "Cache-Control": "no-store" } });
   } catch {
     return NextResponse.json({ error: "Linked wallets could not be loaded." }, { status: 503 });
   }

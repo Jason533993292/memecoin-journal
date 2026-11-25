@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     if (!allowed) return NextResponse.json({ error: "Too many sync requests. Wait a minute and try again." }, { status: 429 });
     const result = await syncWalletLink(user.uid, linkId, mode);
     const events = await listWalletEvents(user.uid);
-    return NextResponse.json({ result, events }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ result, ...events }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Wallet sync failed." }, { status: 502 });
   }
