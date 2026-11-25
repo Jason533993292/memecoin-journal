@@ -66,6 +66,45 @@ function finalize(position: WalletPosition, statuses: string[]): WalletPosition 
   return { ...position, remainingTokens: remaining, status, dismissed: statuses.length > 0 && statuses.every((value) => value === "ignored") };
 }
 
+/** Multiple signatures can share a slot. Their text order is unrelated to execution order. */
+function orderWalletReceipts(events: WalletEventLike[]) {
+  const bySlot = new Map<string, WalletEventLike[]>();
+  for (const event of events) {
+    const key = JSON.stringify([event.wallet_link_id, event.mint, event.raw?.slot || event.block_time]);
+    const bucket = bySlot.get(key);
+    if (bucket) bucket.push(event);
+    else bySlot.set(key, [event]);
+  }
+  const balances = new Map<string, number>();
+  const ordered: WalletEventLike[] = [];
+  for (const bucket of bySlot.values()) {
+    const key = bucket[0].wallet_link_id + ":" + bucket[0].mint;
+    let balance = balances.get(key);
+    while (bucket.length) {
+      let index = 0;
+      if (bucket.length > 1) {
+        let starts = bucket.filter(event => event.raw?.balanceBefore === (balance ?? 0));
+        if (!starts.length) {
+          starts = bucket.filter(event => !bucket.some(other => other !== event && other.raw?.balanceAfter === event.raw?.balanceBefore));
+        }
+        if (starts.length !== 1) {
+          // The ordering is ambiguous. Missing opening balances block these imports.
+          ordered.push(...bucket.map(event => ({ ...event, raw: { ...event.raw, balanceBefore: undefined } })));
+          balances.delete(key);
+          break;
+        }
+        index = bucket.indexOf(starts[0]);
+      }
+      const [next] = bucket.splice(index, 1);
+      ordered.push(next);
+      balance = next.raw?.balanceAfter;
+      if (balance === undefined) balances.delete(key);
+      else balances.set(key, balance);
+    }
+  }
+  return ordered;
+}
+
 /**
  * Builds positions from every wallet event that is not yet in the journal.
  *
@@ -81,7 +120,7 @@ export function buildWalletPositions(events: WalletEventLike[], journaledSignatu
   const finished: WalletPosition[] = [];
   const active = new Map<string, { position: WalletPosition; statuses: string[] }>();
 
-  for (const event of ordered) {
+  for (const event of orderWalletReceipts(ordered)) {
     const groupKey = `${event.wallet_link_id}:${event.mint}`;
     const time = Date.parse(event.block_time);
     const fee = Number(event.fee_sol) || 0;

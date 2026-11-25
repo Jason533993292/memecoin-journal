@@ -107,3 +107,14 @@ test("real multi-buy exit needs the earlier purchase to determine its net SOL re
   assert.equal((full.soldSol - full.boughtSol - full.feesSol).toFixed(9), "-0.517957302");
   assert.deepEqual(buildWalletPositions([exit, first, second], new Set(full.signatures)), []);
 });
+
+test("same-slot buy precedes its partial exit even when the sell signature sorts first", () => {
+  const time = "2026-11-25T21:43:15Z";
+  const first = buy(time, 1, 100, {signature:"zzz", raw:{slot:123, balanceBefore:0, balanceAfter:100}});
+  const second = sell(time, .3, 30, {signature:"aaa", raw:{slot:123, balanceBefore:100, balanceAfter:70}});
+  const last = sell("2026-11-25T21:43:20Z", .8, 70, {raw:{slot:124, balanceBefore:70, balanceAfter:0}});
+  const positions = group([last, second, first]);
+  assert.equal(positions.length, 1);
+  assert.equal(positions[0].status, "closed");
+  assert.deepEqual(positions[0].signatures, [first.signature, second.signature, last.signature]);
+});
