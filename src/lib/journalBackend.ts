@@ -286,6 +286,13 @@ export async function listSupabaseTrades(userId: string): Promise<Trade[]> {
   return rows.map(fromTradeRow);
 }
 
+/** Each wallet position starts with a persisted event UUID. Repeated confirmations keep the first saved row. */
+export async function insertWalletTrade(userId: string, trade: Record<string, unknown>, firstEventId: string) {
+  const row = toTradeRow(userId, firstEventId, trade as unknown as Omit<Trade, "id">);
+  const { error } = await getSupabaseClient().from("trades").upsert(row as unknown as TablesInsert<"trades">, { onConflict: "user_id,id", ignoreDuplicates: true });
+  throwIfError(error);
+}
+
 export async function saveSupabaseTrade(userId: string, trade: Record<string, unknown>, id = crypto.randomUUID()) {
   // Form state intentionally represents blank optional values as null. Normalize
   // it at the persistence boundary rather than leaking nullable form types into

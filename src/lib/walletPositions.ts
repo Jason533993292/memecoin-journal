@@ -13,7 +13,7 @@ export type WalletEventLike = {
   fee_sol: number;
   status: string;
   source: "rpc" | "webhook";
-  raw?: { executionMarketCapUsd?: number; token?: { name?: string; symbol?: string; marketCapUsd?: number | null } };
+  raw?: { marketCapSampleAt?: number; executionMarketCapUsd?: number; token?: { name?: string; symbol?: string; marketCapUsd?: number | null } };
   wallet_links?: { label?: string; address?: string } | null;
 };
 
@@ -34,6 +34,8 @@ export type WalletPosition = {
   tokenSymbol: string;
   entryMarketCapUsd?: number;
   exitMarketCapUsd?: number;
+  entrySampleAt?: number;
+  exitSampleAt?: number;
   currentMarketCapUsd: number | null;
   eventIds: string[];
   signatures: string[];
@@ -62,7 +64,7 @@ function isClosed(position: Pick<WalletPosition, "tokensBought" | "tokensSold">)
 
 function finalize(position: WalletPosition, statuses: string[]): WalletPosition {
   const remaining = Math.max(0, position.tokensBought - position.tokensSold);
-  const status: PositionStatus = position.tokensBought <= 0 ? "exit_only" : position.tokensSold <= 0 ? "open" : isClosed(position) ? "closed" : "partial";
+  const status: PositionStatus = position.tokensBought <= 0 || position.tokensSold > position.tokensBought * (1 + 1e-10) ? "exit_only" : position.tokensSold <= 0 ? "open" : isClosed(position) ? "closed" : "partial";
   return { ...position, remainingTokens: remaining, status, dismissed: statuses.length > 0 && statuses.every((value) => value === "ignored") };
 }
 
@@ -89,7 +91,7 @@ export function buildWalletPositions(events: WalletEventLike[], journaledSignatu
     const tokenChange = Number(event.token_change) || 0;
     let entry = active.get(groupKey);
 
-    if (entry && event.direction === "buy" && isClosed(entry.position)) {
+    if (entry && event.direction === "buy" && (isClosed(entry.position) || entry.position.tokensBought === 0)) {
       finished.push(finalize(entry.position, entry.statuses));
       active.delete(groupKey);
       entry = undefined;
@@ -116,14 +118,18 @@ export function buildWalletPositions(events: WalletEventLike[], journaledSignatu
 
     const { position } = entry;
     const quoteAmount = event.direction === "buy" ? Math.max(0, -solChange - fee) : Math.max(0, solChange + fee);
-    const fillId = `${event.signature}-${event.event_index}`;
+    const fillId = event.id;
     if (event.direction === "buy") {
-      if (!position.tokensBought) position.entryMarketCapUsd = event.raw?.executionMarketCapUsd;
+      if (!position.tokensBought) {
+        position.entryMarketCapUsd = event.raw?.executionMarketCapUsd;
+        position.entrySampleAt = event.raw?.marketCapSampleAt;
+      }
       position.boughtSol += quoteAmount;
       position.tokensBought += Math.max(0, tokenChange);
       position.entryAt = Math.min(position.entryAt, time);
       position.fills.push({ id: fillId, side: "entry", quoteAmount, feeSol: fee, executedAt: time });
     } else {
+      position.exitSampleAt = event.raw?.marketCapSampleAt;
       position.exitMarketCapUsd = event.raw?.executionMarketCapUsd;
       position.soldSol += quoteAmount;
       position.tokensSold += Math.max(0, -tokenChange);

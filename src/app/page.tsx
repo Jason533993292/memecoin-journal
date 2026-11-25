@@ -738,7 +738,7 @@ function AuthenticatedApp({ user, suppressWelcomeTour = false }: { user: User; s
           />
         )}
 
-        {currentTab === "wallets" && <WalletsView key={user.uid} trades={activeTrades} solPrice={solPrice} onImportWalletTrade={(draft) => { setClonedTrade(draft); setIsNewTradeModalOpen(true); }} />}
+        {currentTab === "wallets" && <WalletsView key={user.uid} trades={activeTrades} solPrice={solPrice} onImportWalletTrade={fetchTrades} />}
 
         {currentTab === "statistics" && <StatisticsView key={user.uid} trades={activeTrades} solPrice={solPrice} onSelectTrade={setInspectingTrade} />}
 

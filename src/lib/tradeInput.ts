@@ -72,7 +72,7 @@ const TRADE_CREATE_FIELDS = new Set([
   "date", "createdAt",
   "quoteCurrency", "quoteSymbol", "boughtQuote", "soldQuote", "pnlQuote", "quoteUsdRate", "venue",
   "processGrade", "confidenceAtEntry",
-  "fills",
+  "walletSource", "walletSourceSignatures", "walletEventIds", "fills",
   "playbookId", "playbookName", "playbookChecks",
 ]);
 

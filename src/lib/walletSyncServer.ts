@@ -409,6 +409,8 @@ export async function syncWalletLink(userId: string, linkId: string, mode: "incr
   if (updateError) throw new Error(updateError.message);
   return {
     checkedTransactions: usable.length,
+    firstCheckedAt: usable.find(row => row.blockTime)?.blockTime ?? null,
+    lastCheckedAt: [...usable].reverse().find(row => row.blockTime)?.blockTime ?? null,
     failedTransactions,
     swapTransactions,
     transferTransactions,

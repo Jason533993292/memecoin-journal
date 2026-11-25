@@ -82,3 +82,17 @@ test("transactions already in the journal are skipped, and transfers or unknown 
   const unknown = event({ direction: "unknown", block_time: "2026-11-01T10:31:00Z", mint: "" });
   assert.equal(buildWalletPositions([journaled, transfer, unknown], new Set([journaled.signature])).length, 0);
 });
+
+// Decu6 public receipts, slots 471411992, 471412037, and 471412090.
+// Each SOL amount here is the wallet balance delta including the fee.
+test("real multi-buy exit needs the earlier purchase to determine its net SOL result", () => {
+  const first = buy("2026-11-19T17:01:39Z", 3.016518840, 22858552.265451, { fee_sol: 0.000559405, signature: "37DBvwxmz7Eq9cPvo6DW6mPSScvSXrKkQh5KmRJMPuLNqkyXDAHguPVKhVmAmCkTBHM65eHCfhDAHAvhRci7nu9U" });
+  const second = buy("2026-11-19T17:01:49Z", 0.265005, 1431211.795251, { fee_sol: 0.000509049, signature: "W3waGtVvcCpxLcsTHbYo2xpGM9EMDUKHBG9PK8K8ATDFNZbT8iCgkuSetBJzaB9H1JgHJM8eyYj9G15tpNamzyA" });
+  const exit = sell("2026-11-19T17:02:01Z", 2.763566538, 24289764.060702, { fee_sol: 0.000215934, signature: "3Cvbs1jkce4EDq2afHeP1eECHi5qX8hWVfWW11DDia9PPMCzQBYgrr3DLQa9oBmhYLMSs4dSVqe8ygv7QsYbGRbQ" });
+  assert.equal(buildWalletPositions([second, exit])[0].status, "exit_only");
+  assert.equal(buildWalletPositions([first, second])[0].status, "open");
+  const [full] = buildWalletPositions([exit, first, second]);
+  assert.equal(full.status, "closed");
+  assert.equal((full.soldSol - full.boughtSol - full.feesSol).toFixed(9), "-0.517957302");
+  assert.deepEqual(buildWalletPositions([exit, first, second], new Set(full.signatures)), []);
+});
