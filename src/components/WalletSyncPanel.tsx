@@ -234,7 +234,7 @@ export default function WalletSyncPanel({ onImportWalletTrade, solPrice, existin
   if (!user) return (
     <section data-tour="wallet-sync" className="rounded-xl border border-[#e9e9e7]" aria-labelledby="wallet-sync-guest-heading">
       <div className="rounded-[9px] bg-white p-4 shadow-xs">
-        <div className="flex gap-2"><span className="rounded-lg bg-blue-50 p-2 text-blue-700"><WalletCards size={16}/></span><div><h2 id="wallet-sync-guest-heading" className="text-sm font-semibold text-[#37352f]">Linked wallet activity <span className="ml-1 rounded bg-[#f1f1ef] px-1.5 py-0.5 align-middle text-[10px] font-medium">Beta</span></h2><p className="mt-1 max-w-2xl text-[11px] leading-5 text-[#787774]">Account holders can link a public Solana address and review supported swaps before adding them to the journal. Guest mode shows this preview only; it never asks for a private key or seed phrase.</p></div></div>
+        <div className="flex gap-2"><span className="rounded-lg bg-blue-50 p-2 text-blue-700"><WalletCards size={16}/></span><div><h2 id="wallet-sync-guest-heading" className="text-sm font-semibold text-[#37352f]">Linked wallet activity</h2><p className="mt-1 max-w-2xl text-[11px] leading-5 text-[#787774]">Account holders can link a public Solana address and review supported swaps before adding them to the journal. Guest mode shows this preview only; it never asks for a private key or seed phrase.</p></div></div>
       </div>
     </section>
   );
@@ -242,7 +242,7 @@ export default function WalletSyncPanel({ onImportWalletTrade, solPrice, existin
     <section data-tour="wallet-sync" className="rounded-xl border border-[#e9e9e7]" aria-labelledby="wallet-sync-heading">
       <div className="rounded-[9px] bg-white p-4 shadow-xs">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex gap-2"><span className="rounded-lg bg-blue-50 p-2 text-blue-700"><WalletCards size={16}/></span><div><h2 id="wallet-sync-heading" className="text-sm font-semibold text-[#37352f]">Linked wallet activity <span className="ml-1 rounded bg-[#f1f1ef] px-1.5 py-0.5 align-middle text-[10px] font-medium">Beta</span></h2><p className="mt-1 max-w-2xl text-[11px] text-[#787774]">Sync wallet checks transactions newer than the last saved signature, 50 at a time, oldest first, so nothing is skipped. The first sync looks at the latest 50 successful transactions. Detected swaps wait for your approval and are never journaled automatically.</p></div></div>
+        <div className="flex gap-2"><span className="rounded-lg bg-blue-50 p-2 text-blue-700"><WalletCards size={16}/></span><div><h2 id="wallet-sync-heading" className="text-sm font-semibold text-[#37352f]">Linked wallet activity</h2><p className="mt-1 max-w-2xl text-[11px] text-[#787774]">Sync wallet checks transactions newer than the last saved signature, 50 at a time, oldest first, so nothing is skipped. The first sync looks at the latest 50 successful transactions. Detected swaps wait for your approval and are never journaled automatically.</p></div></div>
         {loading && <span role="status" className="flex items-center gap-2 text-[11px] text-[#787774]"><Loader2 size={13} className="animate-spin"/>Loading</span>}
       </div>
 

@@ -62,7 +62,9 @@ test("wallet sync uses a saved cursor and requires context before journal import
   assert.doesNotMatch(panel, /border border-blue-200/);
   assert.doesNotMatch(panel, /border border-emerald-200/);
   assert.match(panel, /data-tour="wallet-sync"/);
-  assert.match(panel, /Beta/);
+  assert.doesNotMatch(panel, />Beta</);
+  assert.match(panel, /Positions with missing entry history cannot be saved/);
+  assert.match(panel, /unsupported/);
 });
 
 test("the welcome tour measures each new target once after layout settles", async () => {
