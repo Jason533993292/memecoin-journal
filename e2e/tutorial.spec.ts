@@ -23,6 +23,22 @@ test("guest tutorial reaches and highlights all 42 real targets", async ({ page 
     await expect(page.locator("html")).toHaveAttribute("data-tour-step", id);
     await expect(page.locator(`[data-tour-highlight="${id}"]`), `missing highlight for tutorial step ${index + 1}: ${id}`).toBeVisible({ timeout: 5_000 });
     await expect(page.getByRole("dialog", { name: new RegExp(`Tutorial step ${index + 1}:`) })).toBeVisible();
+    if (id === "wallet-scan") {
+      await page.keyboard.press("k");
+      await expect(page.locator("html")).toHaveAttribute("data-tour-step", "wallets");
+      await page.keyboard.press("k");
+      await expect(page.locator("html")).toHaveAttribute("data-tour-step", "daily-journal-save");
+      const saveControl = page.locator('[data-tour="daily-journal-save"]:visible').first();
+      const highlight = page.locator('[data-tour-highlight="daily-journal-save"]');
+      await expect.poll(async () => {
+        const [control, ring] = await Promise.all([saveControl.boundingBox(), highlight.boundingBox()]);
+        return !!control && !!ring && Math.abs(ring.y - Math.max(7, control.y - 7)) < 2;
+      }).toBe(true);
+      await page.keyboard.press("l");
+      await expect(page.locator("html")).toHaveAttribute("data-tour-step", "wallets");
+      await page.keyboard.press("l");
+      await expect(page.locator("html")).toHaveAttribute("data-tour-step", id);
+    }
     if (index === steps.length - 1) {
       await page.locator("[data-tour-dialog]").getByRole("button", { name: /^continue/i }).click();
     } else if (clickSteps.has(id)) {

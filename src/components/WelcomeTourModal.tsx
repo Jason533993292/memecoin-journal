@@ -1,6 +1,6 @@
 "use client";
 
-import { CSSProperties, useCallback, useEffect, useRef, useState } from "react";
+import { CSSProperties, useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, BookOpen, ChevronLeft, X } from "lucide-react";
 
 type SpotlightStep = {
@@ -20,8 +20,8 @@ const SPOTLIGHT_STEPS: SpotlightStep[] = [
   { id: "equity-curve", chapter: "Dashboard", selector: '[data-tour="equity-curve"]', title: "Cumulative Equity Curve", description: "See how realized results build over time. Switch between P&L, balance, drawdown, SOL, USD, and time ranges.", instruction: "The tutorial scrolled to the live chart automatically.", requireTargetClick: false, viewTab: "dashboard" },
   { id: "calendar", chapter: "Dashboard", selector: '[data-tour="monthly-calendar"]', title: "Monthly Trading Calendar", description: "Every day shows its realized profit or loss. Click a day containing trades to reveal the trades behind that result.", instruction: "The highlighted calendar is a live visual example.", requireTargetClick: false, viewTab: "dashboard" },
   { id: "journal", chapter: "Trades", selector: '[data-tour="nav-journal"]', title: "Trades", description: "Trades is the searchable record of every paper and live trade.", instruction: "Click the highlighted Trades button.", requireTargetClick: true },
-  { id: "journal-filters", chapter: "Journal", selector: '[data-tour="journal-filters"]', title: "Search, filter, and change views", description: "Narrow trades by result, date, setup, wallet, or emotion tag, then switch between table and card layouts.", instruction: "Filters change only what is displayed; they do not modify a trade.", requireTargetClick: false, viewTab: "journal" },
-  { id: "journal-results", chapter: "Journal", selector: '[data-tour="journal-example"]', title: "Example trade card", description: "This complete example shows the token, setup, holding time, position size, result, P&L, discipline tags, and date. Real trade cards also provide actions to inspect, edit, share, and safely delete.", instruction: "Tutorial examples are fictional, read-only, and never saved to your account.", requireTargetClick: false, viewTab: "journal" },
+  { id: "journal-filters", chapter: "Trades", selector: '[data-tour="journal-filters"]', title: "Search, filter, and change views", description: "Narrow trades by result, date, setup, wallet, or emotion tag, then switch between table and card layouts.", instruction: "Filters change only what is displayed; they do not modify a trade.", requireTargetClick: false, viewTab: "journal" },
+  { id: "journal-results", chapter: "Trades", selector: '[data-tour="journal-example"]', title: "Example trade card", description: "This complete example shows the token, setup, holding time, position size, result, P&L, discipline tags, and date. Real trade cards also provide actions to inspect, edit, share, and safely delete.", instruction: "Tutorial examples are fictional, read-only, and never saved to your account.", requireTargetClick: false, viewTab: "journal" },
   { id: "daily-journal", chapter: "Daily Journal", selector: '[data-tour="nav-daily-journal"]', title: "Daily Journal", description: "This is your private space for thoughts, emotions, lessons, and the decisions surrounding your trades.", instruction: "Click the highlighted Daily Journal button.", requireTargetClick: true },
   { id: "daily-journal-new", chapter: "Daily Journal", selector: '[data-tour="daily-journal-new-entry"]', title: "Two clear ways to begin", description: "Free writing opens a blank page. Guided entry gives you a Pre-trade, Post-trade, or End-of-day structure.", instruction: "Tutorial examples are read-only, so neither button will save anything while the tour is active.", requireTargetClick: false, viewTab: "daily-journal" },
   { id: "daily-journal-library", chapter: "Daily Journal", selector: '[data-tour="daily-journal-library-guide"]', title: "Find past reflections", description: "Search titles, writing, emotions, and tags. Switch to the calendar to return to entries from a particular day, or recover an unfinished browser draft.", instruction: "The example reflection is fictional and is never added to your account.", requireTargetClick: false, viewTab: "daily-journal" },
@@ -32,7 +32,7 @@ const SPOTLIGHT_STEPS: SpotlightStep[] = [
   { id: "daily-journal-recovery-tools", chapter: "Daily Journal", selector: '[data-tour="daily-journal-recovery-workbench"]', title: "Recover your writing", description: "Recover browser drafts, restore one of the last eight writing versions, or bring an entry back from Trash. Permanently erasing or clearing the journal also removes recovery copies.", instruction: "This is the actual Recovery & history panel. Tutorial examples cannot alter saved data.", requireTargetClick: false, viewTab: "daily-journal" },
   { id: "daily-journal-save", chapter: "Daily Journal", selector: '[data-tour="daily-journal-save"]', title: "Automatic private saving", description: "After you pause typing, the journal automatically syncs the reflection to your private account. Save now lets you sync immediately; offline drafts remain in this browser for recovery.", instruction: "The tutorial will not save the fictional example.", requireTargetClick: false, viewTab: "daily-journal" },
   { id: "wallets", chapter: "Wallets", selector: '[data-tour="nav-wallets"]', title: "Wallets", description: "Track real Solana wallets separately from simulated paper-trading capital.", instruction: "Click the highlighted Wallets button.", requireTargetClick: true },
-  { id: "wallet-scan", chapter: "Wallets", selector: '[data-tour="wallet-sync"]', title: "Experimental wallet synchronization", description: "Link a public Solana address to test transaction detection and review completed positions. This feature is still a work in progress and can miss unsupported swaps.", instruction: "Never enter a private key or seed phrase. Verify every detected amount before saving it as a trade.", requireTargetClick: false, viewTab: "wallets" },
+  { id: "wallet-scan", chapter: "Wallets", selector: '[data-tour="wallet-sync"]', title: "Review linked wallet activity", description: "Sync a public wallet, review a completed position, then add your reason and setup before saving. Incomplete history and unsupported transactions are flagged.", instruction: "Never enter a private key or seed phrase. Verify every detected amount before saving it as a trade.", requireTargetClick: false, viewTab: "wallets" },
   { id: "paper-capital", chapter: "Wallets", selector: '[data-tour="paper-capital"]', title: "Paper Trading Capital", description: "Set a fictional starting balance for practice trades. Current simulated equity combines that starting amount with paper-trade P&L.", instruction: "Paper capital is not real SOL and cannot be withdrawn.", requireTargetClick: false, viewTab: "wallets" },
   { id: "new-wallet", chapter: "Wallets", selector: '[data-tour="new-wallet"]', title: "Add a trading wallet", description: "Create a named wallet with a balance and optional public address so trades and performance can be grouped correctly.", instruction: "This explanation does not open or submit the form.", requireTargetClick: false, viewTab: "wallets" },
   { id: "wallet-records", chapter: "Wallets", selector: '[data-tour="wallet-records"]', title: "Wallet performance and actions", description: "Review each wallet's balance, win rate, trades, P&L, address, deposits, withdrawals, and management actions in one place.", instruction: "If you have no real wallets yet, this area explains what will appear after you add one.", requireTargetClick: false, viewTab: "wallets" },
@@ -81,6 +81,8 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
   const [stepIndex, setStepIndex] = useState(0);
   const [targetRect, setTargetRect] = useState<TargetRect | null>(null);
   const introButtonRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLElement>(null);
+  const navigateToStep = useEffectEvent((tab: string) => onNavigateTab(tab));
   const previousViewRef = useRef<string | undefined>(undefined);
   const step = SPOTLIGHT_STEPS[stepIndex];
 
@@ -103,7 +105,7 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
       completeTour();
       return;
     }
-    setStepIndex((index) => index + 1);
+    setStepIndex((index) => Math.min(index + 1, SPOTLIGHT_STEPS.length - 1));
   }, [completeTour, onNavigateTab, stepIndex]);
 
   const goBack = useCallback(() => {
@@ -154,6 +156,16 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
         advance();
         return;
       }
+      if (event.key === "Tab" && dialogRef.current) {
+        const buttons = dialogRef.current.querySelectorAll<HTMLButtonElement>("button:not(:disabled)");
+        const first = buttons[0];
+        const last = buttons[buttons.length - 1];
+        if (first && (event.shiftKey ? document.activeElement === first || document.activeElement === dialogRef.current : document.activeElement === last)) {
+          event.preventDefault();
+          (event.shiftKey ? last : first).focus();
+          return;
+        }
+      }
       if (isInsideTutorial(event.target)) return;
       event.preventDefault();
       event.stopImmediatePropagation();
@@ -176,7 +188,8 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
     if (!isOpen || !started || !step) return;
     if (step.viewTab && previousViewRef.current && previousViewRef.current !== step.viewTab) setTargetRect(null);
     if (step.viewTab) previousViewRef.current = step.viewTab;
-    if (step.viewTab) onNavigateTab(step.viewTab);
+    if (step.viewTab) navigateToStep(step.viewTab);
+    dialogRef.current?.focus({ preventScroll: true });
     document.documentElement.dataset.tourStep = step.id;
     const announceStep = () => window.dispatchEvent(new CustomEvent("memecoin-journal-tour-step", { detail: { id: step.id } }));
 
@@ -204,27 +217,28 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
     const locateTarget = (attempt = 0) => {
       target = findVisibleTarget(step.selector);
       if (!target) {
+        setTargetRect(null);
         announceStep();
         if (attempt < 30) timers.push(window.setTimeout(() => locateTarget(attempt + 1), 50));
         return;
       }
       const initialRect = target.getBoundingClientRect();
       if (initialRect.top < 76 || initialRect.bottom > window.innerHeight - 28) {
-        target.scrollIntoView({ behavior: "auto", block: "center", inline: "nearest" });
+        target.scrollIntoView({ behavior: "instant", block: initialRect.height > window.innerHeight - 104 ? "start" : "center", inline: "nearest" });
       }
-      timers.push(window.setTimeout(scheduleSettledMeasure, 80));
+      measureTarget();
       resizeObserver?.disconnect();
       resizeObserver = new ResizeObserver(scheduleSettledMeasure);
       resizeObserver.observe(target);
     };
     announceStep();
-    timers.push(window.setTimeout(announceStep, 60));
-    timers.push(window.setTimeout(() => locateTarget(), 40));
+    const initialFrame = window.requestAnimationFrame(() => locateTarget());
     const settleAfterScroll = () => scheduleSettledMeasure();
     const settleAfterResize = () => scheduleSettledMeasure();
     window.addEventListener("resize", settleAfterResize);
     window.addEventListener("scroll", settleAfterScroll, true);
     return () => {
+      window.cancelAnimationFrame(initialFrame);
       timers.forEach((timer) => window.clearTimeout(timer));
       if (measureFrame !== null) window.cancelAnimationFrame(measureFrame);
       resizeObserver?.disconnect();
@@ -232,7 +246,7 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
       window.removeEventListener("scroll", settleAfterScroll, true);
       if (document.documentElement.dataset.tourStep === step.id) delete document.documentElement.dataset.tourStep;
     };
-  }, [advance, isOpen, onNavigateTab, started, step]);
+  }, [isOpen, started, step]);
 
   if (!isOpen) return null;
   if (!started) {
@@ -243,8 +257,8 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
           <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-500/15 text-[#55a7f1]"><BookOpen size={24} /></div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#55a7f1]">Welcome</p>
           <h2 id="welcome-tour-title" className="pr-8 text-2xl font-bold tracking-tight">Welcome to Memecoin Journal</h2>
-          <p className="mt-3 text-sm leading-6 text-neutral-300">Thanks for using this journal. Every user is welcome. The guided tutorial will darken the page, point to each real feature, and wait for you to click the highlighted controls.</p>
-          <div className="mt-5 rounded-2xl bg-white/[0.055] p-4 text-xs leading-5 text-neutral-300">When the tutorial explains a feature lower on the page, it will automatically scroll to it and use the live interface as the visual example.</div>
+          <p className="mt-3 text-sm leading-6 text-neutral-300">Follow one trade from your dashboard to your journal, wallet activity, and performance review. The blue outline shows which control each step describes.</p>
+          <div className="mt-5 rounded-2xl bg-white/[0.055] p-4 text-xs leading-5 text-neutral-300">Press L to continue or activate the highlighted control, K to go back, or Escape to close. You can restart the tour from the guide.</div>
           <div className="mt-7 flex flex-wrap items-center justify-end gap-3">
             <button type="button" onClick={completeTour} className="h-11 rounded-xl px-4 text-xs font-semibold text-neutral-400 transition hover:bg-white/8 hover:text-white">Skip tutorial</button>
             <button ref={introButtonRef} type="button" onClick={() => setStarted(true)} className="group flex h-11 items-center gap-3 rounded-xl bg-[#1a73ca] px-5 text-sm font-semibold text-white transition hover:bg-[#2383e2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#55a7f1]">Continue tutorial <ArrowRight size={18} className="tour-arrow" /></button>
@@ -281,16 +295,16 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
     <div className="pointer-events-none fixed inset-0 z-[200]" aria-live="polite">
       {!targetRect && <div className="pointer-events-auto fixed inset-0 bg-black/80" aria-hidden="true" />}
       {targetRect && <>
-        <div className="pointer-events-auto fixed left-0 right-0 top-0 bg-black/80 transition-[height] duration-400 ease-out" style={{ height: targetRect.top }} />
-        <div className="pointer-events-auto fixed bottom-0 left-0 right-0 bg-black/80 transition-[top] duration-400 ease-out" style={{ top: targetRect.bottom }} />
-        <div className="pointer-events-auto fixed left-0 bg-black/80 transition-[top,width,height] duration-400 ease-out" style={{ top: targetRect.top, width: targetRect.left, height: targetRect.height }} />
-        <div className="pointer-events-auto fixed right-0 bg-black/80 transition-[top,left,height] duration-400 ease-out" style={{ top: targetRect.top, left: targetRect.right, height: targetRect.height }} />
+        <div className="pointer-events-auto fixed left-0 right-0 top-0 bg-black/80 transition-[height] duration-400 ease-out motion-reduce:transition-none" style={{ height: targetRect.top }} />
+        <div className="pointer-events-auto fixed bottom-0 left-0 right-0 bg-black/80 transition-[top] duration-400 ease-out motion-reduce:transition-none" style={{ top: targetRect.bottom }} />
+        <div className="pointer-events-auto fixed left-0 bg-black/80 transition-[top,width,height] duration-400 ease-out motion-reduce:transition-none" style={{ top: targetRect.top, width: targetRect.left, height: targetRect.height }} />
+        <div className="pointer-events-auto fixed right-0 bg-black/80 transition-[top,left,height] duration-400 ease-out motion-reduce:transition-none" style={{ top: targetRect.top, left: targetRect.right, height: targetRect.height }} />
         {step.requireTargetClick
           ? <button type="button" aria-label={`Activate ${step.title}`} onClick={() => { findVisibleTarget(step.selector)?.click(); advance(); }} className="pointer-events-auto fixed bg-transparent" style={{ top: targetRect.top, left: targetRect.left, width: targetRect.width, height: targetRect.height }} />
           : <div className="pointer-events-auto fixed bg-transparent" aria-hidden="true" style={{ top: targetRect.top, left: targetRect.left, width: targetRect.width, height: targetRect.height }} />}
-        <div data-tour-highlight={step.id} className="pointer-events-none fixed rounded-xl border-2 border-[#55a7f1] shadow-[0_0_0_4px_rgba(35,131,226,0.25),0_0_28px_rgba(35,131,226,0.7)] transition-[top,left,width,height] duration-400 ease-out" style={{ top: targetRect.top, left: targetRect.left, width: targetRect.width, height: targetRect.height }} />
+        <div data-tour-highlight={step.id} className="pointer-events-none fixed rounded-xl border-2 border-[#55a7f1] shadow-[0_0_0_4px_rgba(35,131,226,0.25),0_0_28px_rgba(35,131,226,0.7)] transition-[top,left,width,height] duration-400 ease-out motion-reduce:transition-none" style={{ top: targetRect.top, left: targetRect.left, width: targetRect.width, height: targetRect.height }} />
       </>}
-      <section data-tour-dialog role="dialog" aria-modal="true" aria-label={`Tutorial step ${stepIndex + 1}: ${step.title}`} className="tour-tooltip-scrollbar pointer-events-auto fixed z-[201] max-h-[calc(100vh-24px)] overflow-y-auto rounded-2xl border border-white/10 bg-[#111318] p-4 text-white shadow-2xl transition-[top,left,right,bottom,transform] duration-400 ease-out" style={tooltipStyle}>
+      <section ref={dialogRef} tabIndex={-1} data-tour-dialog role="dialog" aria-modal="true" aria-label={`Tutorial step ${stepIndex + 1}: ${step.title}`} className="tour-tooltip-scrollbar pointer-events-auto fixed z-[201] max-h-[calc(100vh-24px)] overflow-y-auto rounded-2xl border border-white/10 bg-[#111318] p-4 text-white shadow-2xl transition-[top,left,right,bottom,transform] duration-400 ease-out motion-reduce:transition-none" style={tooltipStyle}>
         {targetRect && (sidePlacement === "right" ? <ArrowLeft className="tour-arrow-horizontal absolute -left-8 top-5 text-[#55a7f1]" size={24} /> : sidePlacement === "left" ? <ArrowRight className="tour-arrow-horizontal absolute -right-8 top-5 text-[#55a7f1]" size={24} /> : showBelow ? <ArrowUp className="tour-arrow-vertical absolute -top-8 left-6 text-[#55a7f1]" size={24} /> : <ArrowDown className="tour-arrow-vertical absolute -bottom-8 left-6 text-[#55a7f1]" size={24} />)}
         <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#55a7f1]">{step.chapter} · Step {stepIndex + 1} of {SPOTLIGHT_STEPS.length}</p><h2 className="mt-1 text-base font-bold">{step.title}</h2></div><button type="button" onClick={closeTour} aria-label="Close tutorial" className="rounded-md p-1 text-neutral-500 hover:bg-white/8 hover:text-white"><X size={16} /></button></div>
         <p className="mt-2 text-xs leading-5 text-neutral-300">{step.description}</p>
