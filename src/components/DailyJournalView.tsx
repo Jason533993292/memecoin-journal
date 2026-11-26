@@ -259,7 +259,7 @@ export default function DailyJournalView({ userId, trades, tutorialMode = false 
       if (requestedEntry) {
         setSelectedId(requestedEntry.id);
         setDraft(requestedEntry);
-        setEditorInitialHtml(requestedEntry.contentHtml);
+        setEditorInitialHtml(sanitizeJournalHtml(requestedEntry.contentHtml));
         sessionStorage.removeItem("memecoin_journal_open_daily_entry");
       }
     } catch (error) {

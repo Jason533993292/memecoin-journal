@@ -6,7 +6,7 @@ import type { Json } from "@/lib/database.types";
 import { nextSyncCursor, planSignatureWindow, SYNC_BATCH_LIMIT, type SignatureRow, type SignatureWindow } from "./walletSyncWindow";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 
-export const SOLANA_ADDRESS_PATTERN = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+import { SOLANA_ADDRESS_PATTERN, type WebhookEvent } from "./walletWebhookInput";
 const HELIUS_RPC_URL = process.env.HELIUS_API_KEY?.trim() ? `https://mainnet.helius-rpc.com/?api-key=${process.env.HELIUS_API_KEY.trim()}` : "";
 const PRIVATE_RPC_URLS = [process.env.SOLANA_RPC_URL?.trim(), HELIUS_RPC_URL].filter(Boolean) as string[];
 const RPC_URLS = PRIVATE_RPC_URLS.length ? PRIVATE_RPC_URLS : ["https://api.mainnet-beta.solana.com", "https://rpc.ankr.com/solana"];
@@ -99,7 +99,6 @@ async function indexedSignatureWindow(address: string, cursor: string): Promise<
       windowEnd: ordered.at(-1)?.signature ?? null,
       failedTransactions: 0,
       hasMore: rows.length > SYNC_BATCH_LIMIT,
-      skippedOlder: false,
     };
   } catch {
     // Fall back to standard Solana RPC. Its page limit still refuses to skip a large backlog.
@@ -196,7 +195,7 @@ async function successfulSignatures(address: string, cursor: string | null, mode
     throw new Error("More than 3,000 new wallet transactions are waiting. The sync stopped without advancing its cursor so older activity is not skipped. Use an indexed wallet-history provider before continuing.");
   }
 
-  return planSignatureWindow(rows, { incrementalWithCursor, pageLimitHit });
+  return planSignatureWindow(rows, { incrementalWithCursor });
 }
 
 function tokenAmount(balance: RpcTokenBalance) {
@@ -308,10 +307,13 @@ export async function listWalletEvents(userId: string, links = listWalletLinks(u
 }
 
 export async function setWalletEventStatus(userId: string, ids: string[], status: "imported" | "ignored" | "needs_review") {
-  const boundedIds = ids.filter((id) => /^[0-9a-f-]{36}$/i.test(id)).slice(0, 100);
-  if (!boundedIds.length) throw new Error("No wallet events were selected.");
-  const { error } = await admin().from("wallet_events").update({ status, updated_at: new Date().toISOString() }).eq("user_id", userId).in("id", boundedIds);
-  if (error) throw new Error(error.message);
+  const uniqueIds = [...new Set(ids)];
+  for (let offset = 0; offset < uniqueIds.length; offset += 100) {
+    const update = admin().from("wallet_events").update({ status, updated_at: new Date().toISOString() })
+      .eq("user_id", userId).in("id", uniqueIds.slice(offset, offset + 100));
+    const { error } = await (status === "imported" ? update : update.neq("status", "imported"));
+    if (error) throw new Error("Review inbox could not be updated. Retry to finish.");
+  }
 }
 
 async function ownedLink(userId: string, linkId: string): Promise<WalletLinkRow> {
@@ -428,7 +430,7 @@ export async function syncWalletLink(userId: string, linkId: string, mode: "incr
     newEvents,
     hasMore: window.hasMore || incomplete,
     incomplete,
-    skippedOlder: window.skippedOlder,
+    skippedOlder: false,
     incremental: mode === "incremental" && Boolean(cursor),
     rescan: mode === "rescan",
     cursor: nextCursor,
@@ -456,21 +458,24 @@ export async function confirmWalletOwnership(userId: string, linkId: string, sig
     verified = false;
   }
   if (!verified) throw new Error("The wallet signature could not be verified.");
-  const { error: updateError } = await admin().from("wallet_links").update({ verified_at: new Date().toISOString(), verification_nonce: null, verification_expires_at: null, updated_at: new Date().toISOString() }).eq("user_id", userId).eq("id", linkId);
-  if (updateError) throw new Error(updateError.message);
+  const now = new Date().toISOString();
+  const { data: consumed, error: updateError } = await admin().from("wallet_links")
+    .update({ verified_at: now, verification_nonce: null, verification_expires_at: null, updated_at: now })
+    .eq("user_id", userId).eq("id", linkId).eq("verification_nonce", data.verification_nonce)
+    .gt("verification_expires_at", now).select("id").maybeSingle();
+  if (updateError || !consumed) throw new Error("Request a fresh verification challenge.");
 }
 
-export async function ingestWebhookEvents(input: Array<{ address: string; signature: string; blockTime: number; mint: string; direction: string; solChange?: number; tokenChange?: number; feeSol?: number; executionMarketCapUsd?: number; eventIndex?: number }>) {
+export async function ingestWebhookEvents(input: WebhookEvent[]) {
   let stored = 0;
-  for (const event of input.slice(0, 100)) {
-    if (!SOLANA_ADDRESS_PATTERN.test(event.address) || !SOLANA_ADDRESS_PATTERN.test(event.mint) || !/^[1-9A-HJ-NP-Za-km-z]{64,128}$/.test(event.signature)) continue;
+  for (const event of input) {
     const { data: links, error } = await admin().from("wallet_links").select("id,user_id").eq("address", event.address);
     if (error) throw new Error(error.message);
     for (const link of links || []) {
       const direction = ["buy", "sell", "transfer", "unknown"].includes(event.direction) ? event.direction : "unknown";
-      const { error: insertError } = await admin().from("wallet_events").upsert({ user_id: link.user_id, wallet_link_id: link.id, signature: event.signature, event_index: Number.isInteger(event.eventIndex) ? event.eventIndex : 0, block_time: new Date(event.blockTime).toISOString(), mint: event.mint, direction, sol_change: Number(event.solChange) || 0, token_change: Number(event.tokenChange) || 0, fee_sol: Math.max(0, Number(event.feeSol) || 0), source: "webhook", raw: typeof event.executionMarketCapUsd === "number" && Number.isFinite(event.executionMarketCapUsd) && event.executionMarketCapUsd > 0 ? { executionMarketCapUsd: event.executionMarketCapUsd } : {} }, { onConflict: "wallet_link_id,signature,event_index", ignoreDuplicates: true });
+      const { count, error: insertError } = await admin().from("wallet_events").upsert({ user_id: link.user_id, wallet_link_id: link.id, signature: event.signature, event_index: Number.isInteger(event.eventIndex) ? event.eventIndex : 0, block_time: new Date(event.blockTime).toISOString(), mint: event.mint, direction, sol_change: Number(event.solChange) || 0, token_change: Number(event.tokenChange) || 0, fee_sol: Math.max(0, Number(event.feeSol) || 0), source: "webhook", raw: typeof event.executionMarketCapUsd === "number" && Number.isFinite(event.executionMarketCapUsd) && event.executionMarketCapUsd > 0 ? { executionMarketCapUsd: event.executionMarketCapUsd } : {} }, { onConflict: "wallet_link_id,signature,event_index", ignoreDuplicates: true, count: "exact" });
       if (insertError) throw new Error(insertError.message);
-      stored += 1;
+      stored += count ?? 0;
     }
   }
   return stored;

@@ -11,8 +11,7 @@ export type SignatureWindow = {
   failedTransactions: number;
   /** More activity is waiting after this batch; another update will continue from it. */
   hasMore: boolean;
-  /** The cursor could not be reached within the page limit, so older activity was skipped. */
-  skippedOlder: boolean;
+
 };
 
 /**
@@ -28,7 +27,7 @@ export type SignatureWindow = {
  */
 export function planSignatureWindow(
   rowsNewestFirst: SignatureRow[],
-  options: { incrementalWithCursor: boolean; pageLimitHit?: boolean; limit?: number },
+  options: { incrementalWithCursor: boolean; limit?: number },
 ): SignatureWindow {
   const limit = options.limit ?? SYNC_BATCH_LIMIT;
   const rows = rowsNewestFirst.filter((row): row is SignatureRow & { signature: string } => Boolean(row.signature));
@@ -49,7 +48,6 @@ export function planSignatureWindow(
       windowEnd: consumed > 0 ? oldestFirst[consumed - 1].signature : null,
       failedTransactions,
       hasMore: consumed < oldestFirst.length,
-      skippedOlder: Boolean(options.pageLimitHit),
     };
   }
 
@@ -60,7 +58,7 @@ export function planSignatureWindow(
     if (newestSuccessful.length === limit) break;
   }
   ordered.push(...newestSuccessful.reverse());
-  return { ordered, windowEnd: rows[0]?.signature ?? null, failedTransactions, hasMore: false, skippedOlder: false };
+  return { ordered, windowEnd: rows[0]?.signature ?? null, failedTransactions, hasMore: false };
 }
 
 /**

@@ -51,10 +51,6 @@ test("a first sync looks only at the newest successful transactions and does not
   assert.equal(window.hasMore, false);
 });
 
-test("a window that hit the page limit reports that older activity was skipped", () => {
-  assert.equal(planSignatureWindow(rows(10), { incrementalWithCursor: true, pageLimitHit: true }).skippedOlder, true);
-});
-
 test("when the provider drops a transaction the cursor stops before it", () => {
   const window = planSignatureWindow(rows(10), { incrementalWithCursor: true });
   assert.equal(nextSyncCursor({ previousCursor: "s0", mode: "incremental", window, usableCount: 4 }), "s4");

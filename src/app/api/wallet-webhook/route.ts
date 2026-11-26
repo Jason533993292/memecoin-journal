@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { readBoundedJson } from "@/lib/firebase-admin";
 import { ingestWebhookEvents } from "@/lib/walletSyncServer";
 
+import { isWebhookBatch } from "@/lib/walletWebhookInput";
+
 export const maxDuration = 30;
 
 function validSecret(request: Request) {
@@ -17,6 +19,7 @@ export async function POST(request: Request) {
   const parsed = await readBoundedJson(request, 250_000);
   if (!("data" in parsed) || !parsed.data || typeof parsed.data !== "object" || Array.isArray(parsed.data)) return NextResponse.json({ error: "Invalid webhook payload." }, { status: 400 });
   const events = "events" in parsed.data && Array.isArray(parsed.data.events) ? parsed.data.events : [];
+  if (!isWebhookBatch(events)) return NextResponse.json({ error: "Send 1–100 valid wallet events." }, { status: 400 });
   try {
     const stored = await ingestWebhookEvents(events);
     return NextResponse.json({ accepted: events.length, stored });
