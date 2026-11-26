@@ -30,7 +30,7 @@ const WelcomeTourModal = dynamic(() => import("../components/WelcomeTourModal"))
 const GuideView = dynamic(() => import("../components/GuideView"), { loading: () => <SectionLoading /> });
 const SupportView = dynamic(() => import("../components/SupportView"), { loading: () => <SectionLoading /> });
 import { ToastProvider, useToast } from "../components/Toast";
-import { parseLocalStorageValue, readSessionStorageValue, useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
+import { parseLocalStorageValue, readTransientKey, useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
 import { AlertTriangle, Trash2 } from "lucide-react";
 import { getTradeTimestamp } from "../lib/utils";
 import {
@@ -592,7 +592,7 @@ function AuthenticatedApp({ user, suppressWelcomeTour = false }: { user: User; s
     apiKeyOverride?: string
   ) => {
     if (!user || activeTrades.length === 0) return;
-    const sessionKey = readSessionStorageValue("ai_" + user.uid + "_provider_api_key") || "";
+    const sessionKey = readTransientKey("ai_" + user.uid + "_provider_api_key") || "";
     const requestApiKey = apiKeyOverride?.trim() || sessionKey || providerApiKey || "";
     const requestProvider = providerOverride || selectedProvider;
     if (!requestApiKey) {

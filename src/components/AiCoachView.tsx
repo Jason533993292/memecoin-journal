@@ -7,11 +7,11 @@ import { DEFAULT_GOOD_TAGS } from "../lib/constants";
 import { getTradeTimestamp } from "../lib/utils";
 import { useAuth } from "../context/AuthContext";
 import {
-  readSessionStorageValue,
+  readTransientKey,
   removeSessionStorageValue,
   useLocalStorageValue,
   writeLocalStorageValue,
-  writeSessionStorageValue,
+  setTransientKey,
 } from "../lib/useLocalStorage";
 import { useToast } from "./Toast";
 import { collection, getDocs } from "firebase/firestore";
@@ -64,8 +64,9 @@ export default function AiCoachView({
   const providerStorageKey = user ? "ai_" + user.uid + "_provider" : "ai_signed_out_provider";
   const savedApiKey = useLocalStorageValue(apiKeyStorageKey);
   const [sessionApiKey, setSessionApiKey] = useState(() =>
-    readSessionStorageValue(apiKeyStorageKey) || ""
+    readTransientKey(apiKeyStorageKey) || ""
   );
+  useEffect(() => { removeSessionStorageValue(apiKeyStorageKey); }, [apiKeyStorageKey]);
   const savedProvider = useLocalStorageValue(providerStorageKey);
   const [providerOverride, setProviderOverride] = useState<AiProvider | null>(null);
   const provider: AiProvider =
@@ -129,6 +130,7 @@ export default function AiCoachView({
           const encryptedKey = await encryptBrowserSecret(nextKey, encryptionPassphrase);
           keySaved = writeLocalStorageValue(apiKeyStorageKey, encryptedKey);
           keySaved = removeSessionStorageValue(apiKeyStorageKey) && keySaved;
+          setTransientKey(apiKeyStorageKey, null);
           setSessionApiKey("");
           setUnlockedApiKey(nextKey);
           setEncryptionPassphrase("");
@@ -139,7 +141,7 @@ export default function AiCoachView({
           setKeyOperationBusy(false);
         }
       } else {
-        keySaved = writeSessionStorageValue(apiKeyStorageKey, nextKey);
+        setTransientKey(apiKeyStorageKey, nextKey);
         setSessionApiKey(nextKey);
         keySaved = writeLocalStorageValue(apiKeyStorageKey, null) && keySaved;
       }
@@ -152,7 +154,7 @@ export default function AiCoachView({
     setApiKeyDraft("");
     setProviderOverride(null);
     showToast(
-      rememberKey ? `${providerLabel} key encrypted on this device` : `${providerLabel} key saved for this tab session`,
+      rememberKey ? `${providerLabel} key encrypted on this device` : `${providerLabel} key available until refresh`,
       "success"
     );
   };
@@ -176,6 +178,7 @@ export default function AiCoachView({
 
   const resetApiKey = () => {
     const localRemoved = writeLocalStorageValue(apiKeyStorageKey, null);
+    setTransientKey(apiKeyStorageKey, null);
     const sessionRemoved = removeSessionStorageValue(apiKeyStorageKey);
     if (!localRemoved || !sessionRemoved) {
       showToast("Could not clear the saved API key", "error", "Check your browser storage settings and try again.");
@@ -450,7 +453,7 @@ export default function AiCoachView({
               onChange={(event) => setRememberKey(event.target.checked)}
               className="h-3.5 w-3.5 rounded border-[#c9c7c2]"
             />
-            Keep this key encrypted after I close the browser (off keeps it for this tab session only)
+            Keep this key encrypted after I close the browser (off keeps it in memory until refresh)
           </label>
           {rememberKey && <div className="rounded-lg border border-[#e3e2de] bg-white p-3"><label className="block text-[11px] font-semibold text-[#37352f]">Encryption passphrase<input aria-label="New encryption passphrase" type="password" value={encryptionPassphrase} onChange={(event) => setEncryptionPassphrase(event.target.value)} minLength={8} maxLength={256} autoComplete="new-password" placeholder="At least 8 characters" className="mt-1.5 w-full rounded-lg border border-[#e3e2de] px-3 py-2 text-xs"/></label><p className="mt-1.5 text-[10px] text-[#787774]">This passphrase never leaves the browser and cannot be recovered. You will enter it after each refresh to unlock the key.</p></div>}
         </div>

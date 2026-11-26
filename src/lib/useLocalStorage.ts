@@ -39,22 +39,15 @@ export function writeLocalStorageValue(key: string, value: string | null) {
   }
 }
 
-export function readSessionStorageValue(key: string): string | null {
-  try {
-    return typeof window === "undefined" ? null : window.sessionStorage.getItem(key);
-  } catch {
-    return null;
-  }
+const transientKeys = new Map<string, string>();
+
+export function readTransientKey(key: string) {
+  return transientKeys.get(key) ?? null;
 }
 
-export function writeSessionStorageValue(key: string, value: string): boolean {
-  try {
-    if (typeof window === "undefined") return false;
-    window.sessionStorage.setItem(key, value);
-    return true;
-  } catch {
-    return false;
-  }
+export function setTransientKey(key: string, value: string | null) {
+  if (value === null) transientKeys.delete(key);
+  else transientKeys.set(key, value);
 }
 
 export function removeSessionStorageValue(key: string): boolean {

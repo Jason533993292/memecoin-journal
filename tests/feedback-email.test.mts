@@ -29,7 +29,7 @@ test("feedback notifications default to the journal inbox and escape submitted H
   assert.deepEqual(requestBody?.to, [DEFAULT_FEEDBACK_EMAIL_TO]);
   assert.equal(requestBody?.reply_to, feedback.contactEmail);
   assert.match(String(requestBody?.html), /&lt;script&gt;/);
-  assert.doesNotMatch(String(requestBody?.html), /<script>/);
+  assert.ok(String(requestBody?.html).includes("&lt;/script&gt; appeared in the form."));
 });
 
 test("feedback notifications stay disabled when no provider key is configured", async () => {

@@ -104,7 +104,7 @@ export default function WalletSyncPanel({ onImportWalletTrade, solPrice, existin
       const more = result.hasMore ? " More activity is waiting. Press Sync wallet again to continue." : "";
       const times = [result.firstCheckedAt, result.lastCheckedAt].filter((time): time is number => typeof time === "number").sort((a,b) => a-b);
       const coverage = times.length ? " Checked " + times.map(time => new Date(time * 1000).toLocaleString()).join(" – ") + "." : "";
-      setScanReports(previous => ({ ...previous, [link.id]: detail + coverage + more + skipped + (result.incomplete ? " Some receipts are still pending." : "") }));
+      setScanReports(previous => ({ ...previous, [link.id]: detail + coverage + more + (result.incomplete ? " Some receipts are still pending." : "") }));
       if (result.incomplete) showToast("Wallet partly synced", "info", `${detail} The provider did not return every transaction, so the sync stopped early and will retry the rest.`);
       else if (checked > 0 && swaps === 0 && transfers === 0) showToast("No supported trades found", "info", `${detail} These were successful on-chain transactions, but none contained a swap or transfer this tracker can safely identify. No journal trades were created.${result.rescan ? " Repair finished; repeating it will not change these transactions until parser support improves." : " You can use Repair history after a parser update."}${more}`);
       else showToast(result.rescan ? "History repaired" : result.incremental ? "Wallet synced" : "First sync complete", "success", `${detail}${more}`);
