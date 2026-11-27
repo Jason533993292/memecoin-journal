@@ -32,10 +32,11 @@ export async function checkWalletJourney(page, user, baseUrl) {
   const secondTab = await page.context().newPage();
   try {
     await secondTab.goto(baseUrl);
+    const token = (await req.allHeaders()).authorization.slice(7);
     const results = await Promise.all([page,secondTab].map(tab => tab.evaluate(async ({token,body}) => {
       const response = await fetch("/api/wallet-events",{method:"POST",headers:{authorization:"Bearer "+token,"content-type":"application/json"},body});
       return [response.status,(await response.json()).id];
-    },{token: (await req.allHeaders()).authorization.slice(7), body:req.postData()})));
+    },{token, body:req.postData()})));
     assert.equal(results[0][0],200);
     assert.deepEqual(results[0],results[1]);
   } finally { await secondTab.close(); }
