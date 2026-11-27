@@ -291,6 +291,7 @@ function AuthenticatedApp({ user, suppressWelcomeTour = false }: { user: User; s
   const currentTabStorageKey = `memecoin_journal_${user.uid}_current_tab`;
   const [currentTab, setCurrentTab] = useState<string>(() => {
     const allowed = new Set(["dashboard", "journal", "daily-journal", "wallets", "statistics", "research", "ai-coach", "guide", "support"]);
+    if (typeof window !== "undefined" && /^#trades(?:\?|$)/.test(window.location.hash)) return "journal";
     const saved = typeof window === "undefined" ? null : localStorage.getItem(currentTabStorageKey);
     return saved && allowed.has(saved) ? saved : "dashboard";
   });
@@ -738,7 +739,15 @@ function AuthenticatedApp({ user, suppressWelcomeTour = false }: { user: User; s
           />
         )}
 
-        {currentTab === "wallets" && <WalletsView key={user.uid} trades={activeTrades} solPrice={solPrice} onImportWalletTrade={fetchTrades} />}
+        {currentTab === "wallets" && <WalletsView key={user.uid} trades={activeTrades} solPrice={solPrice} onViewSaved={async id => {
+          try {
+            const refreshed = await listSupabaseTrades(user.uid);
+            setTrades(refreshed);
+            const saved = refreshed.find(trade => trade.id === id);
+            if (saved) { setCurrentTab("journal"); setInspectingTrade(saved); }
+            else showToast("This trade is no longer in your journal", "info");
+          } catch { showToast("Could not open the saved trade", "error", "Please try again."); }
+        }} onImportWalletTrade={fetchTrades} />}
 
         {currentTab === "statistics" && <StatisticsView key={user.uid} trades={activeTrades} solPrice={solPrice} onSelectTrade={setInspectingTrade} />}
 
@@ -809,7 +818,7 @@ function AuthenticatedApp({ user, suppressWelcomeTour = false }: { user: User; s
       {/* Trade Detail Inspector Drawer */}
       {inspectingTrade && <TradeDetailDrawer
         key={user.uid}
-        trade={inspectingTrade}
+        trade={trades.find(item => item.id === inspectingTrade.id) ?? inspectingTrade}
         isOpen={!!inspectingTrade}
         onClose={() => setInspectingTrade(null)}
         onEdit={(trade) => setEditingTrade(trade)}

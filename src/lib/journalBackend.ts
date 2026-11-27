@@ -137,7 +137,7 @@ function optionalNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
-function toTradeRow(userId: string, id: string, trade: Omit<Trade, "id">): JsonRecord {
+export function toTradeRow(userId: string, id: string, trade: Omit<Trade, "id">): JsonRecord {
   const currencyExtra = Object.fromEntries(
     (["quoteCurrency", "quoteSymbol", "boughtQuote", "soldQuote", "pnlQuote", "quoteUsdRate", "venue", "processGrade", "confidenceAtEntry", "fills", "playbookId", "playbookName", "playbookChecks", "walletSource", "walletSourceSignatures", "walletEventIds"] as const)
       .filter((field) => trade[field] !== undefined)
@@ -284,13 +284,6 @@ export async function listSupabaseTrades(userId: string): Promise<Trade[]> {
     if (page.length < SUPABASE_PAGE_SIZE) break;
   }
   return rows.map(fromTradeRow);
-}
-
-/** Each wallet position starts with a persisted event UUID. Repeated confirmations keep the first saved row. */
-export async function insertWalletTrade(userId: string, trade: Record<string, unknown>, firstEventId: string) {
-  const row = toTradeRow(userId, firstEventId, trade as unknown as Omit<Trade, "id">);
-  const { error } = await getSupabaseClient().from("trades").upsert(row as unknown as TablesInsert<"trades">, { onConflict: "user_id,id", ignoreDuplicates: true });
-  throwIfError(error);
 }
 
 export async function saveSupabaseTrade(userId: string, trade: Record<string, unknown>, id = crypto.randomUUID()) {

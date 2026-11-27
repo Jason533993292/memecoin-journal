@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   experimental: {
     agentUpgrade: "security",
   },
+  env: { NEXT_PUBLIC_JOURNAL_RELEASE: (process.env.RAILWAY_GIT_COMMIT_SHA || process.env.VERCEL_GIT_COMMIT_SHA || process.env.GITHUB_SHA || "local").slice(0, 8) },
   poweredByHeader: false,
   async rewrites() {
     // These proxy paths are available for a future custom Firebase auth domain.

@@ -10,12 +10,34 @@
   "theme_color": "#12122a",
   "icons": [
     {
+      "src": "/journal-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
       "src": "/app-icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
     }
   ],
-  "categories": ["finance", "productivity"],
-  "shortcuts": [{ "name": "Open journal", "short_name": "Journal", "url": "/#journal", "icons": [{ "src": "/app-icon.svg", "sizes": "any", "type": "image/svg+xml" }] }]
+  "categories": [
+    "finance",
+    "productivity"
+  ],
+  "shortcuts": [
+    {
+      "name": "Open journal",
+      "short_name": "Journal",
+      "url": "/#journal",
+      "icons": [
+        {
+          "src": "/app-icon.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
+    }
+  ]
 }

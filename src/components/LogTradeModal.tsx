@@ -1296,7 +1296,7 @@ export default function LogTradeModal({
                 disabled={saving}
                 className="px-5 py-2 bg-[#1a73ca] hover:bg-[#155fa8] text-white font-medium rounded-lg text-xs shadow-xs transition-colors flex items-center gap-1.5 disabled:opacity-50"
               >
-                {saving ? <Loader2 size={13} className="animate-spin" /> : <span>Save Trade to Cloud</span>}
+                {saving ? <Loader2 size={13} className="animate-spin" /> : <span>Save trade</span>}
               </button>
             </div>
           </form>

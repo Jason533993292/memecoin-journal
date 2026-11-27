@@ -84,7 +84,10 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
   const dialogRef = useRef<HTMLElement>(null);
   const navigateToStep = useEffectEvent((tab: string) => onNavigateTab(tab));
   const previousViewRef = useRef<string | undefined>(undefined);
-  const step = SPOTLIGHT_STEPS[stepIndex];
+  const [route, setRoute] = useState("full");
+  const quickIds = ["journal", "journal-results", "daily-journal", "daily-journal-editor", "equity-curve", "tour-finish"];
+  const steps = route === "quick" ? quickIds.map(id => SPOTLIGHT_STEPS.find(item => item.id === id)!) : SPOTLIGHT_STEPS;
+  const step = steps[stepIndex];
 
   const endTour = useCallback(() => {
     delete document.documentElement.dataset.tourStep;
@@ -100,13 +103,13 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
   }, [endTour, onComplete]);
 
   const advance = useCallback(() => {
-    if (stepIndex === SPOTLIGHT_STEPS.length - 1) {
+    if (stepIndex === steps.length - 1) {
       onNavigateTab("dashboard");
       completeTour();
       return;
     }
-    setStepIndex((index) => Math.min(index + 1, SPOTLIGHT_STEPS.length - 1));
-  }, [completeTour, onNavigateTab, stepIndex]);
+    setStepIndex((index) => Math.min(index + 1, steps.length - 1));
+  }, [completeTour, onNavigateTab, stepIndex, steps.length]);
 
   const goBack = useCallback(() => {
     setStepIndex((index) => Math.max(0, index - 1));
@@ -259,9 +262,15 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
           <h2 id="welcome-tour-title" className="pr-8 text-2xl font-bold tracking-tight">Welcome to Memecoin Journal</h2>
           <p className="mt-3 text-sm leading-6 text-neutral-300">Follow one trade from your dashboard to your journal, wallet activity, and performance review. The blue outline shows which control each step describes.</p>
           <div className="mt-5 rounded-2xl bg-white/[0.055] p-4 text-xs leading-5 text-neutral-300">Press L to continue or activate the highlighted control, K to go back, or Escape to close. You can restart the tour from the guide.</div>
+          <label className="mt-4 block text-sm">Start with
+            <select value={route} onChange={event => setRoute(event.target.value)} className="mt-1 block w-full rounded-lg bg-neutral-800 p-2 text-white">
+              <option value="full">Full tutorial</option><option value="quick">First trade, reflection and results · 6 steps</option>
+              {[...new Set(SPOTLIGHT_STEPS.map(item => item.chapter))].map(chapter => <option key={chapter} value={chapter}>{chapter}</option>)}
+            </select>
+          </label>
           <div className="mt-7 flex flex-wrap items-center justify-end gap-3">
             <button type="button" onClick={completeTour} className="h-11 rounded-xl px-4 text-xs font-semibold text-neutral-400 transition hover:bg-white/8 hover:text-white">Skip tutorial</button>
-            <button ref={introButtonRef} type="button" onClick={() => setStarted(true)} className="group flex h-11 items-center gap-3 rounded-xl bg-[#1a73ca] px-5 text-sm font-semibold text-white transition hover:bg-[#2383e2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#55a7f1]">Continue tutorial <ArrowRight size={18} className="tour-arrow" /></button>
+            <button ref={introButtonRef} type="button" onClick={() => { setStepIndex(Math.max(0,steps.findIndex(item => item.chapter === route))); setStarted(true); }} className="group flex h-11 items-center gap-3 rounded-xl bg-[#1a73ca] px-5 text-sm font-semibold text-white transition hover:bg-[#2383e2] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#55a7f1]">Continue tutorial <ArrowRight size={18} className="tour-arrow" /></button>
           </div>
         </section>
       </div>
@@ -306,7 +315,7 @@ export default function WelcomeTourModal({ isOpen, onClose, onComplete, onNaviga
       </>}
       <section ref={dialogRef} tabIndex={-1} data-tour-dialog role="dialog" aria-modal="true" aria-label={`Tutorial step ${stepIndex + 1}: ${step.title}`} className="tour-tooltip-scrollbar pointer-events-auto fixed z-[201] max-h-[calc(100vh-24px)] overflow-y-auto rounded-2xl border border-white/10 bg-[#111318] p-4 text-white shadow-2xl transition-[top,left,right,bottom,transform] duration-400 ease-out motion-reduce:transition-none" style={tooltipStyle}>
         {targetRect && (sidePlacement === "right" ? <ArrowLeft className="tour-arrow-horizontal absolute -left-8 top-5 text-[#55a7f1]" size={24} /> : sidePlacement === "left" ? <ArrowRight className="tour-arrow-horizontal absolute -right-8 top-5 text-[#55a7f1]" size={24} /> : showBelow ? <ArrowUp className="tour-arrow-vertical absolute -top-8 left-6 text-[#55a7f1]" size={24} /> : <ArrowDown className="tour-arrow-vertical absolute -bottom-8 left-6 text-[#55a7f1]" size={24} />)}
-        <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#55a7f1]">{step.chapter} · Step {stepIndex + 1} of {SPOTLIGHT_STEPS.length}</p><h2 className="mt-1 text-base font-bold">{step.title}</h2></div><button type="button" onClick={closeTour} aria-label="Close tutorial" className="rounded-md p-1 text-neutral-500 hover:bg-white/8 hover:text-white"><X size={16} /></button></div>
+        <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#55a7f1]">{step.chapter} · Step {stepIndex + 1} of {steps.length}</p><h2 className="mt-1 text-base font-bold">{step.title}</h2></div><button type="button" onClick={closeTour} aria-label="Close tutorial" className="rounded-md p-1 text-neutral-500 hover:bg-white/8 hover:text-white"><X size={16} /></button></div>
         <p className="mt-2 text-xs leading-5 text-neutral-300">{step.description}</p>
         <p className="mt-3 rounded-xl bg-white/[0.055] p-3 text-[11px] font-medium leading-4 text-neutral-200">{step.instruction}</p>
         <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-2"><div className="justify-self-start">{stepIndex > 0 && <button type="button" onClick={goBack} className="flex items-center gap-1 justify-self-start text-[10px] font-semibold text-neutral-400 hover:text-white"><ChevronLeft size={12} /> Back <kbd className="grid h-4 min-w-4 place-items-center rounded bg-white/10 px-0.5 text-[8px]">K</kbd></button>}</div><button type="button" onClick={completeTour} className="justify-self-center whitespace-nowrap text-center text-[10px] font-semibold text-neutral-500 hover:text-white">Skip tutorial</button>{!step.requireTargetClick ? <button type="button" onClick={advance} className="col-start-3 flex items-center gap-1.5 justify-self-end rounded-lg bg-[#1a73ca] px-3 py-2 text-xs font-semibold text-white hover:bg-[#2383e2]">Continue <kbd className="grid h-4 min-w-4 place-items-center rounded bg-white/15 px-0.5 text-[8px]">L</kbd><ArrowRight size={14} className="tour-arrow" /></button> : <span className="col-start-3 justify-self-end whitespace-nowrap text-[10px] font-semibold text-neutral-500">Press <kbd className="grid inline-grid h-4 min-w-4 place-items-center rounded bg-white/10 px-0.5 text-[8px] text-neutral-300">L</kbd> to activate</span>}</div>

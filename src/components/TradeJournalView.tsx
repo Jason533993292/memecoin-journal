@@ -1,5 +1,6 @@
 "use client";
 
+import { useTradeFilter } from "../lib/useTradeFilter";
 import { useEffect, useState, useMemo, useRef } from "react";
 import { Trade } from "../lib/types";
 import { db, auth } from "../lib/firebase";
@@ -71,11 +72,11 @@ export default function TradeJournalView({
     (!lastBackupAt || now - lastBackupAt >= 30 * 24 * 60 * 60 * 1000);
   const { showToast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterResult, setFilterResult] = useState<string>("All");
-  const [filterWallet, setFilterWallet] = useState<string>("All");
-  const [filterSetup, setFilterSetup] = useState<string>("All");
-  const [filterMistake, setFilterMistake] = useState<string>("All");
-  const [dateRange, setDateRange] = useState<string>("all");
+  const [filterResult, setFilterResult] = useTradeFilter("result", "All");
+  const [filterWallet, setFilterWallet] = useTradeFilter("wallet", "All");
+  const [filterSetup, setFilterSetup] = useTradeFilter("setup", "All");
+  const [filterMistake, setFilterMistake] = useTradeFilter("tag", "All");
+  const [dateRange, setDateRange] = useTradeFilter("range", "all");
   const [sortBy, setSortBy] = useState<"date-desc" | "date-asc" | "pnl-desc" | "pnl-asc" | "size-desc">("date-desc");
   const [viewMode, setViewMode] = useState<"table" | "cards">("cards");
   const [currencyMode, setCurrencyMode] = useState<"SOL" | "USD">("SOL");

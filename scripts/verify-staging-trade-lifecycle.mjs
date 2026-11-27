@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { checkWalletJourney } from "./staging-wallet-journey.mjs";
 import { chromium } from "@playwright/test";
 
 const baseUrl = (process.env.STAGING_BASE_URL || "").trim().replace(/\/$/, "");
@@ -140,7 +141,7 @@ try {
   await createDialog.getByLabel("Sold (SOL)").fill("1.25");
   await createDialog.getByLabel("Net P&L (SOL)").fill("0.25");
   await createDialog.getByLabel("Trade Notes & Rationale").fill(initialNote);
-  await createDialog.getByRole("button", { name: "Save Trade to Cloud" }).click();
+  await createDialog.getByRole("button", { name: "Save trade" }).click();
   const saveFailure = page.getByText("Could not save trade", { exact: true });
   await Promise.race([
     createDialog.waitFor({ state: "detached", timeout: 30_000 }),
@@ -162,7 +163,7 @@ try {
   const editDialog = page.getByRole("dialog", { name: /Edit Trade:/ });
   await requireNotes(editDialog, initialNote, "The saved notes did not survive refresh.");
   await editDialog.getByLabel("Trade Notes & Rationale").fill(editedNote);
-  await editDialog.getByRole("button", { name: "Update Trade" }).click();
+  await editDialog.getByRole("button", { name: "Save changes" }).click();
   await editDialog.waitFor({ state: "detached", timeout: 30_000 });
   await waitForTradeCount(page, 1, "The edited trade disappeared before refresh.");
   await page.reload({ waitUntil: "domcontentloaded" });
@@ -183,6 +184,19 @@ try {
   await openTradeJournal(page);
   await waitForTradeCount(page, 0, "The deleted trade returned after refresh.");
   console.log("PASS deleted the trade with confirmation and verified removal after refresh.");
+  await checkWalletJourney(page, user, baseUrl);
+  await page.locator('[data-tour="nav-daily-journal"]:visible').click();
+  await page.getByRole("button",{name:"Free writing",exact:true}).first().click();
+  const reflection = "Testing an interrupted reflection save "+runId;
+  await page.context().setOffline(true);
+  await page.getByRole("textbox",{name:"Journal reflection"}).fill(reflection);
+  await page.getByText(/Offline — draft kept here/).waitFor();
+  await page.context().setOffline(false);
+  await page.reload({waitUntil:"domcontentloaded"});
+  await page.locator('[data-tour="nav-daily-journal"]:visible').click();
+  await page.getByLabel("More journal actions").click();
+  await page.getByRole("button",{name:"Recover unfinished draft"}).click();
+  if (!(await page.getByRole("textbox",{name:"Journal reflection"}).innerText()).includes(reflection)) throw new Error("Offline reflection did not survive refresh.");
 } finally {
   await browser?.close();
   await deleteAccount();

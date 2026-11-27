@@ -557,6 +557,8 @@ export type Database = {
           label: string
           last_synced_at: string | null
           last_synced_signature: string | null
+          sync_lease: string | null
+          sync_lease_until: string | null
           updated_at: string
           user_id: string
           verification_expires_at: string | null
@@ -570,6 +572,8 @@ export type Database = {
           label?: string
           last_synced_at?: string | null
           last_synced_signature?: string | null
+          sync_lease?: string | null
+          sync_lease_until?: string | null
           updated_at?: string
           user_id: string
           verification_expires_at?: string | null
@@ -583,11 +587,34 @@ export type Database = {
           label?: string
           last_synced_at?: string | null
           last_synced_signature?: string | null
+          sync_lease?: string | null
+          sync_lease_until?: string | null
           updated_at?: string
           user_id?: string
           verification_expires_at?: string | null
           verification_nonce?: string | null
           verified_at?: string | null
+        }
+        Relationships: []
+      }
+      wallet_sync_hours: {
+        Row: {
+          failed: number
+          hour: string
+          successful: number
+          unsupported: number
+        }
+        Insert: {
+          failed?: number
+          hour: string
+          successful?: number
+          unsupported?: number
+        }
+        Update: {
+          failed?: number
+          hour?: string
+          successful?: number
+          unsupported?: number
         }
         Relationships: []
       }
@@ -710,6 +737,14 @@ export type Database = {
       patch_user_preferences: {
         Args: { p_patch: Json; p_user_id: string }
         Returns: undefined
+      }
+      record_wallet_sync: {
+        Args: { p_failed: boolean; p_unsupported: number }
+        Returns: undefined
+      }
+      save_wallet_position: {
+        Args: { p_ids: string[]; p_owner: string; p_row: Json }
+        Returns: string
       }
       upsert_wallet: {
         Args: {

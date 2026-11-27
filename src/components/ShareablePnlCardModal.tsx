@@ -21,7 +21,7 @@ import { getTradeBoughtUsd, getTradeSoldUsd, getUsdValueStatus } from "../lib/tr
 import { selectSolanaTokenPair } from "../lib/tokenMarketData";
 import { useLocalStorageValue, writeLocalStorageValue } from "../lib/useLocalStorage";
 import BetaBadge from "./BetaBadge";
-import { formatSol } from "../lib/utils";
+import { formatRealizedPnl, formatSol, formatUsd } from "../lib/utils";
 
 interface ShareablePnlCardModalProps {
   trade: Trade | null;
@@ -216,18 +216,12 @@ export default function ShareablePnlCardModal({
   const marketCapUsd = trade.exitMarketCapUsd ?? trade.entryMarketCapUsd ?? trade.mcap ?? 0;
 
   const formatValue = (sol: number, usd: number, showSign = false) => {
-    if (unit === "SOL") {
-      const sign = showSign && sol > 0 ? "+" : "";
-      return `${sign}${formatSol(sol)} SOL`;
-    }
-    const sign = showSign && usd > 0 ? "+" : usd < 0 ? "-" : "";
-    return `${sign}$${Math.abs(usd).toFixed(2)}`;
+    if (showSign) return formatRealizedPnl(unit === "SOL" ? sol : usd, unit);
+    return unit === "SOL" ? `${formatSol(sol)} SOL` : formatUsd(usd);
   };
 
   const badgeText = formatValue(pnlSol, pnlUsd, true);
-  const profitHeadline = unit === "USD"
-    ? `${pnlUsd >= 0 ? "+" : "-"}$${Math.abs(pnlUsd).toLocaleString(undefined, { maximumFractionDigits: 2 })}`
-    : `${pnlSol >= 0 ? "+" : "-"}${formatSol(Math.abs(pnlSol))} SOL`;
+  const profitHeadline = formatValue(pnlSol, pnlUsd, true);
   const spentHeadline = unit === "USD"
     ? `$${boughtUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
     : `${formatSol(boughtSol)} SOL`;

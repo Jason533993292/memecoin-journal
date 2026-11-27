@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import bs58 from "bs58";
 import { CheckCircle2, History, Link2, Loader2, RefreshCw, ShieldCheck, Trash2, WalletCards, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { insertWalletTrade } from "@/lib/journalBackend";
+import type { Trade } from "@/lib/types";
+import { toTradeRow } from "@/lib/journalBackend";
 import { getTradeCreateValidationError } from "@/lib/tradeInput";
 import { formatSol } from "@/lib/utils";
 import { useToast } from "@/components/Toast";
@@ -23,7 +24,7 @@ async function authenticatedFetch(user: NonNullable<ReturnType<typeof useAuth>["
   return payload;
 }
 
-export default function WalletSyncPanel({ onImportWalletTrade, solPrice, existingWalletSignatures = [] }: { solPrice: number; onImportWalletTrade?: () => void; existingWalletSignatures?: string[] }) {
+export default function WalletSyncPanel({ onImportWalletTrade, onViewSaved, solPrice, existingWalletSignatures = [] }: { solPrice: number; onImportWalletTrade?: () => void; onViewSaved?: (id: string) => void; existingWalletSignatures?: string[] }) {
   const { user } = useAuth();
   const { showToast } = useToast();
   const [links, setLinks] = useState<WalletLink[]>([]);
@@ -36,6 +37,12 @@ export default function WalletSyncPanel({ onImportWalletTrade, solPrice, existin
   const [reviewing, setReviewing] = useState<ReviewCandidate | null>(null);
   const [autoLinkId, setAutoLinkId] = useState("");
   const [scanReports, setScanReports] = useState<Record<string, string>>({});
+  const savedButton = useRef<HTMLButtonElement>(null);
+  const undoButton = useRef<HTMLButtonElement>(null);
+  const [lastSaved, setLastSaved] = useState("");
+  const [lastDismissed, setLastDismissed] = useState<ReviewCandidate | null>(null);
+  useEffect(() => { if (lastSaved) savedButton.current?.focus({preventScroll:true}); }, [lastSaved]);
+  useEffect(() => { if (lastDismissed) undoButton.current?.focus({preventScroll:true}); }, [lastDismissed]);
   const [saving, setSaving] = useState(false);
   const [entryCap, setEntryCap] = useState("");
   const [exitCap, setExitCap] = useState("");
@@ -163,6 +170,7 @@ export default function WalletSyncPanel({ onImportWalletTrade, solPrice, existin
       await authenticatedFetch(user, "/api/wallet-events", { method: "PATCH", body: JSON.stringify({ ids: candidate.eventIds, status }) });
       // Events stay in memory: a dismissed buy is still needed to value a later sell.
       setEvents((current) => current.map((event) => candidate.eventIds.includes(event.id) ? { ...event, status } : event));
+      setLastDismissed(status === "ignored" ? candidate : null);
       if (status === "ignored") showToast("Dismissed for now", "success", "It comes back automatically if a matching sell or new buy appears.");
       else showToast("Restored to the review inbox", "success");
     } catch (error) { showToast("Review inbox could not update", "error", error instanceof Error ? error.message : "Try again."); }
@@ -187,6 +195,13 @@ export default function WalletSyncPanel({ onImportWalletTrade, solPrice, existin
       return;
     }
     const pnl = reviewing.soldSol - reviewing.boughtSol - reviewing.feesSol;
+    const provenance = [
+      ["Entry", entryCap, reviewing.entryMarketCapUsd, reviewing.entrySampleAt],
+      ["Exit", exitCap, reviewing.exitMarketCapUsd, reviewing.exitSampleAt],
+    ] as const;
+    const pricingNotes = provenance.filter(([, value]) => value.trim()).map(([label, value, estimate, sampled]) =>
+      label + " market cap: " + (sampled && Number(value) === estimate ? "CoinGecko estimate sampled " + new Date(sampled).toISOString() : "reviewed value")
+    );
     const trade = {
       createdAt: Date.now(), date: reviewing.entryAt, tradeMode: "real", isPaper: false,
       pnlUsd: pnl * solPrice, solUsdRate: solPrice, solUsdRateSource: "imported",
@@ -210,7 +225,8 @@ export default function WalletSyncPanel({ onImportWalletTrade, solPrice, existin
       tradedAt: reviewing.entryAt,
       durationMinutes: Math.round((reviewing.exitAt - reviewing.entryAt) / 60_000),
       fills: reviewing.fills,
-      notes: `Reason for entry: ${reason.trim()}\nImported from wallet receipts. USD amounts use the SOL price at review.`,
+      notes: `Reason for entry: ${reason.trim()}\nImported from wallet receipts. USD amounts use the SOL price at review.
+${pricingNotes.join("\n")}`.trim(),
       walletSource: reviewing.source,
       walletSourceSignatures: reviewing.signatures,
       walletEventIds: reviewing.eventIds,
@@ -219,9 +235,10 @@ export default function WalletSyncPanel({ onImportWalletTrade, solPrice, existin
     if (issue) { showToast("Check trade details", "error", issue); return; }
     setSaving(true);
     try {
-      await insertWalletTrade(user.uid, trade, reviewing.eventIds[0]);
+      const row = toTradeRow(user.uid, reviewing.eventIds[0], trade as Omit<Trade, "id">);
+      const saved = await authenticatedFetch(user, "/api/wallet-events", { method: "POST", body: JSON.stringify({ ids: reviewing.eventIds, row }) });
+      setLastSaved(saved.id);
       onImportWalletTrade();
-      await authenticatedFetch(user, "/api/wallet-events", { method: "PATCH", body: JSON.stringify({ ids: reviewing.eventIds, status: "imported" }) });
       setEvents(items => items.filter(item => !reviewing.eventIds.includes(item.id)));
       setReviewing(null);
       showToast("Trade added to your journal", "success");
@@ -264,21 +281,24 @@ export default function WalletSyncPanel({ onImportWalletTrade, solPrice, existin
             {candidates.length === 0 ? <p className="mt-3 rounded-lg bg-[#fbfbfa] p-4 text-center text-[11px] text-[#787774]">Sync one linked wallet. Its detected buys and sells will appear here.</p> : <div className="mt-3 space-y-2">{candidates.map((candidate) => {
               const pnl = candidate.soldSol - candidate.boughtSol - candidate.feesSol;
               const heldPct = candidate.tokensBought > 0 ? Number(((candidate.remainingTokens / candidate.tokensBought) * 100).toPrecision(3)) : 0;
-              const statusLabel = candidate.status === "closed" ? "Closed" : candidate.status === "partial" ? `Partly sold · ${candidate.remainingTokens.toLocaleString(undefined, { maximumSignificantDigits: 8 })} tokens still held (${heldPct}%)` : candidate.status === "exit_only" ? "Incomplete entry history" : "Open position";
+              const statusLabel = candidate.status === "closed" ? "Ready to review" : candidate.status === "partial" ? `Partly sold · ${candidate.remainingTokens.toLocaleString(undefined, { maximumSignificantDigits: 8 })} tokens still held (${heldPct}%)` : candidate.status === "exit_only" ? "Missing entry history" : "Open position";
               const canImport = candidate.status === "closed";
               const buttonLabel = candidate.status === "closed" ? "Review as trade" : candidate.status === "partial" ? "Waiting for full exit" : candidate.status === "exit_only" ? "No entry found" : "Waiting for exit";
               const buttonHint = candidate.status === "closed" ? "Review and import this completed position" : candidate.status === "partial" ? "The remaining position must close before it can be imported with accurate realized P&L." : candidate.status === "exit_only" ? "The matching buy is not in the synced history. Repair history to look further back." : "Sync again after a sell is detected";
-              return <article key={candidate.key} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#e9e9e7] p-3"><div className="min-w-0"><strong className="block truncate text-xs text-[#37352f]">{candidate.tokenName} · ${candidate.tokenSymbol}</strong><p className="mt-0.5 truncate font-mono text-[9px] text-[#9b9a97]">{candidate.mint}</p><p className="mt-1 text-[10px] text-[#787774]"><span className="font-semibold text-[#5a5957]">{statusLabel}</span> · {candidate.walletLabel} · Bought {candidate.tokensBought.toLocaleString(undefined, { maximumFractionDigits: 4 })} tokens for {formatSol(candidate.boughtSol)} SOL · Sold {candidate.tokensSold.toLocaleString(undefined, { maximumFractionDigits: 4 })} for {formatSol(candidate.soldSol)} SOL{candidate.status === "closed" ? ` · ${pnl >= 0 ? "+" : ""}${formatSol(pnl)} SOL estimated P&L` : ""} · Entry MC {candidate.entryMarketCapUsd ? "~$" + candidate.entryMarketCapUsd.toLocaleString() : "unavailable"} · Exit MC {candidate.exitMarketCapUsd ? "~$" + candidate.exitMarketCapUsd.toLocaleString() : "unavailable"}{candidate.currentMarketCapUsd !== null ? ` · MC at sync $${candidate.currentMarketCapUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : ""}</p><details className="mt-2 text-xs"><summary className="cursor-pointer">Transaction receipts ({candidate.signatures.length})</summary>
+              return <article key={candidate.key} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#e9e9e7] p-3"><div className="min-w-0"><strong className="block truncate text-xs text-[#37352f]">{candidate.tokenName} · ${candidate.tokenSymbol}</strong><p className="mt-0.5 truncate font-mono text-[9px] text-[#9b9a97]">{candidate.mint}</p><p className="mt-1 text-[10px] text-[#787774]"><span className="font-semibold text-[#5a5957]">{statusLabel}</span> · {candidate.walletLabel} </p><dl className="my-2 flex flex-wrap gap-x-5 gap-y-1 text-xs"><div><dt className="text-[#787774]">Bought</dt><dd>{candidate.tokensBought.toLocaleString(undefined, { maximumSignificantDigits: 6 })} tokens · {formatSol(candidate.boughtSol)} SOL</dd></div><div><dt className="text-[#787774]">Sold</dt><dd>{candidate.tokensSold.toLocaleString(undefined, { maximumSignificantDigits: 6 })} tokens · {formatSol(candidate.soldSol)} SOL</dd></div><div><dt className="text-[#787774]">Remaining</dt><dd>{candidate.remainingTokens.toLocaleString(undefined, { maximumSignificantDigits: 6 })} tokens</dd></div></dl><p className="text-xs">{candidate.status === "closed" ? ` · ${pnl >= 0 ? "+" : ""}${formatSol(pnl)} SOL estimated P&L` : ""} · Entry MC {candidate.entryMarketCapUsd ? "Estimated $" + candidate.entryMarketCapUsd.toLocaleString() : "unavailable"} · Exit MC {candidate.exitMarketCapUsd ? "Estimated $" + candidate.exitMarketCapUsd.toLocaleString() : "unavailable"}{candidate.currentMarketCapUsd !== null ? ` · MC at sync $${candidate.currentMarketCapUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : ""}</p><details className="mt-2 text-xs"><summary className="cursor-pointer">Transaction receipts ({candidate.signatures.length})</summary>
                 {candidate.status !== "closed" && <p>{candidate.status === "exit_only" ? "The receipts do not establish a continuous balance from the first buy. Earlier purchases, transfers, or older receipt formats may explain the gap. Repair history rechecks recent receipts." : "These are the fills detected so far. An unsupported or older sale may be missing."}</p>}
                 {candidate.signatures.map(signature => <a key={signature} className="block underline" href={`https://explorer.solana.com/tx/${encodeURIComponent(signature)}`} target="_blank" rel="noreferrer">Receipt {signature.slice(0, 8)}…{signature.slice(-6)}</a>)}</details></div><div className="flex gap-2"><button type="button" onClick={() => void setCandidateStatus(candidate, "ignored")} className="rounded-lg px-3 py-2 text-[10px] font-semibold text-[#787774] hover:bg-[#f1f1ef]" title="Hide this for now. It returns automatically if a matching sell or new buy appears.">Dismiss for now</button><button type="button" onClick={() => { setReason(""); setSetup(""); setConfidence("50"); setEntryCap(String(candidate.entryMarketCapUsd ?? "")); setExitCap(String(candidate.exitMarketCapUsd ?? "")); setReviewing(candidate); }} disabled={!canImport} title={buttonHint} className="rounded-lg bg-[#1a73ca] px-3 py-2 text-[10px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-45">{buttonLabel}</button></div></article>;
             })}</div>}
+            {lastSaved && onViewSaved && <button ref={savedButton} className="mt-2 text-sm underline" onClick={() => onViewSaved(lastSaved)}>View saved trade</button>}
+            {lastDismissed && dismissedPositions.some(item => item.key === lastDismissed.key) && <button ref={undoButton} className="mt-2 text-sm underline" onClick={() => void setCandidateStatus(lastDismissed, "needs_review")}>Undo dismiss</button>}
             {dismissedPositions.length > 0 && <details className="mt-3"><summary className="cursor-pointer text-[10px] font-semibold text-[#787774]">{dismissedPositions.length} dismissed for now</summary><div className="mt-2 space-y-1">{dismissedPositions.map((position) => <div key={position.key} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[#fbfbfa] px-3 py-2"><span className="truncate text-[10px] text-[#5a5957]">{position.tokenName} · ${position.tokenSymbol} · {position.status === "closed" ? "closed" : position.status === "partial" ? "partly sold" : position.status === "exit_only" ? "sell only" : "open"}</span><button type="button" onClick={() => void setCandidateStatus(position, "needs_review")} className="rounded-lg px-2 py-1 text-[10px] font-semibold text-blue-700 hover:bg-blue-50">Restore</button></div>)}</div></details>}
       </div>
 
           {reviewing && <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/55 p-4" role="dialog" aria-modal="true" aria-labelledby="wallet-review-title"><div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl"><div className="flex items-start justify-between gap-3"><div><h3 id="wallet-review-title" className="text-base font-semibold text-[#37352f]">Add your trade context</h3><p className="mt-1 text-[11px] text-[#787774]">On-chain data shows what happened. Your journal still needs to know why.</p></div><button type="button" disabled={saving} onClick={() => setReviewing(null)} aria-label="Close wallet review" className="rounded-lg p-2 text-[#787774] hover:bg-[#f1f1ef]"><X size={15}/></button></div><div className="mt-4 space-y-3"><label className="block text-xs font-medium text-[#37352f]">Reason for entering <span className="text-rose-600">*</span><textarea value={reason} onChange={(event) => setReason(event.target.value)} rows={3} maxLength={1000} placeholder="What did you see before entering?" className="mt-1 w-full rounded-lg border border-[#d8d7d3] bg-[#fbfbfa] px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"/></label><label className="block text-xs font-medium text-[#37352f]">Setup <span className="text-rose-600">*</span><input value={setup} onChange={(event) => setSetup(event.target.value)} maxLength={120} placeholder="e.g. Breakout / ATH Push" className="mt-1 w-full rounded-lg border border-[#d8d7d3] bg-[#fbfbfa] px-3 py-2 text-xs focus:border-blue-500 focus:outline-none"/></label>{([{ label: "Entry", value: entryCap, set: setEntryCap, sample: reviewing.entrySampleAt, time: reviewing.entryAt }, { label: "Exit", value: exitCap, set: setExitCap, sample: reviewing.exitSampleAt, time: reviewing.exitAt }]).map(field => <label key={field.label} className="block text-xs">{field.label} market cap (USD)
                 <input type="number" min="0" step="any" value={field.value} onChange={event => field.set(event.target.value)} placeholder="Unknown" className="ml-2 rounded border px-2 py-1" />
-                {field.sample && field.time && <span className="ml-2">Historical sample {Math.round((field.time - field.sample) / 60000)} min before fill</span>}</label>)}
-                <p className="text-xs">USD conversion uses the current SOL price of ${solPrice}. Receipts record SOL amounts.</p><label className="block text-xs font-medium text-[#37352f]">Confidence at entry · {confidence}%<input type="range" min="0" max="100" value={confidence} onChange={(event) => setConfidence(event.target.value)} className="mt-2 w-full"/></label></div><button type="button" disabled={saving} onClick={() => void createDraft()} className="mt-5 w-full rounded-lg bg-[#1a73ca] px-4 py-2.5 text-xs font-semibold text-white">{saving ? "Saving…" : "Save to Trades"}</button></div></div>}
+                {field.sample && field.time && <span className="ml-2">CoinGecko estimate · {new Date(field.sample).toLocaleString()} · {Math.round((field.time - field.sample) / 60000)} min before fill</span>}</label>)}
+                <details className="text-xs"><summary>Source transactions ({reviewing.signatures.length})</summary>{reviewing.signatures.map(signature => <a className="block underline" key={signature} target="_blank" rel="noreferrer" href={`https://explorer.solana.com/tx/${signature}`}>View receipt {signature.slice(0,8)}…</a>)}</details>
+                <p className="text-xs">Historical market caps are estimates. Leave either field empty if no historical price is available.</p><p className="text-xs">USD conversion uses the current SOL price of ${solPrice}. Receipts record SOL amounts.</p><label className="block text-xs font-medium text-[#37352f]">Confidence at entry · {confidence}%<input type="range" min="0" max="100" value={confidence} onChange={(event) => setConfidence(event.target.value)} className="mt-2 w-full"/></label></div><button type="button" disabled={saving} onClick={() => void createDraft()} className="mt-5 w-full rounded-lg bg-[#1a73ca] px-4 py-2.5 text-xs font-semibold text-white">{saving ? "Saving…" : "Save to Trades"}</button></div></div>}
       </div>
     </section>
   );

@@ -80,6 +80,7 @@ for (const target of targets) {
       throw new Error(`${target.name} ${dependency} probe did not report ok.`);
     }
   }
+  if (readyBody.checks?.walletSync !== "ok") throw new Error(`${target.name} wallet synchronization: ${readyBody.checks?.walletSync}. Check provider availability and receipt coverage.`);
   if (target.requireEmail && readyBody.checks?.resend !== "configured") {
     throw new Error(`${target.name} feedback email probe did not report configured.`);
   }

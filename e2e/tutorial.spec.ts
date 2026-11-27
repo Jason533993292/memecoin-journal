@@ -51,3 +51,25 @@ test("guest tutorial reaches and highlights all 42 real targets", async ({ page 
   await expect(page.locator("html")).not.toHaveAttribute("data-tour-step", /.+/);
   await expect(page.getByText("Trading overview")).toBeVisible();
 });
+
+for (const theme of ["modern-platform", "premium-journal", "ocean", "graphite", "terminal", "default"]) {
+  test(`desktop editors and journal surfaces remain readable in ${theme}`, async ({ page }, info) => {
+    await page.addInitScript(value => localStorage.setItem("memecoin-journal:theme-preview", value), theme);
+    await page.goto("/");
+    await page.locator('[data-access-choice-hydrated="true"]').waitFor();
+    await page.getByRole("button", { name:"Guest mode",exact:true }).click();
+    await page.getByRole("button", {name:/skip tutorial/i}).click();
+    await page.getByRole("button",{name:/new trade/i}).first().click();
+    const editor = page.getByRole("dialog",{name:"Log New Trade"});
+    await expect(editor).toBeVisible();
+    await info.attach("trade-editor-"+theme,{body:await editor.screenshot(),contentType:"image/png"});
+    await editor.getByRole("button",{name:"Close trade entry",exact:true}).click();
+    for (const [nav,target] of [["wallets","wallet-sync"],["daily-journal","daily-journal-workspace"]]) {
+      await page.locator(`[data-tour="nav-${nav}"]:visible`).click();
+      const surface = page.locator(`[data-tour="${target}"]:visible`).first();
+      await expect(surface).toBeVisible();
+      await expect.poll(() => surface.evaluate(el => el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(2);
+      await info.attach(nav+"-"+theme,{body:await surface.screenshot(),contentType:"image/png"});
+    }
+  });
+}

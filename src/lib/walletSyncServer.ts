@@ -234,7 +234,7 @@ async function enrichHistoricalCaps(events: ParsedEvent[]) {
       for (const event of group) {
         const time = Date.parse(event.block_time);
         const match = samples.filter(p => Array.isArray(p) && Number.isFinite(p[0]) && p[0] <= time && time - p[0] <= 3_600_000 && Number.isFinite(p[1]) && p[1] > 0).sort((a,b) => b[0]-a[0])[0];
-        if (match) event.raw = { ...(event.raw as Record<string, Json>), executionMarketCapUsd: match[1], marketCapSampleAt: match[0] };
+        if (match) event.raw = { ...(event.raw as Record<string, Json>), executionMarketCapUsd: match[1], marketCapSampleAt: match[0], marketCapSource: "CoinGecko" };
       }
     } catch { /* Market data is optional; a missing quote must not block a sync. */ }
   }));

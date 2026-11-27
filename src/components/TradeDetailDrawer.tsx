@@ -1,7 +1,7 @@
 "use client";
 
 import { ResearchItem, Trade } from "../lib/types";
-import { formatSol, getTradeTimestamp } from "../lib/utils";
+import { formatUsd, formatSol, getTradeTimestamp } from "../lib/utils";
 import {
   X,
   ExternalLink,
@@ -86,6 +86,14 @@ export default function TradeDetailDrawer({
     void loadResearchLink();
     return () => { active = false; };
   }, [isOpen, trade]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const trigger = document.activeElement;
+    return () => {
+      if (trigger instanceof HTMLElement && trigger.isConnected) trigger.focus({ preventScroll: true });
+    };
+  }, [isOpen]);
 
   // Close on Escape key
   useEffect(() => {
@@ -230,7 +238,7 @@ export default function TradeDetailDrawer({
                     {(trade.pnlSol || 0) > 0 ? `+${formatSol(trade.pnlSol || 0)} SOL` : `${formatSol(trade.pnlSol || 0)} SOL`}
                   </div>
                   <div className="text-[11px] font-mono opacity-80">
-                    {(getUsdValueStatus(trade, solPrice).value ?? 0) >= 0 ? `+$${(getUsdValueStatus(trade, solPrice).value ?? 0).toFixed(2)}` : `-$${Math.abs(getUsdValueStatus(trade, solPrice).value ?? 0).toFixed(2)}`}
+                    {formatUsd(getUsdValueStatus(trade, solPrice).value ?? NaN, { signed: true })}
                   </div>
                 </div>
               </div>
@@ -393,7 +401,7 @@ export default function TradeDetailDrawer({
                     <div className="font-mono font-semibold text-xs text-[#37352f] mt-0.5">
                       {formatSol(trade.boughtSol || 0)} SOL
                     </div>
-                    <span className="text-[10px] text-[#9b9a97]">${(getTradeBoughtUsd(trade, solPrice).value ?? 0).toFixed(2)}</span>
+                    <span className="text-[10px] text-[#9b9a97]">{formatUsd(getTradeBoughtUsd(trade, solPrice).value ?? NaN)}</span>
                   </div>
 
                   <div className="p-2.5 bg-[#fbfbfa] border border-[#e9e9e7] rounded-lg">
@@ -401,7 +409,7 @@ export default function TradeDetailDrawer({
                     <div className="font-mono font-semibold text-xs text-[#37352f] mt-0.5">
                       {formatSol(trade.soldSol || 0)} SOL
                     </div>
-                    <span className="text-[10px] text-[#9b9a97]">${(getTradeSoldUsd(trade, solPrice).value ?? 0).toFixed(2)}</span>
+                    <span className="text-[10px] text-[#9b9a97]">{formatUsd(getTradeSoldUsd(trade, solPrice).value ?? NaN)}</span>
                   </div>
 
                   <div className="p-2.5 bg-[#fbfbfa] border border-[#e9e9e7] rounded-lg">

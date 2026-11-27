@@ -183,7 +183,7 @@ export default function EquityCurveCard({ trades, solPrice = 150, onSelectTrade 
             <h3 className="text-sm font-bold text-[#37352f] flex items-center gap-2">
               <span>{isUnderwater ? "Underwater Drawdown Analysis" : curveType === "balance" ? "Total Portfolio Account Value" : "Cumulative Equity Curve"}</span>
               <span className="text-[10px] font-normal px-2 py-0.5 rounded-full bg-neutral-100 text-[#787774] border border-[#e9e9e7] font-mono tabular-nums">
-                {trades.length} trades
+                {filteredCount} closed {filteredCount === 1 ? "trade" : "trades"} · {timeframe === "all" ? "All time" : timeframe === "7d" ? "Last 7 days" : "Last 30 days"}
               </span>
             </h3>
             <p className="text-[11px] text-[#787774]">

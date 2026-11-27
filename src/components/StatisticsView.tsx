@@ -210,7 +210,7 @@ export default function StatisticsView({ trades, solPrice = 150, onSelectTrade }
               Trading Analytics
             </h1>
             <p className="text-xs text-[#787774] mt-0.5">
-              Deep dive into setup win-rates, holding duration patterns, streaks, and mistake costs.
+              All time · {trades.length} journaled trades. Weekly and monthly reviews below use their own date range.
             </p>
           </div>
           </div>
@@ -243,7 +243,7 @@ export default function StatisticsView({ trades, solPrice = 150, onSelectTrade }
               Trading Analytics
             </h1>
             <p className="text-xs text-[#787774] mt-0.5">
-              Deep dive into setup win-rates, holding duration patterns, streaks, and mistake costs.
+              All time · {trades.length} journaled trades. Weekly and monthly reviews below use their own date range.
             </p>
           </div>
         </div>

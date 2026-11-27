@@ -62,7 +62,7 @@ export default function FeedbackModal({ isOpen, onClose, user, currentSection, o
   const diagnostics = useMemo(() => {
     if (!isOpen || typeof window === "undefined") return null;
     return {
-      page: `${window.location.pathname}${window.location.search}#${currentSection}`.slice(0, 500),
+      page: `${window.location.pathname}#${currentSection} · build ${process.env.NEXT_PUBLIC_JOURNAL_RELEASE || "local"}`.slice(0, 500),
       device: deviceName(),
       browser: browserName(),
       viewport: `${window.innerWidth}x${window.innerHeight}`,

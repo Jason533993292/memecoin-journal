@@ -49,6 +49,7 @@ import {
 interface WalletsViewProps {
   trades: Trade[];
   solPrice?: number;
+  onViewSaved?: (id: string) => void;
   onImportWalletTrade?: () => void;
 }
 
@@ -58,7 +59,7 @@ function createLocalId(prefix: string) {
   return `${prefix}-${globalThis.crypto.randomUUID()}`;
 }
 
-export default function WalletsView({ trades, solPrice = 150, onImportWalletTrade }: WalletsViewProps) {
+export default function WalletsView({ trades, solPrice = 150, onViewSaved, onImportWalletTrade }: WalletsViewProps) {
   const { user } = useAuth();
   const { showToast } = useToast();
   const storagePrefix = `memecoin_journal_${user?.uid || "guest"}_`;
@@ -418,7 +419,7 @@ export default function WalletsView({ trades, solPrice = 150, onImportWalletTrad
         </div>
       )}
 
-      <WalletSyncPanel solPrice={solPrice} onImportWalletTrade={onImportWalletTrade} existingWalletSignatures={trades.flatMap((trade) => trade.walletSourceSignatures || [])} />
+      <WalletSyncPanel onViewSaved={onViewSaved} solPrice={solPrice} onImportWalletTrade={onImportWalletTrade} existingWalletSignatures={trades.flatMap((trade) => trade.walletSourceSignatures || [])} />
 
       <div>
         <div data-tour="paper-capital" className="bg-white border border-[#e9e9e7] rounded-xl p-4 shadow-xs space-y-3">

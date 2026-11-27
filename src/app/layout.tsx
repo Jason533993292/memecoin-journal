@@ -26,6 +26,7 @@ export const metadata: Metadata = {
     title: "Memecoin Journal",
     description: "Trade less blindly. Review every decision.",
   },
+  icons: { icon: "/journal-logo.png", apple: "/journal-logo.png" },
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
