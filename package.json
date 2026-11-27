@@ -47,18 +47,18 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",
-    "@firebase/rules-unit-testing": "^5.0.2",
-    "@playwright/test": "^1.64.1",
+    "@firebase/rules-unit-testing": "^6.0.0",
+    "@playwright/test": "^1.65.1",
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@types/node": "^26",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "eslint": "^9",
+    "eslint": "^10",
     "eslint-config-next": "^16.4.6",
-    "railway": "^3.12.0",
+    "railway": "^3.17.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^7"
   },
   "overrides": {
     "@grpc/grpc-js": "1.14.5",
