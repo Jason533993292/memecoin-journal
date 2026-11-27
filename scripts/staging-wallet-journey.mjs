@@ -12,7 +12,7 @@ export async function checkWalletJourney(page, user, baseUrl) {
   }
   const mint = bs58.encode(randomBytes(32));
   execFileSync("psql", ["-Xq", "-v", "ON_ERROR_STOP=1", "-v", "owner="+user.uid, "-v", "mint="+mint], {
-    env: { ...process.env, PGDATABASE: url.toString(), PGPASSWORD: process.env.STAGING_SUPABASE_DB_PASSWORD },
+    env: { ...process.env, PGHOST: url.hostname, PGPORT: url.port || "5432", PGUSER: decodeURIComponent(url.username), PGDATABASE: url.pathname.slice(1) || "postgres", PGSSLMODE: "require", PGPASSWORD: process.env.STAGING_SUPABASE_DB_PASSWORD },
     input: `begin;
       insert into public.wallet_links(user_id,address,label) values (:'owner',:'mint','Pilot fixture') returning id as link_id \\gset
       insert into public.wallet_events(user_id,wallet_link_id,signature,block_time,mint,direction,sol_change,token_change,raw)

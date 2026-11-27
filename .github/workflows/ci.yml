@@ -41,6 +41,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Check operational script syntax
+        run: for script in scripts/*.mjs; do node --check "$script"; done
+
       - name: Test
         run: npm run test
 

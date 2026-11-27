@@ -6,7 +6,7 @@ started=$SECONDS
 (cd backup && sha256sum --check --quiet SHA256SUMS)
 trap 'supabase stop --no-backup >/dev/null' EXIT
 supabase start -x studio,imgproxy,edge-runtime,realtime,storage-api,postgrest,gotrue,inbucket,logflare,vector,supavisor >/dev/null
-export PGDATABASE=postgresql://postgres:postgres@127.0.0.1:54322/postgres
+export PGHOST=127.0.0.1 PGPORT=54322 PGUSER=postgres PGPASSWORD=postgres PGDATABASE=postgres
 # The SQL stream contains private data. Suppress PostgreSQL error context in CI logs.
 {
   echo 'begin; set local session_replication_role=replica;'

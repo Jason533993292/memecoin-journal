@@ -129,7 +129,13 @@ grant execute on function public.is_trusted_journal_jwt() to authenticated;
 
 -- This event-trigger helper already exists in the new project. It is invoked
 -- by Postgres internally; users must never be able to call it through RPC.
-revoke all on function public.rls_auto_enable() from public, anon, authenticated;
+-- Hosted projects provide this helper; fresh local databases may not.
+do $$
+begin
+  if to_regprocedure('public.rls_auto_enable()') is not null then
+    revoke all on function public.rls_auto_enable() from public, anon, authenticated;
+  end if;
+end $$;
 
 alter table public.trades enable row level security;
 alter table public.wallets enable row level security;
