@@ -97,7 +97,8 @@ async function requireNotes(editDialog, expected, description) {
 try {
   user = await createDisposableUser();
   browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+  const page = await context.newPage();
   await page.route("**/api/sol-price", (route) => route.fulfill({
     status: 200,
     contentType: "application/json",

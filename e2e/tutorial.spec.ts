@@ -1,3 +1,4 @@
+import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
 const steps = [
@@ -54,6 +55,7 @@ test("guest tutorial reaches and highlights all 42 real targets", async ({ page 
 
 for (const theme of ["modern-platform", "premium-journal", "ocean", "graphite", "terminal", "default"]) {
   test(`desktop editors and journal surfaces remain readable in ${theme}`, async ({ page }, info) => {
+    test.setTimeout(60_000);
     await page.addInitScript(value => localStorage.setItem("memecoin-journal:theme-preview", value), theme);
     await page.goto("/");
     await page.locator('[data-access-choice-hydrated="true"]').waitFor();
@@ -62,14 +64,41 @@ for (const theme of ["modern-platform", "premium-journal", "ocean", "graphite", 
     await page.getByRole("button",{name:/new trade/i}).first().click();
     const editor = page.getByRole("dialog",{name:"Log New Trade"});
     await expect(editor).toBeVisible();
+    const editorA11y = await new AxeBuilder({ page }).include('[role="dialog"]').analyze();
+    expect(editorA11y.violations.filter(v => ["serious", "critical"].includes(v.impact || ""))).toEqual([]);
     await info.attach("trade-editor-"+theme,{body:await editor.screenshot(),contentType:"image/png"});
     await editor.getByRole("button",{name:"Close trade entry",exact:true}).click();
     for (const [nav,target] of [["wallets","wallet-sync"],["daily-journal","daily-journal-workspace"]]) {
       await page.locator(`[data-tour="nav-${nav}"]:visible`).click();
       const surface = page.locator(`[data-tour="${target}"]:visible`).first();
       await expect(surface).toBeVisible();
+      const a11y = await new AxeBuilder({ page }).include(`[data-tour="${target}"]`).analyze();
+      expect(a11y.violations.filter(v => ["serious", "critical"].includes(v.impact || ""))).toEqual([]);
       await expect.poll(() => surface.evaluate(el => el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(2);
       await info.attach(nav+"-"+theme,{body:await surface.screenshot(),contentType:"image/png"});
     }
   });
 }
+
+test("short introduction finishes and trade filters follow browser history", async ({ page }) => {
+  await page.goto("/");
+  await page.locator('[data-access-choice-hydrated="true"]').waitFor();
+  await page.getByRole("button", { name: "Guest mode", exact: true }).click();
+  await page.getByLabel("Start with").selectOption("quick");
+  await page.getByRole("button", { name: "Continue tutorial" }).click();
+  for (const id of ["journal", "journal-results", "daily-journal", "daily-journal-editor", "equity-curve", "tour-finish"]) {
+    await expect(page.locator("html")).toHaveAttribute("data-tour-step", id);
+    await expect(page.locator(`[data-tour-highlight="${id}"]`)).toBeVisible();
+    if (clickSteps.has(id)) await page.locator('button[aria-label^="Activate "]').click();
+    else await page.locator("[data-tour-dialog]").getByRole("button", { name: /^continue/i }).click();
+  }
+  await expect(page.getByText("Trading overview", { exact: true })).toBeVisible();
+  await page.locator('[data-tour="nav-journal"]:visible').click();
+  await page.getByRole("button", { name: /^Win \(/ }).click();
+  await expect(page).toHaveURL(/#trades\?result=Win$/);
+  await page.getByRole("button", { name: /^Loss \(/ }).click();
+  await expect(page).toHaveURL(/#trades\?result=Loss$/);
+  await page.goBack();
+  await expect(page).toHaveURL(/#trades\?result=Win$/);
+  await expect(page.getByRole("button", { name: /^Win \(/ })).toHaveClass(/font-semibold/);
+});

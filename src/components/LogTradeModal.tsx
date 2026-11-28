@@ -662,7 +662,7 @@ export default function LogTradeModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="log-trade-title"
-        className="bg-white border border-[#e9e9e7] rounded-2xl w-full max-w-xl shadow-xl relative text-[#37352f] flex flex-col max-h-[92vh] overflow-hidden"
+        className="trade-entry-panel bg-white border border-[#e9e9e7] rounded-2xl w-full max-w-xl shadow-xl relative text-[#37352f] flex flex-col max-h-[92vh] overflow-hidden"
       >
         {/* Sticky Header */}
         <div className="flex items-start justify-between gap-3 p-4 sm:p-6 pb-4 border-b border-[#f1f1ef] shrink-0 bg-white z-10 relative">
@@ -722,6 +722,7 @@ export default function LogTradeModal({
                 />
                 <button
                   type="button"
+                  aria-label="Look up token"
                   onClick={() => fetchTokenData()}
                   disabled={loadingToken || !ca}
                   className="px-3 py-2 bg-[#f1f1ef] hover:bg-[#e6e5e3] rounded-lg transition-colors flex items-center justify-center disabled:opacity-50 text-[#37352f] font-medium shrink-0"
@@ -1104,6 +1105,7 @@ export default function LogTradeModal({
                 <span>Wallet Used</span>
               </label>
               <select
+                aria-label="Wallet used"
                 value={wallet}
                 onChange={(e) => setWallet(e.target.value)}
                 className="w-full bg-[#fbfbfa] border border-[#e3e2de] rounded-lg px-2.5 py-1.5 text-xs text-[#37352f] focus:outline-none focus:border-[#2383e2]"

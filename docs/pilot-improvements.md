@@ -42,7 +42,7 @@ This checklist maps the requested 32 improvements to their implementation. Some 
 27. Dashboard, details, and share cards reuse amount-formatting helpers.
 28. Trade result/wallet/setup/tag/date filters are stored in the URL fragment and respond to browser Back.
 29. Protected staging journey checks an interrupted reflection and draft recovery after refresh.
-30. Desktop browser checks capture trade editor, wallet, and journal surfaces across six themes and check overflow; existing axe tests remain enabled. Screenshots are review evidence, not pixel-diff baselines.
+30. Desktop browser checks capture trade editor, wallet, and journal surfaces across six themes and check overflow and serious/critical axe accessibility violations. Screenshots are review evidence, not pixel-diff baselines.
 31. Optional heavy panels, including share-card rendering, retain lazy loading.
 32. Details return keyboard focus on closing; wallet review supports focus containment, Escape, and focus after save or dismissal.
 
@@ -56,6 +56,10 @@ This checklist maps the requested 32 improvements to their implementation. Some 
 - In Guide, start the short tutorial, finish on Dashboard, then restart from the Journal chapter. Move forward/back through journal and wallet steps.
 - Change themes and inspect forms, journal status, wallet buttons, and chart labels.
 - Open Feedback and inspect optional diagnostics: screen/release should appear; private notes should not.
+
+## Verified recovery
+
+The application-data restore drill passed on 28 November 2026: GitHub Actions run 46081423481. The disposable database was stopped afterwards and the backup was uploaded encrypted.
 
 ## Media
 

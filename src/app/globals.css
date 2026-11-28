@@ -1689,3 +1689,14 @@ html[data-theme-preview] .theme-preview-control button.is-active {
 .command-palette-panel .command-palette-item:focus-visible {
   background: color-mix(in srgb, currentColor 7%, transparent) !important;
 }
+
+/* Small editor labels must stay readable on both paper and dark surfaces. */
+.trade-entry-panel :is([class~="text-[#787774]"], [class~="text-[#9b9a97]"]) {
+  color: var(--preview-muted, #595956) !important;
+}
+.trade-entry-panel :is([class~="text-[#2383e2]"], [class~="text-purple-600"]) {
+  color: var(--preview-text, #185a9d) !important;
+}
+
+.daily-journal-book [class~="text-[#746955]"] { color: var(--book-muted) !important; }
+[data-tour="wallet-sync"] [class~="text-[#787774]"] { color: var(--preview-muted, #595956) !important; }

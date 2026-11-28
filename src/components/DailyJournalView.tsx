@@ -656,7 +656,7 @@ export default function DailyJournalView({ userId, trades, tutorialMode = false 
   return (
     <section data-tour="daily-journal-workspace" className={`daily-journal-workspace journal-page py-7 ${focusMode ? "fixed inset-0 z-[70] overflow-y-auto px-6 lg:px-12" : ""}`}>
       <header className={`mb-6 flex flex-wrap items-start justify-between gap-4 ${focusMode ? "mx-auto max-w-6xl" : ""}`}>
-        <div className="flex items-start gap-3"><span className="mt-1 flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10 text-[#2383e2]"><BookHeart size={21} /></span><div><h1 className="text-2xl font-bold">Daily Journal</h1><p className="mt-1 text-sm text-[#787774]">Write what happened, how you felt, and what you want to remember.</p></div></div>
+        <div className="flex items-start gap-3"><span className="mt-1 flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10 text-[#2383e2]"><BookHeart size={21} /></span><div><h1 className="text-2xl font-bold">Daily Journal</h1><p className="mt-1 text-sm text-[#5a5957]">Write what happened, how you felt, and what you want to remember.</p></div></div>
         <div ref={guidedMenuRef} className="relative flex flex-wrap gap-2">
           {!focusMode && <button type="button" onClick={() => setLibraryOpen(true)} className="daily-journal-secondary flex h-10 items-center gap-2 rounded-xl border px-3 text-sm font-semibold"><Library size={16} /> Entries</button>}
           {!focusMode && draft && <button type="button" onClick={() => setDetailsOpen(true)} className="daily-journal-secondary flex h-10 items-center gap-2 rounded-xl border px-3 text-sm font-semibold"><SlidersHorizontal size={16} /> Entry details</button>}
